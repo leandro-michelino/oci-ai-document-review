@@ -864,7 +864,8 @@ def dashboard_page(config, store):
 
     failures = df[df["Status"] == "FAILED"]
     if not failures.empty:
-        st.warning(f"{len(failures)} document processing run needs attention.")
+        noun = "document is" if len(failures) == 1 else "documents are"
+        st.info(f"{len(failures)} failed {noun} available in the Failed view.")
     if not active_runs.empty:
         suffix = "s are" if len(active_runs) != 1 else " is"
         st.info(
@@ -882,18 +883,15 @@ def dashboard_page(config, store):
     elif failed_count:
         default_view = "Failed"
 
-    control_cols = st.columns([1.25, 1])
-    view = control_cols[0].radio(
-        "Queue view",
+    control_cols = st.columns([0.7, 1.3])
+    view = control_cols[0].selectbox(
+        "Show",
         views,
         index=views.index(default_view),
-        horizontal=True,
-        label_visibility="collapsed",
     )
     search = control_cols[1].text_input(
         "Search",
         placeholder="Search documents",
-        label_visibility="collapsed",
     )
 
     filtered = filter_queue_rows(df=df, view=view, query=search)
@@ -903,6 +901,7 @@ def dashboard_page(config, store):
         "Name",
         "Stage",
         "Uploaded",
+        "Type",
         "Risk Level",
         "Confidence",
         "Action",
@@ -916,6 +915,11 @@ def dashboard_page(config, store):
             "Stage": st.column_config.TextColumn(
                 "Stage",
                 help=FIELD_HELP["Stage"],
+                width="small",
+            ),
+            "Type": st.column_config.TextColumn(
+                "Type",
+                help=FIELD_HELP["Document type"],
                 width="small",
             ),
             "Risk Level": st.column_config.TextColumn(
@@ -948,39 +952,16 @@ def dashboard_page(config, store):
     filtered_ids = filtered["Document ID"].tolist()
     previous_selection = st.session_state.get("dashboard_selected_document")
     selected_index = filtered_ids.index(previous_selection) if previous_selection in filtered_ids else 0
-    selected = st.selectbox(
-        "Selected document",
+    open_cols = st.columns([1.5, 0.5])
+    selected = open_cols[0].selectbox(
+        "Open document",
         filtered_ids,
         index=selected_index,
         format_func=lambda document_id: label_by_id.get(document_id, document_id),
         key="dashboard_selected_document",
     )
-
-    record_by_id = {record.document_id: record for record in records}
-    selected_record = record_by_id[selected]
-    with st.container(border=True):
-        st.subheader(selected_record.document_name)
-        render_status_strip(selected_record)
-        review_col, action_col = st.columns([1.4, 1], gap="large")
-        with review_col:
-            if selected_record.analysis:
-                render_summary_panel(
-                    "Executive Summary",
-                    selected_record.analysis.executive_summary,
-                )
-            elif selected_record.error_message:
-                st.error(selected_record.error_message)
-            else:
-                st.info("Analysis is not available yet.")
-            with st.expander("File and processing details"):
-                render_file_information(selected_record, compact=True)
-                render_lifecycle(selected_record)
-        with action_col:
-            render_review_action_panel(store, selected_record, "dashboard")
-            if st.button("Open Document", type="primary", use_container_width=True):
-                st.session_state["selected_document_id"] = selected
-                st.session_state["page"] = PAGE_DETAIL
-                st.rerun()
+    if open_cols[1].button("Open", type="primary", use_container_width=True):
+        open_page(PAGE_DETAIL, selected)
 
 
 def detail_page(config, store):
