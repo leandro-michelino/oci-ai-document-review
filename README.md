@@ -56,6 +56,10 @@ Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and i
 
 More ASCII flows are in `docs/architecture_flows.md`.
 
+## Platform Usage
+
+Detailed Terraform outputs, Ansible output, deployment flow, operations commands, and portal usage instructions are in `docs/platform_usage.md`.
+
 ## Cost Estimate
 
 An illustrative cost estimate and pricing worksheet is available in `docs/cost_estimate.md`.

@@ -167,3 +167,18 @@
         port: "{{ app_port }}"
         delay: 3
         timeout: 120
+
+    - name: Show platform usage summary
+      ansible.builtin.debug:
+        msg:
+          - "OCI AI Document Review Portal deployment complete."
+          - "Portal URL: http://{{ ansible_host }}:{{ app_port }}"
+          - "SSH: ssh opc@{{ ansible_host }}"
+          - "App directory: {{ app_dir }}"
+          - "Systemd service: oci-ai-document-review"
+          - "Check service: sudo systemctl status oci-ai-document-review"
+          - "Follow logs: sudo journalctl -u oci-ai-document-review -f"
+          - "Restart app: sudo systemctl restart oci-ai-document-review"
+          - "Runtime config: {{ app_dir }}/.env"
+          - "Local metadata: {{ app_dir }}/data/metadata"
+          - "Local reports: {{ app_dir }}/data/reports"

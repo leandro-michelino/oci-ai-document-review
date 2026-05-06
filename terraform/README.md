@@ -49,6 +49,12 @@ terraform init
 terraform plan
 ```
 
+Show the structured platform output after deployment:
+
+```bash
+terraform output platform_summary
+```
+
 Apply only after explicit approval:
 
 ```bash

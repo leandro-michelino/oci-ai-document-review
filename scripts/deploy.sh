@@ -77,6 +77,13 @@ terraform apply -auto-approve
 
 PUBLIC_IP="$(terraform output -raw instance_public_ip)"
 STREAMLIT_URL="$(terraform output -raw streamlit_url)"
+SSH_COMMAND="$(terraform output -raw ssh_command)"
+VCN_ID="$(terraform output -raw vcn_id)"
+PUBLIC_SUBNET_ID="$(terraform output -raw public_subnet_id)"
+PRIVATE_SUBNET_ID="$(terraform output -raw private_subnet_id)"
+IGW_ID="$(terraform output -raw internet_gateway_id)"
+NATGW_ID="$(terraform output -raw nat_gateway_id)"
+SGW_ID="$(terraform output -raw service_gateway_id)"
 
 cat > "$INVENTORY" <<EOF
 [doc_review]
@@ -102,4 +109,47 @@ ansible-playbook -i "$INVENTORY" ansible/playbook.yml \
   -e "max_document_chars=${MAX_DOCUMENT_CHARS:-50000}" \
   -e "max_upload_mb=${MAX_UPLOAD_MB:-10}"
 
-echo "Portal URL: $STREAMLIT_URL"
+cat <<EOF
+
+============================================================
+OCI AI Document Review Portal - Deployment Summary
+============================================================
+
+Application
+  Portal URL:      $STREAMLIT_URL
+  SSH command:     $SSH_COMMAND
+  Service name:    oci-ai-document-review
+  Remote app dir:  /opt/oci-ai-document-review
+
+OCI Services
+  Runtime region:  $OCI_REGION
+  GenAI region:    $GENAI_REGION
+  Bucket:          $OCI_BUCKET_NAME
+  Namespace:       $OCI_NAMESPACE
+
+Network
+  VCN:             $VCN_ID
+  Public subnet:   $PUBLIC_SUBNET_ID
+  Private subnet:  $PRIVATE_SUBNET_ID
+  Internet GW:     $IGW_ID
+  NAT GW:          $NATGW_ID
+  Service GW:      $SGW_ID
+  NSGs used:       false
+
+Useful Commands
+  Open portal:     $STREAMLIT_URL
+  SSH to VM:       $SSH_COMMAND
+  Service status:  sudo systemctl status oci-ai-document-review
+  Follow logs:     sudo journalctl -u oci-ai-document-review -f
+  Restart app:     sudo systemctl restart oci-ai-document-review
+  Terraform summary:
+                   cd terraform && terraform output platform_summary
+
+Security Notes
+  Deployment runs from this laptop.
+  No GitHub Actions or CI deployment is configured.
+  Real .env, terraform.tfvars, Terraform state, and OCI keys are ignored by Git.
+
+============================================================
+
+EOF
