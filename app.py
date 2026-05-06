@@ -17,8 +17,18 @@ from src.processor import create_document_id
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
 READY_FOR_DECISION = {"REVIEW_REQUIRED"}
+ACTIVE_STATUSES = {"UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"}
 CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
 CONTACT_MESSAGE = "In case of any question, get in touch."
+PAGE_UPLOAD = "Upload"
+PAGE_DASHBOARD = "Dashboard"
+PAGE_DETAIL = "Document"
+PAGE_SETTINGS = "Settings"
+LEGACY_PAGE_NAMES = {
+    "Upload Document": PAGE_UPLOAD,
+    "Review Dashboard": PAGE_DASHBOARD,
+    "Document Details": PAGE_DETAIL,
+}
 RISK_TONE = {
     "HIGH": "risk-high",
     "MEDIUM": "risk-medium",
@@ -51,6 +61,7 @@ FIELD_HELP = {
     "Review": "Human review decision state: PENDING, APPROVED, or REJECTED.",
     "Risk": "Highest severity found in AI risk notes. NONE means no risk note was returned.",
     "Status": "Processing state for the document lifecycle, from upload through approval or failure.",
+    "Stage": "Simple queue state: Queued, Processing, Ready, Reviewed, or Failed.",
     "Storage": "Whether the original file has an OCI Object Storage path recorded.",
     "Text preview": "Number of extracted characters stored for quick inspection in the portal.",
 }
@@ -94,9 +105,9 @@ def apply_theme() -> None:
             background: var(--app-bg);
         }
         .block-container {
-            padding-top: 1.25rem;
+            padding-top: 1rem;
             padding-bottom: 2.5rem;
-            max-width: 1480px;
+            max-width: 1180px;
         }
         h1, h2, h3 {
             letter-spacing: 0;
@@ -110,8 +121,8 @@ def apply_theme() -> None:
             background: var(--panel-bg);
             border: 1px solid var(--panel-border);
             border-radius: 8px;
-            padding: 0.85rem 0.95rem;
-            min-height: 94px;
+            padding: 0.7rem 0.85rem;
+            min-height: 80px;
             box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
         }
         div[data-testid="stMetricLabel"] p {
@@ -120,7 +131,7 @@ def apply_theme() -> None:
         }
         div[data-testid="stMetricValue"] {
             color: var(--text-strong);
-            font-size: 1.42rem;
+            font-size: 1.22rem;
         }
         .app-page-header {
             border-bottom: 1px solid var(--panel-border);
@@ -136,7 +147,7 @@ def apply_theme() -> None:
             margin-bottom: 0.15rem;
         }
         .app-page-header h1 {
-            font-size: 1.78rem;
+            font-size: 1.58rem;
             line-height: 1.15;
             margin: 0;
         }
@@ -216,9 +227,9 @@ def apply_theme() -> None:
         }
         .review-snapshot {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 0.6rem;
-            margin: 0.65rem 0 0.9rem;
+            margin: 0.55rem 0 0.75rem;
         }
         .snapshot-cell {
             background: var(--panel-bg);
@@ -244,16 +255,28 @@ def apply_theme() -> None:
         }
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.75rem;
-            margin: 0.45rem 0 0.8rem;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.6rem;
+            margin: 0.35rem 0 0.65rem;
         }
         .info-item {
             border: 1px solid var(--panel-border);
             border-radius: 8px;
-            padding: 0.75rem;
+            padding: 0.62rem 0.7rem;
             background: #fbfaf7;
             min-width: 0;
+        }
+        .simple-note {
+            color: var(--text-soft);
+            font-size: 0.9rem;
+            line-height: 1.45;
+            margin: 0.25rem 0 0.75rem;
+        }
+        .action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
         }
         .info-label {
             color: var(--text-soft);
@@ -428,7 +451,6 @@ def render_review_snapshot(record) -> None:
     confidence = confidence_percent(record)
     values = [
         ("Status", record.status.value),
-        ("Review", record.review_status.value),
         ("Risk", highest_risk_level(record)),
         ("Confidence", "N/A" if confidence is None else f"{confidence}%"),
         ("Next action", next_action(record)),
@@ -445,15 +467,19 @@ def render_review_snapshot(record) -> None:
     st.markdown(f'<div class="review-snapshot">{cells}</div>', unsafe_allow_html=True)
 
 
-def render_file_information(record) -> None:
-    info = [
+def render_file_information(record, compact: bool = False) -> None:
+    core_info = [
         ("File name", record.document_name),
-        ("Extension", file_extension(record)),
         ("Document type", record.document_type.value),
         ("File size", file_size_label(record.source_file_size_bytes)),
+        ("Uploaded", record.uploaded_at.strftime("%Y-%m-%d %H:%M")),
+        ("Status", record.status.value),
+        ("Action", next_action(record)),
+    ]
+    extra_info = [
+        ("Extension", file_extension(record)),
         ("MIME type", record.source_file_mime_type or "Not captured"),
         ("Business reference", record.business_reference or "Not provided"),
-        ("Uploaded", record.uploaded_at.strftime("%Y-%m-%d %H:%M")),
         (
             "Processed",
             record.processed_at.strftime("%Y-%m-%d %H:%M") if record.processed_at else "Not processed",
@@ -463,6 +489,7 @@ def render_file_information(record) -> None:
         ("Text preview", extracted_text_label(record)),
         ("Storage", "Uploaded to OCI" if record.object_storage_path else "Not uploaded"),
     ]
+    info = core_info if compact else core_info + extra_info
     items = "\n".join(
         f"""
         <div class="info-item">
@@ -504,6 +531,18 @@ def next_action(record) -> str:
     if record.review_status.value == "REJECTED":
         return "Rejected"
     return "Wait for processing"
+
+
+def queue_stage(record) -> str:
+    if record.status.value == "FAILED":
+        return "Failed"
+    if record.review_status.value in {"APPROVED", "REJECTED"}:
+        return "Reviewed"
+    if record.status.value == "REVIEW_REQUIRED":
+        return "Ready"
+    if record.status.value in ACTIVE_STATUSES:
+        return "Processing" if record.status.value != "UPLOADED" else "Queued"
+    return record.status.value.replace("_", " ").title()
 
 
 def processing_stage_rows(record) -> list[dict[str, str]]:
@@ -573,11 +612,13 @@ def record_to_row(record):
     analysis = record.analysis
     summary = record_summary(record)
     action = next_action(record)
+    stage = queue_stage(record)
     search_parts = [
         record.document_id,
         record.document_name,
         record.document_type.value,
         record.status.value,
+        stage,
         record.review_status.value,
         record.business_reference or "",
         action,
@@ -588,6 +629,7 @@ def record_to_row(record):
         "Name": record.document_name,
         "Type": record.document_type.value,
         "Status": record.status.value,
+        "Stage": stage,
         "Review": record.review_status.value,
         "Uploaded": record.uploaded_at.strftime("%Y-%m-%d %H:%M"),
         "Uploaded Sort": record.uploaded_at.isoformat(),
@@ -636,11 +678,29 @@ def filter_dashboard_rows(
     return filtered.sort_values("Uploaded Sort", ascending=False)
 
 
+def filter_queue_rows(df: pd.DataFrame, view: str, query: str) -> pd.DataFrame:
+    filtered = df.copy()
+    if view == "Ready":
+        filtered = filtered[filtered["Action"] == "Approve or reject"]
+    elif view == "Processing":
+        filtered = filtered[filtered["Status"].isin(ACTIVE_STATUSES)]
+    elif view == "Failed":
+        filtered = filtered[filtered["Status"] == "FAILED"]
+    elif view == "Reviewed":
+        filtered = filtered[filtered["Review"].isin(["APPROVED", "REJECTED"])]
+
+    terms = [term for term in query.lower().split() if term]
+    for term in terms:
+        filtered = filtered[filtered["Search Text"].str.contains(term, regex=False, na=False)]
+    return filtered.sort_values("Uploaded Sort", ascending=False)
+
+
 def selected_record_label(row: pd.Series) -> str:
-    return f"{row['Name']} - {row['Status']} - {row['Uploaded']}"
+    return f"{row['Name']} - {row['Stage']} - {row['Uploaded']}"
 
 
 def open_page(page: str, document_id: str | None = None) -> None:
+    page = LEGACY_PAGE_NAMES.get(page, page)
     if document_id:
         st.session_state["selected_document_id"] = document_id
         st.session_state["dashboard_selected_document"] = document_id
@@ -650,19 +710,19 @@ def open_page(page: str, document_id: str | None = None) -> None:
 
 def render_queued_actions(record) -> None:
     with st.container(border=True):
-        st.subheader("Document Queued")
+        st.subheader("Queued")
         render_status_strip(record)
-        st.write("The file was accepted and background processing has started.")
-        cols = st.columns(3)
-        if cols[0].button("Open Dashboard", type="primary"):
-            open_page("Review Dashboard", record.document_id)
-        if cols[1].button("Open Details"):
-            open_page("Document Details", record.document_id)
+        st.write("The file is in the background queue. You can follow it from the dashboard.")
+        cols = st.columns([1, 1, 1])
+        if cols[0].button("View Dashboard", type="primary"):
+            open_page(PAGE_DASHBOARD, record.document_id)
+        if cols[1].button("Open Document"):
+            open_page(PAGE_DETAIL, record.document_id)
         if cols[2].button("Upload Another"):
             st.session_state["upload_widget_version"] = (
                 st.session_state.get("upload_widget_version", 0) + 1
             )
-            open_page("Upload Document")
+            open_page(PAGE_UPLOAD)
 
 
 def apply_review_action(store, document_id: str, approved: bool, comments: str | None) -> bool:
@@ -704,53 +764,38 @@ def render_review_action_panel(store, record, key_prefix: str) -> None:
 def upload_page(config, store):
     page_header(
         "Intake",
-        "Upload Document",
-        "Submit a PDF or image for OCI extraction, GenAI analysis, and human review.",
+        "Upload",
+        "Add a document. The app queues it, processes it in OCI, then sends it to review.",
     )
-    intake_col, context_col = st.columns([2, 1], gap="large")
-    with intake_col:
-        with st.container(border=True):
-            st.subheader("Document Intake")
-            document_type = st.selectbox("Document type", [item.value for item in DocumentType])
-            business_reference = st.text_input("Business reference")
-            notes = st.text_area("Notes", height=120)
-            uploaded = st.file_uploader(
-                "Document file",
-                type=["pdf", "png", "jpg", "jpeg"],
-                key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
-                help=(
-                    "Streamlit may show its server upload limit, but this app enforces "
-                    f"{config.max_upload_mb} MB before processing."
-                ),
-            )
+    st.caption(
+        f"GenAI region: {config.genai_region} | Parallel jobs: {config.max_parallel_jobs} | "
+        f"Upload limit: {config.max_upload_mb} MB"
+    )
 
-            uploaded_ok = uploaded is not None
-            if uploaded:
-                size_mb = uploaded.size / (1024 * 1024)
-                st.caption(f"{uploaded.name} - {size_mb:.2f} MB")
-                if size_mb > config.max_upload_mb:
-                    st.error(f"File exceeds the configured {config.max_upload_mb} MB limit.")
-                    uploaded_ok = False
-            process_clicked = st.button(
-                "Process Document",
-                disabled=not uploaded_ok,
-                type="primary",
-                use_container_width=True,
-            )
+    with st.container(border=True):
+        document_type = st.selectbox("Document type", [item.value for item in DocumentType])
+        business_reference = st.text_input("Reference", placeholder="Optional")
+        uploaded = st.file_uploader(
+            "File",
+            type=["pdf", "png", "jpg", "jpeg"],
+            key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
+            help=f"Maximum file size enforced by the app: {config.max_upload_mb} MB.",
+        )
+        notes = st.text_area("Notes", height=90, placeholder="Optional review context")
 
-    with context_col:
-        with st.container(border=True):
-            st.subheader("Runtime")
-            st.metric("GenAI region", config.genai_region)
-            st.metric("Upload limit", f"{config.max_upload_mb} MB")
-            st.metric("Parallel jobs", config.max_parallel_jobs)
-            st.caption("The processing path uses the configured OCI services and credentials.")
-        with st.container(border=True):
-            st.subheader("Review Flow")
-            st.write("Upload")
-            st.write("Extract")
-            st.write("Analyze")
-            st.write("Approve or reject")
+        uploaded_ok = uploaded is not None
+        if uploaded:
+            size_mb = uploaded.size / (1024 * 1024)
+            st.caption(f"Selected: {uploaded.name} - {size_mb:.2f} MB")
+            if size_mb > config.max_upload_mb:
+                st.error(f"File exceeds the configured {config.max_upload_mb} MB limit.")
+                uploaded_ok = False
+        process_clicked = st.button(
+            "Queue Document",
+            disabled=not uploaded_ok,
+            type="primary",
+            use_container_width=True,
+        )
 
     if process_clicked and uploaded:
         document_id = create_document_id()
@@ -794,86 +839,73 @@ def upload_page(config, store):
 
 def dashboard_page(config, store):
     page_header(
-        "Review Queue",
-        "Review Dashboard",
-        "Prioritize documents, inspect analysis, and record the human decision.",
+        "Review",
+        "Dashboard",
+        "Track processing, find documents, and approve or reject completed reviews.",
     )
     records = store.list_records()
     if not records:
         with st.container(border=True):
             st.info("No documents processed yet.")
-            if st.button("Upload Document", type="primary"):
-                open_page("Upload Document")
+            if st.button("Upload", type="primary"):
+                open_page(PAGE_UPLOAD)
         return
 
     rows = [record_to_row(record) for record in records]
     df = pd.DataFrame(rows)
-    cols = st.columns(5)
+    active_runs = df[df["Status"].isin(ACTIVE_STATUSES)]
+    ready_count = (df["Action"] == "Approve or reject").sum()
+    failed_count = (df["Status"] == "FAILED").sum()
+    cols = st.columns(4)
     cols[0].metric("Total", len(records))
-    cols[1].metric("Action Required", (df["Action"] == "Approve or reject").sum())
-    cols[2].metric("High Risk", (df["Risk Level"] == "HIGH").sum())
-    cols[3].metric("Failed", (df["Status"] == "FAILED").sum())
-    avg_confidence = df["Confidence"].dropna().mean()
-    cols[4].metric(
-        "Avg Confidence",
-        "N/A" if pd.isna(avg_confidence) else f"{avg_confidence:.0f}%",
-    )
+    cols[1].metric("Ready", ready_count)
+    cols[2].metric("Processing", len(active_runs))
+    cols[3].metric("Failed", failed_count)
 
     failures = df[df["Status"] == "FAILED"]
     if not failures.empty:
         st.warning(f"{len(failures)} document processing run needs attention.")
-    active_runs = df[df["Status"].isin(["UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"])]
     if not active_runs.empty:
+        suffix = "s are" if len(active_runs) != 1 else " is"
         st.info(
-            f"{len(active_runs)} document processing run is active. "
-            f"Worker pool size: {config.max_parallel_jobs}."
+            f"{len(active_runs)} document{suffix} processing. Worker pool size: {config.max_parallel_jobs}."
         )
         if st.button("Refresh Status"):
             st.rerun()
 
-    with st.container(border=True):
-        st.subheader("Filters")
-        filter_row = st.columns([2, 1, 1, 1])
-        search = filter_row[0].text_input(
-            "Search",
-            placeholder="Name, ID, reference, status, action, or summary",
-        )
-        selected_status = filter_row[1].multiselect("Status", sorted(df["Status"].unique()))
-        selected_type = filter_row[2].multiselect("Type", sorted(df["Type"].unique()))
-        selected_review = filter_row[3].multiselect("Review", sorted(df["Review"].unique()))
+    views = ["Ready", "Processing", "Failed", "Reviewed", "All"]
+    default_view = "All"
+    if ready_count:
+        default_view = "Ready"
+    elif len(active_runs):
+        default_view = "Processing"
+    elif failed_count:
+        default_view = "Failed"
 
-        advanced = st.columns([1, 1, 1])
-        selected_risk = advanced[0].multiselect(
-            "Risk",
-            [level for level in ["HIGH", "MEDIUM", "LOW", "NONE"] if level in set(df["Risk Level"])],
-        )
-        min_confidence = advanced[1].slider("Min confidence", 0, 100, 0, step=5)
-        needs_attention = advanced[2].toggle("Needs attention only", value=False)
-
-    filtered = filter_dashboard_rows(
-        df=df,
-        query=search,
-        statuses=selected_status,
-        document_types=selected_type,
-        review_states=selected_review,
-        risk_levels=selected_risk,
-        minimum_confidence=min_confidence,
-        needs_attention_only=needs_attention,
+    control_cols = st.columns([1.25, 1])
+    view = control_cols[0].radio(
+        "Queue view",
+        views,
+        index=views.index(default_view),
+        horizontal=True,
+        label_visibility="collapsed",
     )
+    search = control_cols[1].text_input(
+        "Search",
+        placeholder="Search documents",
+        label_visibility="collapsed",
+    )
+
+    filtered = filter_queue_rows(df=df, view=view, query=search)
 
     st.caption(f"Showing {len(filtered)} of {len(df)} documents")
     display_columns = [
         "Name",
-        "Type",
-        "Status",
-        "Review",
+        "Stage",
         "Uploaded",
-        "Reference",
         "Risk Level",
-        "Risks",
         "Confidence",
         "Action",
-        "Summary",
     ]
     st.dataframe(
         filtered[display_columns],
@@ -881,19 +913,9 @@ def dashboard_page(config, store):
         hide_index=True,
         column_config={
             "Name": st.column_config.TextColumn("Name", width="medium"),
-            "Type": st.column_config.TextColumn(
-                "Type",
-                help=FIELD_HELP["Document type"],
-                width="small",
-            ),
-            "Status": st.column_config.TextColumn(
-                "Status",
-                help=FIELD_HELP["Status"],
-                width="small",
-            ),
-            "Review": st.column_config.TextColumn(
-                "Review",
-                help=FIELD_HELP["Review"],
+            "Stage": st.column_config.TextColumn(
+                "Stage",
+                help=FIELD_HELP["Stage"],
                 width="small",
             ),
             "Risk Level": st.column_config.TextColumn(
@@ -913,11 +935,10 @@ def dashboard_page(config, store):
                 max_value=100,
                 format="%d%%",
             ),
-            "Summary": st.column_config.TextColumn("Summary", width="large"),
         },
     )
     if filtered.empty:
-        st.info("No documents match the selected filters.")
+        st.info("No documents in this view.")
         return
 
     label_by_id = {
@@ -940,10 +961,6 @@ def dashboard_page(config, store):
     with st.container(border=True):
         st.subheader(selected_record.document_name)
         render_status_strip(selected_record)
-        render_review_snapshot(selected_record)
-        render_field_guide()
-        st.markdown("### File Information")
-        render_file_information(selected_record)
         review_col, action_col = st.columns([1.4, 1], gap="large")
         with review_col:
             if selected_record.analysis:
@@ -955,20 +972,21 @@ def dashboard_page(config, store):
                 st.error(selected_record.error_message)
             else:
                 st.info("Analysis is not available yet.")
-            with st.expander("Processing lifecycle"):
+            with st.expander("File and processing details"):
+                render_file_information(selected_record, compact=True)
                 render_lifecycle(selected_record)
         with action_col:
             render_review_action_panel(store, selected_record, "dashboard")
-            if st.button("Open Details", type="primary", use_container_width=True):
+            if st.button("Open Document", type="primary", use_container_width=True):
                 st.session_state["selected_document_id"] = selected
-                st.session_state["page"] = "Document Details"
+                st.session_state["page"] = PAGE_DETAIL
                 st.rerun()
 
 
 def detail_page(config, store):
     page_header(
         "Case File",
-        "Document Details",
+        "Document",
         "Inspect lifecycle evidence, AI analysis, source data, and review outcome.",
     )
     records = store.list_records()
@@ -976,8 +994,8 @@ def detail_page(config, store):
     if not ids:
         with st.container(border=True):
             st.info("No documents processed yet.")
-            if st.button("Upload Document", type="primary"):
-                open_page("Upload Document")
+            if st.button("Upload", type="primary"):
+                open_page(PAGE_UPLOAD)
         return
 
     default_id = st.session_state.get("selected_document_id", ids[0])
@@ -1157,13 +1175,14 @@ def main():
     if stale_count:
         st.warning(f"{stale_count} stale processing run was marked as failed.")
 
-    pages = ["Upload Document", "Review Dashboard", "Document Details", "Settings"]
+    pages = [PAGE_UPLOAD, PAGE_DASHBOARD, PAGE_DETAIL, PAGE_SETTINGS]
     st.sidebar.title(config.app_title)
     st.sidebar.caption("AI document review on OCI")
+    current_page = LEGACY_PAGE_NAMES.get(st.session_state.get("page", PAGE_UPLOAD), PAGE_UPLOAD)
     page = st.sidebar.radio(
         "Navigation",
         pages,
-        index=pages.index(st.session_state.get("page", "Upload Document")),
+        index=pages.index(current_page),
     )
     st.session_state["page"] = page
     st.sidebar.divider()
@@ -1173,11 +1192,11 @@ def main():
     st.sidebar.caption(CONTACT_TEXT)
     st.sidebar.caption(CONTACT_MESSAGE)
 
-    if page == "Upload Document":
+    if page == PAGE_UPLOAD:
         upload_page(config, store)
-    elif page == "Review Dashboard":
+    elif page == PAGE_DASHBOARD:
         dashboard_page(config, store)
-    elif page == "Document Details":
+    elif page == PAGE_DETAIL:
         detail_page(config, store)
     else:
         settings_page(config)

@@ -2,7 +2,14 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from app import file_size_label, filter_dashboard_rows, next_action, processing_stage_rows, record_to_row
+from app import (
+    file_size_label,
+    filter_dashboard_rows,
+    filter_queue_rows,
+    next_action,
+    processing_stage_rows,
+    record_to_row,
+)
 from src.models import (
     DocumentAnalysis,
     DocumentRecord,
@@ -47,6 +54,7 @@ def test_record_to_row_adds_dashboard_fields():
     row = record_to_row(record)
 
     assert row["Risk Level"] == "HIGH"
+    assert row["Stage"] == "Ready"
     assert row["Confidence"] == 76
     assert row["Action"] == "Approve or reject"
     assert "contract.pdf" in row["Search Text"]
@@ -106,3 +114,18 @@ def test_filter_dashboard_rows_searches_and_filters():
     )
 
     assert filtered["Document ID"].tolist() == ["doc-1"]
+
+
+def test_filter_queue_rows_uses_simple_review_views():
+    ready = make_record("doc-1", "ready.pdf")
+    processing = make_record("doc-2", "processing.pdf", status=ProcessingStatus.PROCESSING)
+    failed = make_record("doc-3", "failed.pdf", status=ProcessingStatus.FAILED)
+    approved = make_record("doc-4", "approved.pdf", status=ProcessingStatus.APPROVED)
+    approved.review_status = ReviewStatus.APPROVED
+    df = pd.DataFrame([record_to_row(record) for record in [ready, processing, failed, approved]])
+
+    assert filter_queue_rows(df, view="Ready", query="")["Document ID"].tolist() == ["doc-1"]
+    assert filter_queue_rows(df, view="Processing", query="")["Document ID"].tolist() == ["doc-2"]
+    assert filter_queue_rows(df, view="Failed", query="")["Document ID"].tolist() == ["doc-3"]
+    assert filter_queue_rows(df, view="Reviewed", query="")["Document ID"].tolist() == ["doc-4"]
+    assert filter_queue_rows(df, view="All", query="approved")["Document ID"].tolist() == ["doc-4"]
