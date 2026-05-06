@@ -2,13 +2,14 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from app import filter_dashboard_rows, record_to_row
+from app import filter_dashboard_rows, next_action, processing_stage_rows, record_to_row
 from src.models import (
     DocumentAnalysis,
     DocumentRecord,
     DocumentType,
     ProcessingStatus,
     RiskNote,
+    ReviewStatus,
 )
 
 
@@ -47,7 +48,36 @@ def test_record_to_row_adds_dashboard_fields():
 
     assert row["Risk Level"] == "HIGH"
     assert row["Confidence"] == 76
+    assert row["Action"] == "Approve or reject"
     assert "contract.pdf" in row["Search Text"]
+
+
+def test_next_action_for_failed_and_reviewed_records():
+    failed = make_record("doc-3", "bad.pdf", status=ProcessingStatus.FAILED)
+    approved = make_record("doc-4", "approved.pdf", status=ProcessingStatus.APPROVED)
+    approved.review_status = ReviewStatus.APPROVED
+
+    assert next_action(failed) == "Fix and retry"
+    assert next_action(approved) == "Approved"
+
+
+def test_processing_stage_rows_show_backend_lifecycle():
+    record = make_record("doc-5", "lifecycle.pdf")
+    record.object_storage_path = "oci://bucket/documents/doc-5/lifecycle.pdf"
+    record.extracted_text_preview = "Important contract text"
+
+    rows = processing_stage_rows(record)
+
+    assert [row["Stage"] for row in rows] == [
+        "Upload",
+        "Object Storage",
+        "Document Understanding",
+        "GenAI analysis",
+        "Review report",
+        "Human decision",
+    ]
+    assert rows[1]["State"] == "Complete"
+    assert rows[-1]["Evidence"] == "Approve or reject"
 
 
 def test_filter_dashboard_rows_searches_and_filters():

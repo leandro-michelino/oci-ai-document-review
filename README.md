@@ -13,12 +13,46 @@ Users upload a document in the web portal. The platform then:
 2. Extracts text, tables, and key values with OCI Document Understanding.
 3. Sends the extracted content to OCI Generative AI for structured review.
 4. Creates a JSON metadata record and a Markdown report.
-5. Shows the result in a dashboard for human review.
-6. Lets a reviewer approve or reject the document.
-7. Provides search, filters, risk level, confidence, and report downloads.
+5. Shows a next-action prompt asking the user to review now, open the dashboard, or upload another file.
+6. Shows the result in a dashboard for human review with an action-required queue.
+7. Shows a processing lifecycle so reviewers can see what completed behind the scenes.
+8. Lets a reviewer approve or reject the document.
+9. Provides search, filters, risk level, confidence, and report downloads.
 ```
 
 The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
+
+## What Happens After Upload
+
+After the user clicks Process Document, the portal performs the live backend workflow and then asks for a human action.
+
+```text
+User uploads file
+  |
+  v
+Local working copy saved
+  |
+  v
+Original file uploaded to OCI Object Storage
+  |
+  v
+OCI Document Understanding extracts text
+  |
+  v
+OCI Generative AI creates structured review
+  |
+  v
+Metadata and Markdown report are saved
+  |
+  v
+Portal asks reviewer to choose the next action:
+  Review Now, Open Dashboard, or Upload Another
+  |
+  v
+Reviewer approves or rejects the document
+```
+
+The dashboard and Document Details page both show the same next action. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`.
 
 ## Description
 
@@ -178,10 +212,14 @@ The app supports:
 - Object Storage upload
 - Document Understanding extraction
 - GenAI JSON analysis
+- Post-processing next-action prompt
 - Markdown report generation
 - Local JSON metadata
 - Approve and reject review actions
 - Dashboard and detail views
+- Dashboard decision panel for pending reviews
+- Processing lifecycle view for each document
+- Document Details tabs for analysis, review action, source data, and downloads
 - OCI Preflight checks in Settings
 
 ## Future Enhancements

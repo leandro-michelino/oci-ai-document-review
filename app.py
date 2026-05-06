@@ -14,6 +14,7 @@ from src.processor import DocumentProcessor, error_message
 
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
+READY_FOR_DECISION = {"REVIEW_REQUIRED"}
 
 
 def safe_upload_suffix(filename: str) -> str:
@@ -45,6 +46,75 @@ def confidence_percent(record) -> int | None:
     return round(record.analysis.confidence_score * 100)
 
 
+def requires_human_action(record) -> bool:
+    return record.status.value in READY_FOR_DECISION and record.review_status.value == "PENDING"
+
+
+def next_action(record) -> str:
+    if record.status.value == "FAILED":
+        return "Fix and retry"
+    if requires_human_action(record):
+        return "Approve or reject"
+    if record.review_status.value == "APPROVED":
+        return "Approved"
+    if record.review_status.value == "REJECTED":
+        return "Rejected"
+    return "Wait for processing"
+
+
+def processing_stage_rows(record) -> list[dict[str, str]]:
+    has_extraction = bool(record.extracted_text_preview)
+    has_report = bool(record.report_path and Path(record.report_path).exists())
+    return [
+        {
+            "Stage": "Upload",
+            "State": "Complete",
+            "Evidence": record.uploaded_at.strftime("%Y-%m-%d %H:%M"),
+        },
+        {
+            "Stage": "Object Storage",
+            "State": "Complete" if record.object_storage_path else "Not complete",
+            "Evidence": record.object_storage_path or "No object recorded",
+        },
+        {
+            "Stage": "Document Understanding",
+            "State": "Complete" if has_extraction else "Not complete",
+            "Evidence": "Extracted text preview saved" if has_extraction else "No extracted text",
+        },
+        {
+            "Stage": "GenAI analysis",
+            "State": "Complete" if record.analysis else "Not complete",
+            "Evidence": (
+                f"{confidence_percent(record)}% confidence"
+                if record.analysis
+                else "No analysis saved"
+            ),
+        },
+        {
+            "Stage": "Review report",
+            "State": "Complete" if has_report else "Not complete",
+            "Evidence": "Markdown report available" if has_report else "No report file",
+        },
+        {
+            "Stage": "Human decision",
+            "State": record.review_status.value,
+            "Evidence": next_action(record),
+        },
+    ]
+
+
+def render_lifecycle(record) -> None:
+    st.markdown("### Processing Lifecycle")
+    st.write(f"Next action: `{next_action(record)}`")
+    st.dataframe(
+        pd.DataFrame(processing_stage_rows(record)),
+        use_container_width=True,
+        hide_index=True,
+    )
+    if record.status.value == "FAILED":
+        st.error(record.error_message or "Processing failed before completion.")
+
+
 def record_summary(record) -> str:
     if record.analysis:
         return record.analysis.executive_summary
@@ -58,6 +128,7 @@ def record_summary(record) -> str:
 def record_to_row(record):
     analysis = record.analysis
     summary = record_summary(record)
+    action = next_action(record)
     search_parts = [
         record.document_id,
         record.document_name,
@@ -65,6 +136,7 @@ def record_to_row(record):
         record.status.value,
         record.review_status.value,
         record.business_reference or "",
+        action,
         summary,
     ]
     return {
@@ -79,6 +151,7 @@ def record_to_row(record):
         "Risk Level": highest_risk_level(record),
         "Risks": len(analysis.risk_notes) if analysis else 0,
         "Confidence": confidence_percent(record),
+        "Action": action,
         "Summary": summary,
         "Search Text": " ".join(search_parts).lower(),
     }
@@ -123,6 +196,66 @@ def selected_record_label(row: pd.Series) -> str:
     return f"{row['Name']} - {row['Status']} - {row['Uploaded']}"
 
 
+def open_page(page: str, document_id: str | None = None) -> None:
+    if document_id:
+        st.session_state["selected_document_id"] = document_id
+        st.session_state["dashboard_selected_document"] = document_id
+    st.session_state["page"] = page
+    st.rerun()
+
+
+def render_post_process_actions(record) -> None:
+    with st.container(border=True):
+        st.subheader("Next action required")
+        st.write("The document was processed and is ready for human review.")
+        cols = st.columns(3)
+        if cols[0].button("Review Now", type="primary"):
+            open_page("Document Details", record.document_id)
+        if cols[1].button("Open Dashboard"):
+            open_page("Review Dashboard", record.document_id)
+        if cols[2].button("Upload Another"):
+            st.session_state["upload_widget_version"] = (
+                st.session_state.get("upload_widget_version", 0) + 1
+            )
+            open_page("Upload Document")
+
+
+def apply_review_action(store, document_id: str, approved: bool, comments: str | None) -> bool:
+    if not approved and not (comments or "").strip():
+        st.error("Add review comments before rejecting.")
+        return False
+    store.set_review(document_id, approved=approved, comments=comments or None)
+    st.success("Approved" if approved else "Rejected")
+    return True
+
+
+def render_review_action_panel(store, record, key_prefix: str) -> None:
+    if record.status.value == "FAILED":
+        st.error("This document failed processing. Upload a corrected file or check service logs.")
+        return
+    if not record.analysis:
+        st.info("This document is not ready for review yet.")
+        return
+
+    if requires_human_action(record):
+        st.warning("Action required: approve or reject this document.")
+    else:
+        st.info(f"Current review decision: {record.review_status.value}")
+
+    comments = st.text_area(
+        "Review comments",
+        value=record.review_comments or "",
+        key=f"{key_prefix}_comments_{record.document_id}",
+    )
+    cols = st.columns(2)
+    if cols[0].button("Approve", type="primary", key=f"{key_prefix}_approve_{record.document_id}"):
+        if apply_review_action(store, record.document_id, approved=True, comments=comments):
+            st.rerun()
+    if cols[1].button("Reject", key=f"{key_prefix}_reject_{record.document_id}"):
+        if apply_review_action(store, record.document_id, approved=False, comments=comments):
+            st.rerun()
+
+
 def upload_page(config, store):
     st.header("Upload Document")
     document_type = st.selectbox("Document type", [item.value for item in DocumentType])
@@ -132,6 +265,7 @@ def upload_page(config, store):
     uploaded = st.file_uploader(
         "Document file",
         type=["pdf", "png", "jpg", "jpeg"],
+        key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
         help=(
             "Streamlit may show its server upload limit, but this app enforces "
             f"{config.max_upload_mb} MB before processing."
@@ -163,12 +297,21 @@ def upload_page(config, store):
                 )
                 status.update(label="Document processed", state="complete")
                 st.session_state["selected_document_id"] = record.document_id
-                st.success("Document is ready for review.")
+                st.success("Document is ready for human review.")
+                render_post_process_actions(record)
             except Exception as exc:
                 status.update(label="Processing failed", state="error")
                 st.error(f"Processing failed: {error_message(exc)}")
                 with st.expander("Technical details"):
                     st.exception(exc)
+                cols = st.columns(2)
+                if cols[0].button("Open Dashboard"):
+                    open_page("Review Dashboard")
+                if cols[1].button("Retry Upload"):
+                    st.session_state["upload_widget_version"] = (
+                        st.session_state.get("upload_widget_version", 0) + 1
+                    )
+                    open_page("Upload Document")
 
         tmp_path.unlink(missing_ok=True)
 
@@ -184,7 +327,7 @@ def dashboard_page(store):
     df = pd.DataFrame(rows)
     cols = st.columns(5)
     cols[0].metric("Total", len(records))
-    cols[1].metric("Pending Review", (df["Review"] == "PENDING").sum())
+    cols[1].metric("Action Required", (df["Action"] == "Approve or reject").sum())
     cols[2].metric("High Risk", (df["Risk Level"] == "HIGH").sum())
     cols[3].metric("Failed", (df["Status"] == "FAILED").sum())
     avg_confidence = df["Confidence"].dropna().mean()
@@ -236,6 +379,7 @@ def dashboard_page(store):
         "Risk Level",
         "Risks",
         "Confidence",
+        "Action",
         "Summary",
     ]
     st.dataframe(
@@ -275,18 +419,22 @@ def dashboard_page(store):
     selected_record = record_by_id[selected]
     with st.container(border=True):
         st.subheader(selected_record.document_name)
-        preview_cols = st.columns(4)
+        preview_cols = st.columns(5)
         preview_cols[0].metric("Status", selected_record.status.value)
         preview_cols[1].metric("Review", selected_record.review_status.value)
         preview_cols[2].metric("Risk", highest_risk_level(selected_record))
         confidence = confidence_percent(selected_record)
         preview_cols[3].metric("Confidence", "N/A" if confidence is None else f"{confidence}%")
+        preview_cols[4].metric("Action", next_action(selected_record))
         if selected_record.analysis:
             st.write(selected_record.analysis.executive_summary)
         elif selected_record.error_message:
             st.error(selected_record.error_message)
         else:
             st.info("Analysis is not available yet.")
+        with st.expander("Processing lifecycle"):
+            render_lifecycle(selected_record)
+        render_review_action_panel(store, selected_record, "dashboard")
 
     if st.button("Open Details", type="primary"):
         st.session_state["selected_document_id"] = selected
@@ -308,46 +456,79 @@ def detail_page(config, store):
     record = store.load(document_id)
 
     st.subheader(record.document_name)
-    st.write(f"Status: `{record.status.value}`")
+    meta_cols = st.columns(5)
+    meta_cols[0].metric("Status", record.status.value)
+    meta_cols[1].metric("Review", record.review_status.value)
+    meta_cols[2].metric("Risk", highest_risk_level(record))
+    confidence = confidence_percent(record)
+    meta_cols[3].metric("Confidence", "N/A" if confidence is None else f"{confidence}%")
+    meta_cols[4].metric("Action", next_action(record))
+
+    if record.business_reference:
+        st.write(f"Business reference: `{record.business_reference}`")
     st.write(f"Object: `{record.object_storage_path or 'Not uploaded'}`")
     if record.error_message:
         st.error(record.error_message)
 
-    if record.analysis:
-        analysis = record.analysis
-        st.markdown("### Executive Summary")
-        st.write(analysis.executive_summary)
-        st.markdown("### Key Points")
-        st.write(analysis.key_points or ["None found"])
-        st.markdown("### Extracted Fields")
-        st.json(analysis.extracted_fields.model_dump())
-        st.markdown("### Risk Notes")
-        if analysis.risk_notes:
-            st.dataframe(
-                pd.DataFrame([risk.model_dump() for risk in analysis.risk_notes]),
-                use_container_width=True,
-            )
+    lifecycle_tab, analysis_tab, review_tab, source_tab, downloads_tab = st.tabs(
+        ["Lifecycle", "Analysis", "Review Action", "Source", "Downloads"]
+    )
+
+    with lifecycle_tab:
+        render_lifecycle(record)
+
+    with analysis_tab:
+        if not record.analysis:
+            st.info("Analysis is not available for this document.")
         else:
-            st.info("No risk notes found.")
-        st.markdown("### Recommendations")
-        st.write(analysis.recommendations or ["None found"])
+            analysis = record.analysis
+            st.markdown("### Executive Summary")
+            st.write(analysis.executive_summary)
+            st.markdown("### Key Points")
+            st.write(analysis.key_points or ["None found"])
+            st.markdown("### Extracted Fields")
+            st.json(analysis.extracted_fields.model_dump())
+            st.markdown("### Risk Notes")
+            if analysis.risk_notes:
+                st.dataframe(
+                    pd.DataFrame([risk.model_dump() for risk in analysis.risk_notes]),
+                    use_container_width=True,
+                )
+            else:
+                st.info("No risk notes found.")
+            st.markdown("### Recommendations")
+            st.write(analysis.recommendations or ["None found"])
+            st.markdown("### Missing Information")
+            st.write(analysis.missing_information or ["None found"])
 
-    comments = st.text_area("Review comments", value=record.review_comments or "")
-    col1, col2 = st.columns(2)
-    if col1.button("Approve"):
-        store.set_review(document_id, approved=True, comments=comments or None)
-        st.success("Approved")
-        st.rerun()
-    if col2.button("Reject"):
-        store.set_review(document_id, approved=False, comments=comments or None)
-        st.warning("Rejected")
-        st.rerun()
+    with review_tab:
+        render_review_action_panel(store, record, "detail")
 
-    metadata_json = json.dumps(record.model_dump(mode="json"), indent=2)
-    st.download_button("Download JSON Result", metadata_json, f"{document_id}.json")
-    if record.report_path and Path(record.report_path).exists():
-        report = Path(record.report_path).read_text(encoding="utf-8")
-        st.download_button("Download Markdown Report", report, f"{document_id}.md")
+    with source_tab:
+        st.write(f"Document ID: `{record.document_id}`")
+        st.write(f"Uploaded: `{record.uploaded_at.isoformat()}`")
+        if record.processed_at:
+            st.write(f"Processed: `{record.processed_at.isoformat()}`")
+        if record.notes:
+            st.write("Notes")
+            st.write(record.notes)
+        st.markdown("### Extracted Text Preview")
+        st.text_area(
+            "Preview",
+            value=record.extracted_text_preview or "No extracted text preview available.",
+            height=220,
+            disabled=True,
+            label_visibility="collapsed",
+        )
+
+    with downloads_tab:
+        metadata_json = json.dumps(record.model_dump(mode="json"), indent=2)
+        st.download_button("Download JSON Result", metadata_json, f"{document_id}.json")
+        if record.report_path and Path(record.report_path).exists():
+            report = Path(record.report_path).read_text(encoding="utf-8")
+            st.download_button("Download Markdown Report", report, f"{document_id}.md")
+        else:
+            st.info("Markdown report is not available.")
 
 
 def settings_page(config):

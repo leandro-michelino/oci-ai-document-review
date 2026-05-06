@@ -232,13 +232,41 @@ Recommended processing flow:
 5. Click Process Document.
 6. Wait for each real step to complete:
    local working copy, Object Storage upload, Document Understanding extraction, GenAI analysis, metadata/report save.
-7. Use Review Dashboard to search, filter, and triage processed documents.
-8. Review the executive summary, extracted fields, risk notes, and recommendations.
-9. Approve or reject the review.
-10. Download Markdown or JSON results.
+7. Choose the next action shown by the app:
+   Review Now, Open Dashboard, or Upload Another.
+8. Use Review Dashboard to search, filter, triage, and approve or reject selected documents.
+9. Open Document Details for tabbed analysis, review action, source preview, and downloads.
+10. Review the executive summary, extracted fields, risk notes, and recommendations.
+11. Approve or reject the review. Rejections require comments.
+12. Download Markdown or JSON results.
 ```
 
 Processing fails clearly if a required live service step fails. For example, if Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
+
+## Review Workflow
+
+The portal requests a human action after a document is processed.
+
+```text
+Upload Document
+  - Shows real processing steps as they complete.
+  - On success, asks for the next action:
+    Review Now, Open Dashboard, or Upload Another.
+  - On failure, shows the root error and offers Dashboard or Retry Upload.
+
+Review Dashboard
+  - Shows Action Required, High Risk, Failed, and Avg Confidence metrics.
+  - Adds an Action column:
+    Approve or reject, Fix and retry, Approved, Rejected, or Wait for processing.
+  - Shows the selected document lifecycle:
+    upload, Object Storage, Document Understanding, GenAI analysis, report, and human decision.
+  - Lets the reviewer approve or reject the selected document directly.
+
+Document Details
+  - Shows status, review decision, risk, confidence, and next action.
+  - Uses tabs for Lifecycle, Analysis, Review Action, Source, and Downloads.
+  - Requires comments before rejecting a document.
+```
 
 ## Operating The VM
 
