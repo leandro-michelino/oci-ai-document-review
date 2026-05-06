@@ -94,9 +94,12 @@ Streamlit upload
   -> background worker pool
   -> Object Storage put_object
   -> Document Understanding analyze_document with ObjectStorageDocumentDetails
+  -> JSON-safe extraction result conversion
   -> GenAI CohereChatRequest
   -> metadata JSON
   -> Markdown report
+  -> Dashboard queue
+  -> Document review page
 ```
 
 The app records progress only after each service step completes. If Document Understanding returns no extractable text, processing fails with a clear error.
@@ -139,9 +142,11 @@ Then on the portal:
 ```text
 1. Run OCI Preflight in Settings.
 2. Upload a small PDF or image.
-3. Confirm the progress log reaches Markdown report save.
-4. Confirm the Review Dashboard shows REVIEW_REQUIRED.
-5. Open details and verify JSON and Markdown downloads.
+3. Confirm Dashboard shows the record as Ready.
+4. Open the record from Dashboard.
+5. Confirm the Document page shows AI summary, key points, and recommendations.
+6. Confirm JSON and Markdown downloads are available.
+7. Confirm approve or reject updates the review state.
 ```
 
 ## Local App Run

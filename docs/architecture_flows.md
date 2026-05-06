@@ -45,7 +45,13 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
         |
         v
 +-----------------------+
-| Review Dashboard      |
+| Dashboard Queue       |
+| Search, Stage, Open   |
++-------+---------------+
+        |
+        v
++-----------------------+
+| Document Review       |
 | Approve / Reject      |
 +-------+---------------+
         |
@@ -141,7 +147,13 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
            |
            v
 +----------------------------+
-| Review Dashboard           |
+| Dashboard Queue            |
+| Ready / Failed / Reviewed  |
++----------+-----------------+
+           |
+           v
++----------------------------+
+| Document Review            |
 | Human Approve / Reject     |
 +----------------------------+
 ```

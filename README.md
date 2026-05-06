@@ -11,23 +11,23 @@ This project is a working document review portal for OCI. It is designed for bus
 Users upload a document in the web portal. The platform then:
 
 ```text
-1. Stores the original file in a private OCI Object Storage bucket.
-2. Extracts text, tables, and key values with OCI Document Understanding.
-3. Sends the extracted content to OCI Generative AI for structured review.
-4. Creates a JSON metadata record and a Markdown report.
-5. Queues the document in a background worker pool so the browser does not wait on OCI processing.
-6. Shows a queued confirmation asking the user to open the dashboard, open details, or upload another file.
-7. Shows the result in a dashboard for human review with an action-required queue.
-8. Shows a processing lifecycle so reviewers can see what completed behind the scenes.
-9. Lets a reviewer approve or reject the document.
-10. Provides search, filters, risk level, confidence, and report downloads.
+1. Saves the upload locally and creates an UPLOADED metadata record.
+2. Queues the document in a background worker pool so the browser does not wait on OCI processing.
+3. Stores the original file in a private OCI Object Storage bucket.
+4. Extracts text, tables, and key values with OCI Document Understanding.
+5. Converts Document Understanding output into JSON-safe plain data.
+6. Sends the extracted content to OCI Generative AI for structured review.
+7. Creates a JSON metadata record and a Markdown report.
+8. Shows the document in a clean Dashboard queue.
+9. Opens the Document page for AI review, human decision, lifecycle details, and downloads.
+10. Lets a reviewer approve or reject the document.
 ```
 
 The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
 
 ## What Happens After Upload
 
-After the user clicks Process Document, the portal accepts the file, creates a metadata record, and queues the live backend workflow. The dashboard can be refreshed while workers process documents in parallel.
+After the user clicks Queue Document, the portal accepts the file, creates a metadata record, and queues the live backend workflow. The Dashboard shows the queue while workers process documents in parallel.
 
 ```text
 User uploads file
@@ -58,13 +58,16 @@ OCI Generative AI creates structured review
 Metadata and Markdown report are saved
   |
   v
-Dashboard asks reviewer to approve or reject
+Dashboard shows the document as Ready
+  |
+  v
+Reviewer opens the Document page
   |
   v
 Reviewer approves or rejects the document
 ```
 
-The dashboard and Document Details page both show the same next action. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`.
+The Dashboard is intentionally simple. It shows queue metrics, a `Show` filter, search, the document table, and an `Open` action. The Document page is where review happens. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`.
 
 ## Field Reference
 
@@ -73,6 +76,7 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | Field | Meaning |
 | --- | --- |
 | Status | Processing state for the document lifecycle, from upload through approval or failure. |
+| Stage | Simplified queue state shown in the Dashboard: `Queued`, `Processing`, `Ready`, `Reviewed`, or `Failed`. |
 | Review | Human review decision state: `PENDING`, `APPROVED`, or `REJECTED`. |
 | Risk | Highest severity found in AI risk notes. `NONE` means no risk note was returned. |
 | Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
@@ -93,7 +97,7 @@ Confidence, extracted fields, recommendations, missing information, and risk not
 
 ## Description
 
-This project implements an end-to-end AI document review portal on Oracle Cloud Infrastructure. Users upload PDFs or images through a Streamlit web interface, the app stores the originals in a private Object Storage bucket, extracts text and fields with OCI Document Understanding, analyzes the content with OCI Generative AI, and presents a review dashboard with summaries, risks, recommendations, approval actions, and downloadable Markdown or JSON reports.
+This project implements an end-to-end AI document review portal on Oracle Cloud Infrastructure. Users upload PDFs or images through a Streamlit web interface, the app stores the originals in a private Object Storage bucket, extracts text and fields with OCI Document Understanding, analyzes the content with OCI Generative AI, and presents a queue dashboard plus a focused Document review page with summaries, risks, recommendations, approval actions, and downloadable Markdown or JSON reports.
 
 The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, and Functions.
 
@@ -145,7 +149,12 @@ Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and i
         |
         v
 +----------------------+
-| Review Dashboard     |
+| Dashboard Queue      |
++-------+--------------+
+        |
+        v
++----------------------+
+| Document Review      |
 +----------------------+
 ```
 
@@ -169,12 +178,15 @@ The processing path is:
 
 ```text
 Uploaded file
+  -> background worker queue
   -> private Object Storage bucket
   -> OCI Document Understanding using ObjectStorageDocumentDetails
+  -> JSON-safe extraction result conversion
   -> OCI Generative AI Cohere chat model
   -> local metadata JSON
   -> Markdown report
-  -> human review dashboard
+  -> Dashboard queue
+  -> Document review page
 ```
 
 If Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
@@ -267,15 +279,13 @@ The app supports:
 - Document Understanding extraction
 - GenAI JSON analysis
 - Background worker queue with parallel processing
-- Post-processing next-action prompt
 - Markdown report generation
 - Local JSON metadata
 - Approve and reject review actions
-- Dashboard and detail views
-- Dashboard decision panel for pending reviews
+- Dashboard queue view with metrics, search, stage filter, and Open action
+- Simplified Document page for AI summary, key points, recommendations, review action, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document
 - Field guide with `?` explanations for review and file metadata fields
-- Document Details tabs for analysis, review action, source data, and downloads
 - OCI Preflight checks in Settings
 
 ## Future Enhancements

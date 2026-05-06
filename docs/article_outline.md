@@ -11,12 +11,14 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 7. Release package hygiene and why credentials stay out of Git
 8. Object Storage bucket and uploaded document storage
 9. OCI Preflight checks before processing
-10. Uploading documents
+10. Uploading documents and queueing background processing
 11. Extracting content with Document Understanding
-12. Generating structured AI insights with GenAI
-13. Reviewing and approving output
-14. End-to-end smoke test results
-15. Security and cost controls
+12. Converting extraction results into JSON-safe metadata
+13. Generating structured AI insights with GenAI
+14. Using the Dashboard queue to find Ready, Processing, Failed, and Reviewed documents
+15. Reviewing and approving output in the Document page
+16. End-to-end smoke test results
+17. Security and cost controls
     - Include cost estimate disclaimer
     - Recommend Oracle Cost Estimator and Oracle representative quote
-16. Phase 2 with Autonomous Database, APEX, or Visual Builder
+18. Phase 2 with Autonomous Database, APEX, or Visual Builder

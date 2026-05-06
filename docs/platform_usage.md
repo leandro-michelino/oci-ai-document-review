@@ -228,21 +228,21 @@ Recommended processing flow:
 
 ```text
 1. Open the portal.
-2. Go to Upload Document.
+2. Go to Upload.
 3. Choose document type:
    CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, or GENERAL.
 4. Upload a PDF, PNG, JPG, or JPEG.
-5. Click Process Document.
+5. Click Queue Document.
 6. The portal saves the local working copy and queues the document.
 7. Choose the next action shown by the app:
-   Open Dashboard, Open Details, or Upload Another.
-8. Refresh the dashboard while the worker pool runs the live OCI steps:
+   View Dashboard, Open Document, or Upload Another.
+8. Use Dashboard to watch the queue while the worker pool runs the live OCI steps:
    Object Storage upload, Document Understanding extraction, GenAI analysis, metadata/report save.
-9. Use Review Dashboard to search, filter, triage, and approve or reject selected documents.
-10. Open Document Details for tabbed analysis, review action, source preview, and downloads.
-11. Review the executive summary, extracted fields, risk notes, and recommendations.
-12. Approve or reject the review. Rejections require comments.
-13. Download Markdown or JSON results.
+9. Use Dashboard to filter by Ready, Processing, Failed, Reviewed, or All.
+10. Select a document and click Open.
+11. Use the Document page to review the executive summary, key points, risks, recommendations, and supporting details.
+12. Approve or reject the review from the Decision panel. Rejections require comments.
+13. Download Markdown or JSON results from the Downloads section.
 ```
 
 Processing fails clearly if a required live service step fails. For example, if Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
@@ -256,31 +256,31 @@ STALE_PROCESSING_MINUTES=3
 MAX_PARALLEL_JOBS=2
 ```
 
-Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a processing run remains in `PROCESSING` beyond the stale window, the dashboard and details page mark it as `FAILED` with a retry message.
+Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a processing run remains in `PROCESSING` beyond the stale window, the app marks it as `FAILED` with a retry message.
 
 ## Review Workflow
 
 The portal requests a human action after a document is processed.
 
 ```text
-Upload Document
+Upload
   - Saves the upload and creates the initial metadata record.
   - Queues the document in the background worker pool.
   - Asks for the next action:
-    Open Dashboard, Open Details, or Upload Another.
+    View Dashboard, Open Document, or Upload Another.
 
-Review Dashboard
-  - Shows Action Required, High Risk, Failed, and Avg Confidence metrics.
-  - Shows active processing runs and the configured worker pool size.
-  - Adds an Action column:
-    Approve or reject, Fix and retry, Approved, Rejected, or Wait for processing.
-  - Shows the selected document lifecycle:
-    upload, Object Storage, Document Understanding, GenAI analysis, report, and human decision.
-  - Lets the reviewer approve or reject the selected document directly.
+Dashboard
+  - Shows Total, Ready, Processing, and Failed metrics.
+  - Provides a simple Show filter:
+    Ready, Processing, Failed, Reviewed, or All.
+  - Provides search across document name, reference, status, action, and summary.
+  - Shows a compact queue table with Stage, uploaded time, type, risk, confidence, and action.
+  - Opens the selected document for review.
 
-Document Details
-  - Shows status, review decision, risk, confidence, and next action.
-  - Uses tabs for Lifecycle, Analysis, Review Action, Source, and Downloads.
+Document
+  - Shows a focused AI review summary with key points and recommendations.
+  - Shows the Decision panel for approve or reject.
+  - Keeps analysis details, file and processing details, extracted text, and downloads in expanders.
   - Requires comments before rejecting a document.
 ```
 
@@ -364,6 +364,8 @@ Use this checklist after any wiring or deployment change:
 9. Confirm object_storage_path is populated.
 10. Confirm analysis is populated.
 11. Confirm the Markdown report exists.
+12. Confirm Dashboard opens the selected record in Document.
+13. Confirm approve or reject updates the review state.
 ```
 
 Useful VM commands:
@@ -458,6 +460,8 @@ Selected GenAI region has active supported Cohere chat models.
 Uploaded file is supported and below MAX_UPLOAD_MB.
 Settings -> OCI Preflight passes.
 Document Understanding extracted text from the file.
+Document Understanding extraction results are JSON-safe before metadata is saved.
+Generative AI receives extracted content only after Document Understanding succeeds.
 ```
 
 ### Recreate Infrastructure
