@@ -23,7 +23,14 @@ fi
 
 env_value() {
   local key="$1"
-  grep -E "^${key}=" .env | tail -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//'
+  awk -v key="$key" '
+    index($0, key "=") == 1 {
+      value = substr($0, length(key) + 2)
+    }
+    END {
+      print value
+    }
+  ' .env | sed -e 's/^"//' -e 's/"$//'
 }
 
 OCI_REGION="$(env_value OCI_REGION)"
