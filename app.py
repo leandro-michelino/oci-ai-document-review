@@ -762,6 +762,85 @@ def render_review_action_panel(store, record, key_prefix: str) -> None:
             st.rerun()
 
 
+def render_analysis_overview(record) -> None:
+    if not record.analysis:
+        if record.error_message:
+            st.error(record.error_message)
+        else:
+            st.info("Analysis is not available yet.")
+        return
+
+    analysis = record.analysis
+    render_summary_panel("Executive Summary", analysis.executive_summary)
+    st.caption(
+        f"Document class: {analysis.document_class} | "
+        f"Confidence: {confidence_percent(record)}% | Risk: {highest_risk_level(record)}"
+    )
+
+    col_left, col_right = st.columns(2, gap="large")
+    with col_left:
+        st.markdown("### Key Points")
+        if analysis.key_points:
+            for item in analysis.key_points[:5]:
+                st.write(f"- {item}")
+        else:
+            st.info("No key points found.")
+    with col_right:
+        st.markdown("### Recommendations")
+        if analysis.recommendations:
+            for item in analysis.recommendations[:5]:
+                st.write(f"- {item}")
+        else:
+            st.info("No recommendations found.")
+
+
+def render_analysis_details(record) -> None:
+    analysis = record.analysis
+    if not analysis:
+        st.info("Analysis is not available for this document.")
+        return
+
+    st.markdown("### Extracted Fields")
+    st.json(analysis.extracted_fields.model_dump())
+
+    st.markdown("### Risk Notes")
+    if analysis.risk_notes:
+        st.dataframe(
+            pd.DataFrame([risk.model_dump() for risk in analysis.risk_notes]),
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.info("No risk notes found.")
+
+    st.markdown("### Missing Information")
+    if analysis.missing_information:
+        for item in analysis.missing_information:
+            st.write(f"- {item}")
+    else:
+        st.info("None found.")
+
+
+def render_downloads(record, document_id: str) -> None:
+    metadata_json = json.dumps(record.model_dump(mode="json"), indent=2)
+    st.download_button(
+        "Download JSON Result",
+        metadata_json,
+        f"{document_id}.json",
+        use_container_width=True,
+    )
+    if record.report_path and Path(record.report_path).exists():
+        report = Path(record.report_path).read_text(encoding="utf-8")
+        st.download_button(
+            "Download Markdown Report",
+            report,
+            f"{document_id}.md",
+            use_container_width=True,
+        )
+    else:
+        st.info("Markdown report is not available.")
+
+
 def upload_page(config, store):
     page_header(
         "Intake",
@@ -967,9 +1046,9 @@ def dashboard_page(config, store):
 
 def detail_page(config, store):
     page_header(
-        "Case File",
+        "Review",
         "Document",
-        "Inspect lifecycle evidence, AI analysis, source data, and review outcome.",
+        "Review the AI result, make a decision, and open supporting details only when needed.",
     )
     records = store.list_records()
     ids = [record.document_id for record in records]
@@ -982,98 +1061,51 @@ def detail_page(config, store):
 
     default_id = st.session_state.get("selected_document_id", ids[0])
     index = ids.index(default_id) if default_id in ids else 0
-    document_id = st.selectbox("Document", ids, index=index, label_visibility="collapsed")
+    labels = {
+        record.document_id: f"{record.document_name} - {queue_stage(record)} - "
+        f"{record.uploaded_at.strftime('%Y-%m-%d %H:%M')}"
+        for record in records
+    }
+    picker_cols = st.columns([1.4, 0.3, 0.3])
+    document_id = picker_cols[0].selectbox(
+        "Document",
+        ids,
+        index=index,
+        format_func=lambda item: labels.get(item, item),
+    )
+    if picker_cols[1].button("Dashboard", use_container_width=True):
+        open_page(PAGE_DASHBOARD)
+    if picker_cols[2].button("Upload", use_container_width=True):
+        open_page(PAGE_UPLOAD)
+
     record = store.load(document_id)
+    st.session_state["selected_document_id"] = document_id
 
     st.subheader(record.document_name)
     render_status_strip(record)
-    render_review_snapshot(record)
-    render_field_guide()
 
-    with st.container(border=True):
-        st.subheader("File Information")
-        render_file_information(record)
-        st.markdown("**Object Storage path**")
-        st.code(record.object_storage_path or "Not uploaded")
-    if record.error_message:
-        st.error(record.error_message)
-
-    lifecycle_tab, analysis_tab, review_tab, source_tab, downloads_tab = st.tabs(
-        ["Lifecycle", "Analysis", "Review Action", "Source", "Downloads"]
-    )
-
-    with lifecycle_tab:
-        render_lifecycle(record)
-
-    with analysis_tab:
-        if not record.analysis:
-            st.info("Analysis is not available for this document.")
-        else:
-            analysis = record.analysis
-            render_summary_panel("Executive Summary", analysis.executive_summary)
-            key_col, recommendation_col = st.columns(2, gap="large")
-            with key_col:
-                st.markdown("### Key Points")
-                if analysis.key_points:
-                    for item in analysis.key_points:
-                        st.write(f"- {item}")
-                else:
-                    st.info("None found.")
-            with recommendation_col:
-                st.markdown("### Recommendations")
-                if analysis.recommendations:
-                    for item in analysis.recommendations:
-                        st.write(f"- {item}")
-                else:
-                    st.info("None found.")
-            st.markdown("### Extracted Fields")
-            st.json(analysis.extracted_fields.model_dump())
-            st.markdown("### Risk Notes")
-            if analysis.risk_notes:
-                st.dataframe(
-                    pd.DataFrame([risk.model_dump() for risk in analysis.risk_notes]),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-            else:
-                st.info("No risk notes found.")
-            st.markdown("### Missing Information")
-            if analysis.missing_information:
-                for item in analysis.missing_information:
-                    st.write(f"- {item}")
-            else:
-                st.info("None found.")
-
-    with review_tab:
-        action_col, context_col = st.columns([1, 1], gap="large")
-        with action_col:
+    review_col, decision_col = st.columns([1.45, 0.85], gap="large")
+    with review_col:
+        render_analysis_overview(record)
+    with decision_col:
+        with st.container(border=True):
+            st.subheader("Decision")
             render_review_action_panel(store, record, "detail")
-        with context_col:
-            render_summary_panel(
-                "Current Decision",
-                f"{record.review_status.value}. {next_action(record)}.",
-            )
             if record.review_comments:
-                st.markdown("### Review Comments")
+                st.markdown("### Comments")
                 st.write(record.review_comments)
 
-    with source_tab:
-        source_cols = st.columns(2, gap="large")
-        with source_cols[0]:
-            st.markdown("### Metadata")
-            st.write(f"Document ID: `{record.document_id}`")
-            st.write(f"File name: `{record.document_name}`")
-            st.write(f"Extension: `{file_extension(record)}`")
-            st.write(f"File size: `{file_size_label(record.source_file_size_bytes)}`")
-            st.write(f"MIME type: `{record.source_file_mime_type or 'Not captured'}`")
-            st.write(f"Uploaded: `{record.uploaded_at.isoformat()}`")
-            if record.processed_at:
-                st.write(f"Processed: `{record.processed_at.isoformat()}`")
-            st.write(f"Type: `{record.document_type.value}`")
-        with source_cols[1]:
-            st.markdown("### Notes")
-            st.write(record.notes or "No notes provided.")
-        st.markdown("### Extracted Text Preview")
+    with st.expander("Analysis details"):
+        render_analysis_details(record)
+
+    with st.expander("File and processing"):
+        render_file_information(record)
+        st.markdown("### Lifecycle")
+        render_lifecycle(record)
+        st.markdown("### Object Storage")
+        st.code(record.object_storage_path or "Not uploaded")
+
+    with st.expander("Extracted text"):
         st.text_area(
             "Preview",
             value=record.extracted_text_preview or "No extracted text preview available.",
@@ -1082,24 +1114,10 @@ def detail_page(config, store):
             label_visibility="collapsed",
         )
 
-    with downloads_tab:
-        metadata_json = json.dumps(record.model_dump(mode="json"), indent=2)
-        st.download_button(
-            "Download JSON Result",
-            metadata_json,
-            f"{document_id}.json",
-            use_container_width=True,
-        )
-        if record.report_path and Path(record.report_path).exists():
-            report = Path(record.report_path).read_text(encoding="utf-8")
-            st.download_button(
-                "Download Markdown Report",
-                report,
-                f"{document_id}.md",
-                use_container_width=True,
-            )
-        else:
-            st.info("Markdown report is not available.")
+    with st.expander("Downloads"):
+        render_downloads(record, document_id)
+
+    render_field_guide()
 
 
 def settings_page(config):
@@ -1161,12 +1179,14 @@ def main():
     st.sidebar.title(config.app_title)
     st.sidebar.caption("AI document review on OCI")
     current_page = LEGACY_PAGE_NAMES.get(st.session_state.get("page", PAGE_UPLOAD), PAGE_UPLOAD)
+    if current_page not in pages:
+        current_page = PAGE_UPLOAD
+    st.session_state["page"] = current_page
     page = st.sidebar.radio(
         "Navigation",
         pages,
-        index=pages.index(current_page),
+        key="page",
     )
-    st.session_state["page"] = page
     st.sidebar.divider()
     st.sidebar.metric("GenAI region", config.genai_region)
     st.sidebar.caption("Deployment is managed from the local laptop.")
