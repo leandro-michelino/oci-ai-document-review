@@ -64,6 +64,8 @@ class DocumentProcessor:
         document_type: DocumentType,
         business_reference: str | None = None,
         notes: str | None = None,
+        source_file_size_bytes: int | None = None,
+        source_file_mime_type: str | None = None,
         progress_callback=None,
     ) -> DocumentRecord:
         def progress(message: str) -> None:
@@ -80,6 +82,8 @@ class DocumentProcessor:
             document_id=document_id,
             document_name=document_name,
             document_type=document_type,
+            source_file_size_bytes=source_file_size_bytes,
+            source_file_mime_type=source_file_mime_type,
             business_reference=business_reference,
             notes=notes,
         )

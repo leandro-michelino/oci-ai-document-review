@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from app import filter_dashboard_rows, next_action, processing_stage_rows, record_to_row
+from app import file_size_label, filter_dashboard_rows, next_action, processing_stage_rows, record_to_row
 from src.models import (
     DocumentAnalysis,
     DocumentRecord,
@@ -78,6 +78,13 @@ def test_processing_stage_rows_show_backend_lifecycle():
     ]
     assert rows[1]["State"] == "Complete"
     assert rows[-1]["Evidence"] == "Approve or reject"
+
+
+def test_file_size_label_formats_known_and_missing_sizes():
+    assert file_size_label(None) == "Not captured"
+    assert file_size_label(512) == "512 B"
+    assert file_size_label(2048) == "2.0 KB"
+    assert file_size_label(2 * 1024 * 1024) == "2.00 MB"
 
 
 def test_filter_dashboard_rows_searches_and_filters():

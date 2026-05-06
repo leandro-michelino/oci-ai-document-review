@@ -1,5 +1,6 @@
 import json
 import re
+from html import escape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -15,6 +16,250 @@ from src.processor import DocumentProcessor, error_message
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
 READY_FOR_DECISION = {"REVIEW_REQUIRED"}
+RISK_TONE = {
+    "HIGH": "risk-high",
+    "MEDIUM": "risk-medium",
+    "LOW": "risk-low",
+    "NONE": "risk-none",
+}
+STATE_TONE = {
+    "APPROVED": "state-good",
+    "COMPLETE": "state-good",
+    "REJECTED": "state-bad",
+    "FAILED": "state-bad",
+    "REVIEW_REQUIRED": "state-warn",
+    "PENDING": "state-warn",
+    "PROCESSING": "state-info",
+    "EXTRACTED": "state-info",
+    "AI_ANALYZED": "state-info",
+    "UPLOADED": "state-info",
+}
+
+
+def apply_theme() -> None:
+    st.markdown(
+        """
+        <style>
+        :root {
+            --app-bg: #f7f7f5;
+            --panel-bg: #ffffff;
+            --panel-border: #d9d5cd;
+            --text-soft: #5f5a52;
+            --text-strong: #26221d;
+            --brand: #b23b2e;
+            --brand-dark: #7d251f;
+            --good-bg: #e8f3ec;
+            --good-text: #23623b;
+            --warn-bg: #fff4df;
+            --warn-text: #8a5a08;
+            --bad-bg: #fbe8e5;
+            --bad-text: #9a2f23;
+            --info-bg: #e8f0f6;
+            --info-text: #2c5d7e;
+        }
+        .stApp {
+            background: var(--app-bg);
+        }
+        .block-container {
+            padding-top: 1.25rem;
+            padding-bottom: 2.5rem;
+            max-width: 1480px;
+        }
+        h1, h2, h3 {
+            letter-spacing: 0;
+            color: var(--text-strong);
+        }
+        [data-testid="stSidebar"] {
+            background: #efede8;
+            border-right: 1px solid var(--panel-border);
+        }
+        [data-testid="stMetric"] {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.85rem 0.95rem;
+            min-height: 94px;
+            box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
+        }
+        div[data-testid="stMetricLabel"] p {
+            color: var(--text-soft);
+            font-size: 0.82rem;
+        }
+        div[data-testid="stMetricValue"] {
+            color: var(--text-strong);
+            font-size: 1.42rem;
+        }
+        .app-page-header {
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.1rem;
+        }
+        .app-kicker {
+            color: var(--brand-dark);
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 0.15rem;
+        }
+        .app-page-header h1 {
+            font-size: 1.78rem;
+            line-height: 1.15;
+            margin: 0;
+        }
+        .app-page-header p {
+            color: var(--text-soft);
+            margin: 0.35rem 0 0;
+            max-width: 860px;
+        }
+        .status-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            margin: 0.35rem 0 0.85rem;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            padding: 0.22rem 0.55rem;
+            font-size: 0.76rem;
+            font-weight: 700;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .state-good, .risk-low {
+            color: var(--good-text);
+            background: var(--good-bg);
+            border-color: #b7dbc2;
+        }
+        .state-warn, .risk-medium {
+            color: var(--warn-text);
+            background: var(--warn-bg);
+            border-color: #edcf91;
+        }
+        .state-bad, .risk-high {
+            color: var(--bad-text);
+            background: var(--bad-bg);
+            border-color: #e4afa8;
+        }
+        .state-info {
+            color: var(--info-text);
+            background: var(--info-bg);
+            border-color: #bdd1df;
+        }
+        .risk-none {
+            color: #5f5a52;
+            background: #efede8;
+            border-color: #d4d0c8;
+        }
+        .soft-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
+        }
+        .muted-label {
+            color: var(--text-soft);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+        .summary-text {
+            color: var(--text-strong);
+            font-size: 1rem;
+            line-height: 1.55;
+            margin: 0;
+        }
+        .fine-print {
+            color: var(--text-soft);
+            font-size: 0.84rem;
+            line-height: 1.45;
+        }
+        .review-snapshot {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.6rem;
+            margin: 0.65rem 0 0.9rem;
+        }
+        .snapshot-cell {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.75rem 0.85rem;
+            min-width: 0;
+        }
+        .snapshot-label {
+            color: var(--text-soft);
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+        .snapshot-value {
+            color: var(--text-strong);
+            font-size: 0.98rem;
+            font-weight: 800;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.75rem;
+            margin: 0.45rem 0 0.8rem;
+        }
+        .info-item {
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            background: #fbfaf7;
+            min-width: 0;
+        }
+        .info-label {
+            color: var(--text-soft);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+        .info-value {
+            color: var(--text-strong);
+            font-size: 0.9rem;
+            font-weight: 700;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        @media (max-width: 980px) {
+            .review-snapshot,
+            .info-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        .stButton > button,
+        .stDownloadButton > button {
+            border-radius: 6px;
+            font-weight: 700;
+        }
+        .stButton > button[kind="primary"] {
+            background: var(--brand);
+            border-color: var(--brand);
+        }
+        .stButton > button[kind="primary"]:hover {
+            background: var(--brand-dark);
+            border-color: var(--brand-dark);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def safe_upload_suffix(filename: str) -> str:
@@ -29,6 +274,139 @@ def load_app_config():
         st.error("Configuration is incomplete. Run `python scripts/setup.py` first.")
         st.exception(exc)
         st.stop()
+
+
+def page_header(kicker: str, title: str, subtitle: str | None = None) -> None:
+    subtitle_html = f"<p>{escape(subtitle)}</p>" if subtitle else ""
+    st.markdown(
+        f"""
+        <div class="app-page-header">
+          <div class="app-kicker">{escape(kicker)}</div>
+          <h1>{escape(title)}</h1>
+          {subtitle_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def badge(label: str, tone: str) -> str:
+    return f'<span class="badge {tone}">{escape(label)}</span>'
+
+
+def state_tone(value: str) -> str:
+    return STATE_TONE.get(value.upper(), "state-info")
+
+
+def risk_tone(value: str) -> str:
+    return RISK_TONE.get(value.upper(), "risk-none")
+
+
+def render_status_strip(record) -> None:
+    risk = highest_risk_level(record)
+    confidence = confidence_percent(record)
+    confidence_label = "Confidence N/A" if confidence is None else f"Confidence {confidence}%"
+    chips = [
+        badge(record.status.value, state_tone(record.status.value)),
+        badge(record.review_status.value, state_tone(record.review_status.value)),
+        badge(f"Risk {risk}", risk_tone(risk)),
+        badge(confidence_label, "state-info"),
+        badge(next_action(record), state_tone(record.status.value)),
+    ]
+    st.markdown(f'<div class="status-strip">{"".join(chips)}</div>', unsafe_allow_html=True)
+
+
+def render_summary_panel(title: str, body: str, label: str | None = None) -> None:
+    label_html = f'<div class="muted-label">{escape(label)}</div>' if label else ""
+    st.markdown(
+        f"""
+        <div class="soft-panel">
+          {label_html}
+          <div class="muted-label">{escape(title)}</div>
+          <p class="summary-text">{escape(body)}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def file_size_label(size_bytes: int | None) -> str:
+    if size_bytes is None:
+        return "Not captured"
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    size_kb = size_bytes / 1024
+    if size_kb < 1024:
+        return f"{size_kb:.1f} KB"
+    return f"{size_kb / 1024:.2f} MB"
+
+
+def file_extension(record) -> str:
+    extension = Path(record.document_name).suffix.lower().lstrip(".")
+    return extension.upper() if extension else "Unknown"
+
+
+def report_state(record) -> str:
+    if record.report_path and Path(record.report_path).exists():
+        return "Available"
+    return "Not available"
+
+
+def extracted_text_label(record) -> str:
+    if not record.extracted_text_preview:
+        return "No preview"
+    return f"{len(record.extracted_text_preview):,} preview chars"
+
+
+def render_review_snapshot(record) -> None:
+    confidence = confidence_percent(record)
+    values = [
+        ("Status", record.status.value),
+        ("Review", record.review_status.value),
+        ("Risk", highest_risk_level(record)),
+        ("Confidence", "N/A" if confidence is None else f"{confidence}%"),
+        ("Next action", next_action(record)),
+    ]
+    cells = "\n".join(
+        f"""
+        <div class="snapshot-cell">
+          <div class="snapshot-label">{escape(label)}</div>
+          <div class="snapshot-value">{escape(value)}</div>
+        </div>
+        """
+        for label, value in values
+    )
+    st.markdown(f'<div class="review-snapshot">{cells}</div>', unsafe_allow_html=True)
+
+
+def render_file_information(record) -> None:
+    info = [
+        ("File name", record.document_name),
+        ("Extension", file_extension(record)),
+        ("Document type", record.document_type.value),
+        ("File size", file_size_label(record.source_file_size_bytes)),
+        ("MIME type", record.source_file_mime_type or "Not captured"),
+        ("Business reference", record.business_reference or "Not provided"),
+        ("Uploaded", record.uploaded_at.strftime("%Y-%m-%d %H:%M")),
+        (
+            "Processed",
+            record.processed_at.strftime("%Y-%m-%d %H:%M") if record.processed_at else "Not processed",
+        ),
+        ("Document ID", record.document_id),
+        ("Report", report_state(record)),
+        ("Text preview", extracted_text_label(record)),
+        ("Storage", "Uploaded to OCI" if record.object_storage_path else "Not uploaded"),
+    ]
+    items = "\n".join(
+        f"""
+        <div class="info-item">
+          <div class="info-label">{escape(label)}</div>
+          <div class="info-value">{escape(value)}</div>
+        </div>
+        """
+        for label, value in info
+    )
+    st.markdown(f'<div class="info-grid">{items}</div>', unsafe_allow_html=True)
 
 
 def highest_risk_level(record) -> str:
@@ -206,7 +584,8 @@ def open_page(page: str, document_id: str | None = None) -> None:
 
 def render_post_process_actions(record) -> None:
     with st.container(border=True):
-        st.subheader("Next action required")
+        st.subheader("Next Action Required")
+        render_status_strip(record)
         st.write("The document was processed and is ready for human review.")
         cols = st.columns(3)
         if cols[0].button("Review Now", type="primary"):
@@ -257,29 +636,56 @@ def render_review_action_panel(store, record, key_prefix: str) -> None:
 
 
 def upload_page(config, store):
-    st.header("Upload Document")
-    document_type = st.selectbox("Document type", [item.value for item in DocumentType])
-    business_reference = st.text_input("Business reference")
-    notes = st.text_area("Notes")
-    st.caption(f"Supported: PDF, PNG, JPG, JPEG. App upload limit: {config.max_upload_mb} MB.")
-    uploaded = st.file_uploader(
-        "Document file",
-        type=["pdf", "png", "jpg", "jpeg"],
-        key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
-        help=(
-            "Streamlit may show its server upload limit, but this app enforces "
-            f"{config.max_upload_mb} MB before processing."
-        ),
+    page_header(
+        "Intake",
+        "Upload Document",
+        "Submit a PDF or image for OCI extraction, GenAI analysis, and human review.",
     )
+    intake_col, context_col = st.columns([2, 1], gap="large")
+    with intake_col:
+        with st.container(border=True):
+            st.subheader("Document Intake")
+            document_type = st.selectbox("Document type", [item.value for item in DocumentType])
+            business_reference = st.text_input("Business reference")
+            notes = st.text_area("Notes", height=120)
+            uploaded = st.file_uploader(
+                "Document file",
+                type=["pdf", "png", "jpg", "jpeg"],
+                key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
+                help=(
+                    "Streamlit may show its server upload limit, but this app enforces "
+                    f"{config.max_upload_mb} MB before processing."
+                ),
+            )
 
-    if uploaded:
-        size_mb = uploaded.size / (1024 * 1024)
-        st.caption(f"{uploaded.name} - {size_mb:.2f} MB")
-        if size_mb > config.max_upload_mb:
-            st.error(f"File exceeds the configured {config.max_upload_mb} MB limit.")
-            return
+            uploaded_ok = uploaded is not None
+            if uploaded:
+                size_mb = uploaded.size / (1024 * 1024)
+                st.caption(f"{uploaded.name} - {size_mb:.2f} MB")
+                if size_mb > config.max_upload_mb:
+                    st.error(f"File exceeds the configured {config.max_upload_mb} MB limit.")
+                    uploaded_ok = False
+            process_clicked = st.button(
+                "Process Document",
+                disabled=not uploaded_ok,
+                type="primary",
+                use_container_width=True,
+            )
 
-    if st.button("Process Document", disabled=uploaded is None):
+    with context_col:
+        with st.container(border=True):
+            st.subheader("Runtime")
+            st.metric("GenAI region", config.genai_region)
+            st.metric("Upload limit", f"{config.max_upload_mb} MB")
+            st.caption("The processing path uses the configured OCI services and credentials.")
+        with st.container(border=True):
+            st.subheader("Review Flow")
+            st.write("Upload")
+            st.write("Extract")
+            st.write("Analyze")
+            st.write("Approve or reject")
+
+    if process_clicked and uploaded:
         with NamedTemporaryFile(delete=False, suffix=safe_upload_suffix(uploaded.name)) as tmp:
             tmp.write(uploaded.getbuffer())
             tmp_path = Path(tmp.name)
@@ -293,6 +699,8 @@ def upload_page(config, store):
                     document_type=DocumentType(document_type),
                     business_reference=business_reference or None,
                     notes=notes or None,
+                    source_file_size_bytes=uploaded.size,
+                    source_file_mime_type=uploaded.type or None,
                     progress_callback=st.write,
                 )
                 status.update(label="Document processed", state="complete")
@@ -317,10 +725,17 @@ def upload_page(config, store):
 
 
 def dashboard_page(store):
-    st.header("Review Dashboard")
+    page_header(
+        "Review Queue",
+        "Review Dashboard",
+        "Prioritize documents, inspect analysis, and record the human decision.",
+    )
     records = store.list_records()
     if not records:
-        st.info("No documents processed yet.")
+        with st.container(border=True):
+            st.info("No documents processed yet.")
+            if st.button("Upload Document", type="primary"):
+                open_page("Upload Document")
         return
 
     rows = [record_to_row(record) for record in records]
@@ -340,22 +755,24 @@ def dashboard_page(store):
     if not failures.empty:
         st.warning(f"{len(failures)} document processing run needs attention.")
 
-    filter_row = st.columns([2, 1, 1, 1])
-    search = filter_row[0].text_input(
-        "Search",
-        placeholder="Name, ID, reference, status, or summary",
-    )
-    selected_status = filter_row[1].multiselect("Status", sorted(df["Status"].unique()))
-    selected_type = filter_row[2].multiselect("Type", sorted(df["Type"].unique()))
-    selected_review = filter_row[3].multiselect("Review", sorted(df["Review"].unique()))
+    with st.container(border=True):
+        st.subheader("Filters")
+        filter_row = st.columns([2, 1, 1, 1])
+        search = filter_row[0].text_input(
+            "Search",
+            placeholder="Name, ID, reference, status, action, or summary",
+        )
+        selected_status = filter_row[1].multiselect("Status", sorted(df["Status"].unique()))
+        selected_type = filter_row[2].multiselect("Type", sorted(df["Type"].unique()))
+        selected_review = filter_row[3].multiselect("Review", sorted(df["Review"].unique()))
 
-    advanced = st.columns([1, 1, 1])
-    selected_risk = advanced[0].multiselect(
-        "Risk",
-        [level for level in ["HIGH", "MEDIUM", "LOW", "NONE"] if level in set(df["Risk Level"])],
-    )
-    min_confidence = advanced[1].slider("Min confidence", 0, 100, 0, step=5)
-    needs_attention = advanced[2].toggle("Needs attention only", value=False)
+        advanced = st.columns([1, 1, 1])
+        selected_risk = advanced[0].multiselect(
+            "Risk",
+            [level for level in ["HIGH", "MEDIUM", "LOW", "NONE"] if level in set(df["Risk Level"])],
+        )
+        min_confidence = advanced[1].slider("Min confidence", 0, 100, 0, step=5)
+        needs_attention = advanced[2].toggle("Needs attention only", value=False)
 
     filtered = filter_dashboard_rows(
         df=df,
@@ -387,6 +804,12 @@ def dashboard_page(store):
         use_container_width=True,
         hide_index=True,
         column_config={
+            "Name": st.column_config.TextColumn("Name", width="medium"),
+            "Type": st.column_config.TextColumn("Type", width="small"),
+            "Status": st.column_config.TextColumn("Status", width="small"),
+            "Review": st.column_config.TextColumn("Review", width="small"),
+            "Risk Level": st.column_config.TextColumn("Risk", width="small"),
+            "Action": st.column_config.TextColumn("Action", width="medium"),
             "Confidence": st.column_config.ProgressColumn(
                 "Confidence",
                 min_value=0,
@@ -419,54 +842,60 @@ def dashboard_page(store):
     selected_record = record_by_id[selected]
     with st.container(border=True):
         st.subheader(selected_record.document_name)
-        preview_cols = st.columns(5)
-        preview_cols[0].metric("Status", selected_record.status.value)
-        preview_cols[1].metric("Review", selected_record.review_status.value)
-        preview_cols[2].metric("Risk", highest_risk_level(selected_record))
-        confidence = confidence_percent(selected_record)
-        preview_cols[3].metric("Confidence", "N/A" if confidence is None else f"{confidence}%")
-        preview_cols[4].metric("Action", next_action(selected_record))
-        if selected_record.analysis:
-            st.write(selected_record.analysis.executive_summary)
-        elif selected_record.error_message:
-            st.error(selected_record.error_message)
-        else:
-            st.info("Analysis is not available yet.")
-        with st.expander("Processing lifecycle"):
-            render_lifecycle(selected_record)
-        render_review_action_panel(store, selected_record, "dashboard")
-
-    if st.button("Open Details", type="primary"):
-        st.session_state["selected_document_id"] = selected
-        st.session_state["page"] = "Document Details"
-        st.rerun()
+        render_status_strip(selected_record)
+        render_review_snapshot(selected_record)
+        st.markdown("### File Information")
+        render_file_information(selected_record)
+        review_col, action_col = st.columns([1.4, 1], gap="large")
+        with review_col:
+            if selected_record.analysis:
+                render_summary_panel(
+                    "Executive Summary",
+                    selected_record.analysis.executive_summary,
+                )
+            elif selected_record.error_message:
+                st.error(selected_record.error_message)
+            else:
+                st.info("Analysis is not available yet.")
+            with st.expander("Processing lifecycle"):
+                render_lifecycle(selected_record)
+        with action_col:
+            render_review_action_panel(store, selected_record, "dashboard")
+            if st.button("Open Details", type="primary", use_container_width=True):
+                st.session_state["selected_document_id"] = selected
+                st.session_state["page"] = "Document Details"
+                st.rerun()
 
 
 def detail_page(config, store):
-    st.header("Document Details")
+    page_header(
+        "Case File",
+        "Document Details",
+        "Inspect lifecycle evidence, AI analysis, source data, and review outcome.",
+    )
     records = store.list_records()
     ids = [record.document_id for record in records]
     if not ids:
-        st.info("No documents processed yet.")
+        with st.container(border=True):
+            st.info("No documents processed yet.")
+            if st.button("Upload Document", type="primary"):
+                open_page("Upload Document")
         return
 
     default_id = st.session_state.get("selected_document_id", ids[0])
     index = ids.index(default_id) if default_id in ids else 0
-    document_id = st.selectbox("Document", ids, index=index)
+    document_id = st.selectbox("Document", ids, index=index, label_visibility="collapsed")
     record = store.load(document_id)
 
     st.subheader(record.document_name)
-    meta_cols = st.columns(5)
-    meta_cols[0].metric("Status", record.status.value)
-    meta_cols[1].metric("Review", record.review_status.value)
-    meta_cols[2].metric("Risk", highest_risk_level(record))
-    confidence = confidence_percent(record)
-    meta_cols[3].metric("Confidence", "N/A" if confidence is None else f"{confidence}%")
-    meta_cols[4].metric("Action", next_action(record))
+    render_status_strip(record)
+    render_review_snapshot(record)
 
-    if record.business_reference:
-        st.write(f"Business reference: `{record.business_reference}`")
-    st.write(f"Object: `{record.object_storage_path or 'Not uploaded'}`")
+    with st.container(border=True):
+        st.subheader("File Information")
+        render_file_information(record)
+        st.markdown("**Object Storage path**")
+        st.code(record.object_storage_path or "Not uploaded")
     if record.error_message:
         st.error(record.error_message)
 
@@ -482,10 +911,22 @@ def detail_page(config, store):
             st.info("Analysis is not available for this document.")
         else:
             analysis = record.analysis
-            st.markdown("### Executive Summary")
-            st.write(analysis.executive_summary)
-            st.markdown("### Key Points")
-            st.write(analysis.key_points or ["None found"])
+            render_summary_panel("Executive Summary", analysis.executive_summary)
+            key_col, recommendation_col = st.columns(2, gap="large")
+            with key_col:
+                st.markdown("### Key Points")
+                if analysis.key_points:
+                    for item in analysis.key_points:
+                        st.write(f"- {item}")
+                else:
+                    st.info("None found.")
+            with recommendation_col:
+                st.markdown("### Recommendations")
+                if analysis.recommendations:
+                    for item in analysis.recommendations:
+                        st.write(f"- {item}")
+                else:
+                    st.info("None found.")
             st.markdown("### Extracted Fields")
             st.json(analysis.extracted_fields.model_dump())
             st.markdown("### Risk Notes")
@@ -493,25 +934,46 @@ def detail_page(config, store):
                 st.dataframe(
                     pd.DataFrame([risk.model_dump() for risk in analysis.risk_notes]),
                     use_container_width=True,
+                    hide_index=True,
                 )
             else:
                 st.info("No risk notes found.")
-            st.markdown("### Recommendations")
-            st.write(analysis.recommendations or ["None found"])
             st.markdown("### Missing Information")
-            st.write(analysis.missing_information or ["None found"])
+            if analysis.missing_information:
+                for item in analysis.missing_information:
+                    st.write(f"- {item}")
+            else:
+                st.info("None found.")
 
     with review_tab:
-        render_review_action_panel(store, record, "detail")
+        action_col, context_col = st.columns([1, 1], gap="large")
+        with action_col:
+            render_review_action_panel(store, record, "detail")
+        with context_col:
+            render_summary_panel(
+                "Current Decision",
+                f"{record.review_status.value}. {next_action(record)}.",
+            )
+            if record.review_comments:
+                st.markdown("### Review Comments")
+                st.write(record.review_comments)
 
     with source_tab:
-        st.write(f"Document ID: `{record.document_id}`")
-        st.write(f"Uploaded: `{record.uploaded_at.isoformat()}`")
-        if record.processed_at:
-            st.write(f"Processed: `{record.processed_at.isoformat()}`")
-        if record.notes:
-            st.write("Notes")
-            st.write(record.notes)
+        source_cols = st.columns(2, gap="large")
+        with source_cols[0]:
+            st.markdown("### Metadata")
+            st.write(f"Document ID: `{record.document_id}`")
+            st.write(f"File name: `{record.document_name}`")
+            st.write(f"Extension: `{file_extension(record)}`")
+            st.write(f"File size: `{file_size_label(record.source_file_size_bytes)}`")
+            st.write(f"MIME type: `{record.source_file_mime_type or 'Not captured'}`")
+            st.write(f"Uploaded: `{record.uploaded_at.isoformat()}`")
+            if record.processed_at:
+                st.write(f"Processed: `{record.processed_at.isoformat()}`")
+            st.write(f"Type: `{record.document_type.value}`")
+        with source_cols[1]:
+            st.markdown("### Notes")
+            st.write(record.notes or "No notes provided.")
         st.markdown("### Extracted Text Preview")
         st.text_area(
             "Preview",
@@ -523,55 +985,80 @@ def detail_page(config, store):
 
     with downloads_tab:
         metadata_json = json.dumps(record.model_dump(mode="json"), indent=2)
-        st.download_button("Download JSON Result", metadata_json, f"{document_id}.json")
+        st.download_button(
+            "Download JSON Result",
+            metadata_json,
+            f"{document_id}.json",
+            use_container_width=True,
+        )
         if record.report_path and Path(record.report_path).exists():
             report = Path(record.report_path).read_text(encoding="utf-8")
-            st.download_button("Download Markdown Report", report, f"{document_id}.md")
+            st.download_button(
+                "Download Markdown Report",
+                report,
+                f"{document_id}.md",
+                use_container_width=True,
+            )
         else:
             st.info("Markdown report is not available.")
 
 
 def settings_page(config):
-    st.header("Settings")
-    st.write(f"OCI region: `{config.oci_region}`")
-    st.write(f"GenAI region: `{config.genai_region}`")
-    st.write(f"GenAI endpoint: `{config.genai_endpoint}`")
-    st.write(f"Compartment: `{config.oci_compartment_id}`")
-    st.write(f"Bucket: `{config.oci_bucket_name}`")
-    st.info("Run `python scripts/setup.py` to refresh GenAI region availability.")
-
-    st.subheader("OCI Preflight")
-    st.write(
-        "Run this before processing customer documents. It performs real OCI API "
-        "calls with the same runtime credentials used by document processing."
+    page_header(
+        "Operations",
+        "Settings",
+        "Check runtime configuration and validate OCI service access.",
     )
-    if st.button("Run OCI Preflight", type="primary"):
-        with st.spinner("Checking Object Storage, Document Understanding, and GenAI"):
-            results = run_preflight(config)
-        for result in results:
-            if result.ok:
-                st.success(f"{result.name}: {result.detail}")
-            else:
-                st.error(f"{result.name}: {result.detail}")
-        if all(result.ok for result in results):
-            st.success("All OCI runtime checks passed.")
-        else:
-            st.warning("Fix the failed checks before processing customer documents.")
+    config_col, health_col = st.columns([1, 1], gap="large")
+    with config_col:
+        with st.container(border=True):
+            st.subheader("Runtime Configuration")
+            st.write(f"OCI region: `{config.oci_region}`")
+            st.write(f"GenAI region: `{config.genai_region}`")
+            st.write(f"GenAI endpoint: `{config.genai_endpoint}`")
+            st.write(f"Compartment: `{config.oci_compartment_id}`")
+            st.write(f"Bucket: `{config.oci_bucket_name}`")
+            st.info("Run `python scripts/setup.py` to refresh GenAI region availability.")
+
+    with health_col:
+        with st.container(border=True):
+            st.subheader("OCI Preflight")
+            st.write(
+                "Run this before processing customer documents. It performs real OCI API "
+                "calls with the same runtime credentials used by document processing."
+            )
+            if st.button("Run OCI Preflight", type="primary", use_container_width=True):
+                with st.spinner("Checking Object Storage, Document Understanding, and GenAI"):
+                    results = run_preflight(config)
+                for result in results:
+                    if result.ok:
+                        st.success(f"{result.name}: {result.detail}")
+                    else:
+                        st.error(f"{result.name}: {result.detail}")
+                if all(result.ok for result in results):
+                    st.success("All OCI runtime checks passed.")
+                else:
+                    st.warning("Fix the failed checks before processing customer documents.")
 
 
 def main():
     config = load_app_config()
     store = MetadataStore(config)
     st.set_page_config(page_title=config.app_title, layout="wide")
-    st.title(config.app_title)
+    apply_theme()
 
     pages = ["Upload Document", "Review Dashboard", "Document Details", "Settings"]
+    st.sidebar.title(config.app_title)
+    st.sidebar.caption("AI document review on OCI")
     page = st.sidebar.radio(
         "Navigation",
         pages,
         index=pages.index(st.session_state.get("page", "Upload Document")),
     )
     st.session_state["page"] = page
+    st.sidebar.divider()
+    st.sidebar.metric("GenAI region", config.genai_region)
+    st.sidebar.caption("Deployment is managed from the local laptop.")
 
     if page == "Upload Document":
         upload_page(config, store)

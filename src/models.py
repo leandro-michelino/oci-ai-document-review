@@ -68,6 +68,8 @@ class DocumentRecord(BaseModel):
     document_id: str
     document_name: str
     document_type: DocumentType
+    source_file_size_bytes: int | None = None
+    source_file_mime_type: str | None = None
     object_storage_path: str | None = None
     status: ProcessingStatus = ProcessingStatus.UPLOADED
     uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
