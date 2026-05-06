@@ -41,7 +41,8 @@ class DocumentUnderstandingClient:
         raise RuntimeError(f"OCI Document Understanding failed: {last_error}")
 
     def _extract_document_with_timeout(self, object_name: str) -> ExtractionResult:
-        context = mp.get_context("spawn")
+        start_method = "fork" if "fork" in mp.get_all_start_methods() else "spawn"
+        context = mp.get_context(start_method)
         result_queue = context.Queue(maxsize=1)
         process = context.Process(target=_extract_document_worker, args=(object_name, result_queue))
         process.start()
