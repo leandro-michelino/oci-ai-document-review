@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
+from streamlit.testing.v1 import AppTest
 
 from app import (
     file_size_label,
@@ -129,3 +131,73 @@ def test_filter_queue_rows_uses_simple_review_views():
     assert filter_queue_rows(df, view="Failed", query="")["Document ID"].tolist() == ["doc-3"]
     assert filter_queue_rows(df, view="Reviewed", query="")["Document ID"].tolist() == ["doc-4"]
     assert filter_queue_rows(df, view="All", query="approved")["Document ID"].tolist() == ["doc-4"]
+
+
+def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
+    monkeypatch.setenv("OCI_REGION", "uk-london-1")
+    monkeypatch.setenv("GENAI_REGION", "uk-london-1")
+    monkeypatch.setenv("OCI_COMPARTMENT_ID", "ocid1.compartment.oc1..exampleproject")
+    monkeypatch.setenv("OCI_NAMESPACE", "example")
+    monkeypatch.setenv("OCI_BUCKET_NAME", "example")
+    monkeypatch.setenv("GENAI_MODEL_ID", "cohere.command-r-plus-08-2024")
+    monkeypatch.setenv("LOCAL_METADATA_DIR", str(tmp_path / "metadata"))
+    monkeypatch.setenv("LOCAL_REPORTS_DIR", str(tmp_path / "reports"))
+    monkeypatch.setenv("LOCAL_UPLOADS_DIR", str(tmp_path / "uploads"))
+
+    from src.config import get_config
+    from src.metadata_store import MetadataStore
+
+    get_config.cache_clear()
+    try:
+        config = get_config()
+        report_path = Path(config.local_reports_dir) / "test-doc.md"
+        report_path.write_text("report", encoding="utf-8")
+        MetadataStore(config).save(
+            DocumentRecord(
+                document_id="test-doc",
+                document_name="test-contract.png",
+                document_type=DocumentType.CONTRACT,
+                status=ProcessingStatus.REVIEW_REQUIRED,
+                uploaded_at=datetime(2026, 5, 6, tzinfo=timezone.utc),
+                analysis=DocumentAnalysis(
+                    document_class="CONTRACT",
+                    executive_summary="Synthetic test summary.",
+                    confidence_score=0.8,
+                ),
+                report_path=str(report_path),
+            )
+        )
+
+        app = AppTest.from_file("app.py", default_timeout=5).run()
+        assert app.session_state["page"] == "Upload"
+
+        for button in app.sidebar.button:
+            if button.label == "Dashboard":
+                app = button.click().run()
+                break
+        assert app.session_state["page"] == "Dashboard"
+        app = app.run()
+        assert app.session_state["page"] == "Dashboard"
+
+        for button in app.button:
+            if button.label == "Open":
+                app = button.click().run()
+                break
+        assert app.session_state["page"] == "Document"
+        assert app.session_state["selected_document_id"] == "test-doc"
+        app = app.run()
+        assert app.session_state["page"] == "Document"
+
+        for button in app.sidebar.button:
+            if button.label == "Upload":
+                app = button.click().run()
+                break
+        assert app.session_state["page"] == "Upload"
+
+        for button in app.sidebar.button:
+            if button.label == "Settings":
+                app = button.click().run()
+                break
+        assert app.session_state["page"] == "Settings"
+    finally:
+        get_config.cache_clear()

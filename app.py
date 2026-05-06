@@ -80,6 +80,12 @@ FIELD_GUIDE_ROWS = [
 ]
 
 
+def normalize_page(page: str | None) -> str | None:
+    if page is None:
+        return None
+    return LEGACY_PAGE_NAMES.get(page, page)
+
+
 def apply_theme() -> None:
     st.markdown(
         """
@@ -700,17 +706,19 @@ def selected_record_label(row: pd.Series) -> str:
 
 
 def open_page(page: str, document_id: str | None = None) -> None:
-    page = LEGACY_PAGE_NAMES.get(page, page)
+    page = normalize_page(page) or PAGE_UPLOAD
     if document_id:
         st.session_state["selected_document_id"] = document_id
         if page == PAGE_DASHBOARD:
             st.session_state["dashboard_selected_document"] = document_id
     st.session_state["page"] = page
-    st.rerun()
+    st.session_state["requested_page"] = page
+    st.session_state["action_navigation"] = True
 
 
-def set_page(page: str) -> None:
-    st.session_state["page"] = LEGACY_PAGE_NAMES.get(page, page)
+def open_fresh_upload() -> None:
+    st.session_state["upload_widget_version"] = st.session_state.get("upload_widget_version", 0) + 1
+    open_page(PAGE_UPLOAD)
 
 
 def render_queued_actions(record) -> None:
@@ -719,15 +727,24 @@ def render_queued_actions(record) -> None:
         render_status_strip(record)
         st.write("The file is in the background queue. You can follow it from the dashboard.")
         cols = st.columns([1, 1, 1])
-        if cols[0].button("View Dashboard", type="primary"):
-            open_page(PAGE_DASHBOARD, record.document_id)
-        if cols[1].button("Open Document"):
-            open_page(PAGE_DETAIL, record.document_id)
-        if cols[2].button("Upload Another"):
-            st.session_state["upload_widget_version"] = (
-                st.session_state.get("upload_widget_version", 0) + 1
-            )
-            open_page(PAGE_UPLOAD)
+        cols[0].button(
+            "View Dashboard",
+            type="primary",
+            key=f"queued_dashboard_{record.document_id}",
+            on_click=open_page,
+            args=(PAGE_DASHBOARD, record.document_id),
+        )
+        cols[1].button(
+            "Open Document",
+            key=f"queued_open_{record.document_id}",
+            on_click=open_page,
+            args=(PAGE_DETAIL, record.document_id),
+        )
+        cols[2].button(
+            "Upload Another",
+            key=f"queued_upload_another_{record.document_id}",
+            on_click=open_fresh_upload,
+        )
 
 
 def apply_review_action(store, document_id: str, approved: bool, comments: str | None) -> bool:
@@ -931,8 +948,13 @@ def dashboard_page(config, store):
     if not records:
         with st.container(border=True):
             st.info("No documents processed yet.")
-            if st.button("Upload", type="primary"):
-                open_page(PAGE_UPLOAD)
+            st.button(
+                "Upload",
+                type="primary",
+                key="dashboard_empty_upload",
+                on_click=open_page,
+                args=(PAGE_UPLOAD,),
+            )
         return
 
     rows = [record_to_row(record) for record in records]
@@ -1044,8 +1066,14 @@ def dashboard_page(config, store):
         format_func=lambda document_id: label_by_id.get(document_id, document_id),
         key="dashboard_selected_document",
     )
-    if open_cols[1].button("Open", type="primary", width="stretch"):
-        open_page(PAGE_DETAIL, selected)
+    open_cols[1].button(
+        "Open",
+        type="primary",
+        width="stretch",
+        key=f"dashboard_open_{selected}",
+        on_click=open_page,
+        args=(PAGE_DETAIL, selected),
+    )
 
 
 def detail_page(config, store):
@@ -1059,8 +1087,13 @@ def detail_page(config, store):
     if not ids:
         with st.container(border=True):
             st.info("No documents processed yet.")
-            if st.button("Upload", type="primary"):
-                open_page(PAGE_UPLOAD)
+            st.button(
+                "Upload",
+                type="primary",
+                key="detail_empty_upload",
+                on_click=open_page,
+                args=(PAGE_UPLOAD,),
+            )
         return
 
     default_id = st.session_state.get("selected_document_id", ids[0])
@@ -1077,10 +1110,20 @@ def detail_page(config, store):
         index=index,
         format_func=lambda item: labels.get(item, item),
     )
-    if picker_cols[1].button("Dashboard", width="stretch"):
-        open_page(PAGE_DASHBOARD)
-    if picker_cols[2].button("Upload", width="stretch"):
-        open_page(PAGE_UPLOAD)
+    picker_cols[1].button(
+        "Dashboard",
+        width="stretch",
+        key=f"detail_dashboard_{document_id}",
+        on_click=open_page,
+        args=(PAGE_DASHBOARD,),
+    )
+    picker_cols[2].button(
+        "Upload",
+        width="stretch",
+        key=f"detail_upload_{document_id}",
+        on_click=open_page,
+        args=(PAGE_UPLOAD,),
+    )
 
     record = store.load(document_id)
     st.session_state["selected_document_id"] = document_id
@@ -1182,20 +1225,24 @@ def main():
     pages = [PAGE_UPLOAD, PAGE_DASHBOARD, PAGE_DETAIL, PAGE_SETTINGS]
     st.sidebar.title(config.app_title)
     st.sidebar.caption("AI document review on OCI")
-    current_page = LEGACY_PAGE_NAMES.get(st.session_state.get("page", PAGE_UPLOAD), PAGE_UPLOAD)
+    current_page = normalize_page(st.session_state.get("page", PAGE_UPLOAD)) or PAGE_UPLOAD
+    requested_page = normalize_page(st.session_state.get("requested_page"))
+    if requested_page in pages:
+        current_page = requested_page
     if current_page not in pages:
         current_page = PAGE_UPLOAD
     st.session_state["page"] = current_page
+    action_navigation = bool(st.session_state.pop("action_navigation", False))
     st.sidebar.markdown("Navigation")
     for nav_page in pages:
-        st.sidebar.button(
+        if st.sidebar.button(
             nav_page,
             key=f"nav_{nav_page}",
             type="primary" if current_page == nav_page else "secondary",
             width="stretch",
-            on_click=set_page,
-            args=(nav_page,),
-        )
+        ) and not action_navigation:
+            st.session_state["page"] = nav_page
+            st.session_state.pop("requested_page", None)
     page = st.session_state["page"]
     st.sidebar.divider()
     st.sidebar.metric("GenAI region", config.genai_region)
