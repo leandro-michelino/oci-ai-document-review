@@ -413,7 +413,7 @@ def render_field_guide() -> None:
     with st.expander("Field guide"):
         st.dataframe(
             pd.DataFrame(FIELD_GUIDE_ROWS, columns=["Field", "Meaning"]),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
         st.caption("Confidence and risk are AI-assisted signals. The human reviewer owns the final decision.")
@@ -591,7 +591,7 @@ def render_lifecycle(record) -> None:
     st.write(f"Next action: `{next_action(record)}`")
     st.dataframe(
         pd.DataFrame(processing_stage_rows(record)),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
     if record.status.value == "FAILED":
@@ -709,6 +709,10 @@ def open_page(page: str, document_id: str | None = None) -> None:
     st.rerun()
 
 
+def set_page(page: str) -> None:
+    st.session_state["page"] = LEGACY_PAGE_NAMES.get(page, page)
+
+
 def render_queued_actions(record) -> None:
     with st.container(border=True):
         st.subheader("Queued")
@@ -807,7 +811,7 @@ def render_analysis_details(record) -> None:
     if analysis.risk_notes:
         st.dataframe(
             pd.DataFrame([risk.model_dump() for risk in analysis.risk_notes]),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
     else:
@@ -827,7 +831,7 @@ def render_downloads(record, document_id: str) -> None:
         "Download JSON Result",
         metadata_json,
         f"{document_id}.json",
-        use_container_width=True,
+        width="stretch",
     )
     if record.report_path and Path(record.report_path).exists():
         report = Path(record.report_path).read_text(encoding="utf-8")
@@ -835,7 +839,7 @@ def render_downloads(record, document_id: str) -> None:
             "Download Markdown Report",
             report,
             f"{document_id}.md",
-            use_container_width=True,
+            width="stretch",
         )
     else:
         st.info("Markdown report is not available.")
@@ -874,7 +878,7 @@ def upload_page(config, store):
             "Queue Document",
             disabled=not uploaded_ok,
             type="primary",
-            use_container_width=True,
+            width="stretch",
         )
 
     if process_clicked and uploaded:
@@ -988,7 +992,7 @@ def dashboard_page(config, store):
     ]
     st.dataframe(
         filtered[display_columns],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Name": st.column_config.TextColumn("Name", width="medium"),
@@ -1040,7 +1044,7 @@ def dashboard_page(config, store):
         format_func=lambda document_id: label_by_id.get(document_id, document_id),
         key="dashboard_selected_document",
     )
-    if open_cols[1].button("Open", type="primary", use_container_width=True):
+    if open_cols[1].button("Open", type="primary", width="stretch"):
         open_page(PAGE_DETAIL, selected)
 
 
@@ -1073,9 +1077,9 @@ def detail_page(config, store):
         index=index,
         format_func=lambda item: labels.get(item, item),
     )
-    if picker_cols[1].button("Dashboard", use_container_width=True):
+    if picker_cols[1].button("Dashboard", width="stretch"):
         open_page(PAGE_DASHBOARD)
-    if picker_cols[2].button("Upload", use_container_width=True):
+    if picker_cols[2].button("Upload", width="stretch"):
         open_page(PAGE_UPLOAD)
 
     record = store.load(document_id)
@@ -1146,7 +1150,7 @@ def settings_page(config):
                 "Run this before processing customer documents. It performs real OCI API "
                 "calls with the same runtime credentials used by document processing."
             )
-            if st.button("Run OCI Preflight", type="primary", use_container_width=True):
+            if st.button("Run OCI Preflight", type="primary", width="stretch"):
                 with st.spinner("Checking Object Storage, Document Understanding, and GenAI"):
                     results = run_preflight(config)
                 for result in results:
@@ -1182,11 +1186,17 @@ def main():
     if current_page not in pages:
         current_page = PAGE_UPLOAD
     st.session_state["page"] = current_page
-    page = st.sidebar.radio(
-        "Navigation",
-        pages,
-        key="page",
-    )
+    st.sidebar.markdown("Navigation")
+    for nav_page in pages:
+        st.sidebar.button(
+            nav_page,
+            key=f"nav_{nav_page}",
+            type="primary" if current_page == nav_page else "secondary",
+            width="stretch",
+            on_click=set_page,
+            args=(nav_page,),
+        )
+    page = st.session_state["page"]
     st.sidebar.divider()
     st.sidebar.metric("GenAI region", config.genai_region)
     st.sidebar.caption("Deployment is managed from the local laptop.")
