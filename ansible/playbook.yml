@@ -54,6 +54,7 @@
         set -euo pipefail
         find {{ app_dir | quote }} \
           -path {{ (app_dir + '/.venv') | quote }} -prune -o \
+          -path {{ (app_dir + '/.oci') | quote }} -prune -o \
           -type f \( \
             -name '.env' -o \
             -name 'terraform.tfvars' -o \

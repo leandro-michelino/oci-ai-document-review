@@ -20,7 +20,8 @@ class DocumentUnderstandingClient:
         models = self.oci.ai_document.models
         details = models.AnalyzeDocumentDetails(
             compartment_id=self.config.oci_compartment_id,
-            document=models.ObjectLocation(
+            document=models.ObjectStorageDocumentDetails(
+                source="OBJECT_STORAGE",
                 namespace_name=self.config.oci_namespace,
                 bucket_name=self.config.oci_bucket_name,
                 object_name=object_name,
