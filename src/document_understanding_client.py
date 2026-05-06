@@ -1,8 +1,20 @@
-from tenacity import Retrying, stop_after_attempt, wait_exponential
+import multiprocessing as mp
+import queue
+import time
 
 from src.config import AppConfig
 from src.models import ExtractionResult
 from src.oci_auth import get_oci_client_config
+
+
+def _extract_document_worker(object_name: str, result_queue) -> None:
+    try:
+        from src.config import get_config
+
+        result = DocumentUnderstandingClient(get_config())._extract_document_inline(object_name)
+        result_queue.put(("ok", result.model_dump(mode="json")))
+    except Exception as exc:
+        result_queue.put(("error", str(exc).strip() or exc.__class__.__name__))
 
 
 class DocumentUnderstandingClient:
@@ -18,6 +30,41 @@ class DocumentUnderstandingClient:
         self.client = oci.ai_document.AIServiceDocumentClient(oci_config, **client_kwargs)
 
     def extract_document(self, object_name: str) -> ExtractionResult:
+        last_error = ""
+        for attempt in range(1, self.config.document_ai_retry_attempts + 1):
+            try:
+                return self._extract_document_with_timeout(object_name)
+            except Exception as exc:
+                last_error = str(exc).strip() or exc.__class__.__name__
+                if attempt < self.config.document_ai_retry_attempts:
+                    time.sleep(min(2**attempt, 10))
+        raise RuntimeError(f"OCI Document Understanding failed: {last_error}")
+
+    def _extract_document_with_timeout(self, object_name: str) -> ExtractionResult:
+        context = mp.get_context("spawn")
+        result_queue = context.Queue(maxsize=1)
+        process = context.Process(target=_extract_document_worker, args=(object_name, result_queue))
+        process.start()
+        process.join(self.config.document_ai_timeout_seconds)
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+            raise TimeoutError(
+                "OCI Document Understanding did not return within "
+                f"{self.config.document_ai_timeout_seconds} seconds."
+            )
+
+        try:
+            status, payload = result_queue.get_nowait()
+        except queue.Empty as exc:
+            raise RuntimeError(
+                "OCI Document Understanding worker exited without returning a result."
+            ) from exc
+        if status == "error":
+            raise RuntimeError(payload)
+        return ExtractionResult.model_validate(payload)
+
+    def _extract_document_inline(self, object_name: str) -> ExtractionResult:
         models = self.oci.ai_document.models
         details = models.AnalyzeDocumentDetails(
             compartment_id=self.config.oci_compartment_id,
@@ -33,17 +80,7 @@ class DocumentUnderstandingClient:
                 models.DocumentKeyValueExtractionFeature(),
             ],
         )
-        response = None
-        retryer = Retrying(
-            stop=stop_after_attempt(self.config.document_ai_retry_attempts),
-            wait=wait_exponential(min=2, max=10),
-            reraise=True,
-        )
-        for attempt in retryer:
-            with attempt:
-                response = self.client.analyze_document(analyze_document_details=details)
-        if response is None:
-            raise RuntimeError("OCI Document Understanding did not return a response.")
+        response = self.client.analyze_document(analyze_document_details=details)
         result = response.data
         return ExtractionResult(
             text=self._extract_text(result),

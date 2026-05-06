@@ -137,8 +137,8 @@ ansible-playbook -i "$INVENTORY" ansible/playbook.yml \
   -e "genai_model_id=$GENAI_MODEL_ID" \
   -e "genai_temperature=${GENAI_TEMPERATURE:-0.2}" \
   -e "genai_max_tokens=${GENAI_MAX_TOKENS:-3000}" \
-  -e "document_ai_timeout_seconds=${DOCUMENT_AI_TIMEOUT_SECONDS:-60}" \
-  -e "document_ai_retry_attempts=${DOCUMENT_AI_RETRY_ATTEMPTS:-2}" \
+  -e "document_ai_timeout_seconds=${DOCUMENT_AI_TIMEOUT_SECONDS:-30}" \
+  -e "document_ai_retry_attempts=${DOCUMENT_AI_RETRY_ATTEMPTS:-1}" \
   -e "stale_processing_minutes=${STALE_PROCESSING_MINUTES:-3}" \
   -e "max_document_chars=${MAX_DOCUMENT_CHARS:-50000}" \
   -e "max_upload_mb=${MAX_UPLOAD_MB:-10}"

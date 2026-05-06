@@ -165,8 +165,8 @@ If Document Understanding returns no text, the app fails clearly instead of send
 Document Understanding calls are bounded by runtime settings:
 
 ```text
-DOCUMENT_AI_TIMEOUT_SECONDS=60
-DOCUMENT_AI_RETRY_ATTEMPTS=2
+DOCUMENT_AI_TIMEOUT_SECONDS=30
+DOCUMENT_AI_RETRY_ATTEMPTS=1
 STALE_PROCESSING_MINUTES=3
 ```
 

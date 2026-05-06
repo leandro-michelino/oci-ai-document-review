@@ -25,8 +25,8 @@ class AppConfig(BaseSettings):
     genai_temperature: float = Field(default=0.2, alias="GENAI_TEMPERATURE")
     genai_max_tokens: int = Field(default=3000, alias="GENAI_MAX_TOKENS")
 
-    document_ai_timeout_seconds: int = Field(default=60, alias="DOCUMENT_AI_TIMEOUT_SECONDS")
-    document_ai_retry_attempts: int = Field(default=2, alias="DOCUMENT_AI_RETRY_ATTEMPTS")
+    document_ai_timeout_seconds: int = Field(default=30, alias="DOCUMENT_AI_TIMEOUT_SECONDS")
+    document_ai_retry_attempts: int = Field(default=1, alias="DOCUMENT_AI_RETRY_ATTEMPTS")
     stale_processing_minutes: int = Field(default=3, alias="STALE_PROCESSING_MINUTES")
     max_document_chars: int = Field(default=50000, alias="MAX_DOCUMENT_CHARS")
     max_upload_mb: int = Field(default=10, alias="MAX_UPLOAD_MB")

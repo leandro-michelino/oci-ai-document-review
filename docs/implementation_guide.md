@@ -102,8 +102,8 @@ The app records progress only after each service step completes. If Document Und
 Document Understanding calls use a bounded timeout and retry configuration:
 
 ```text
-DOCUMENT_AI_TIMEOUT_SECONDS=60
-DOCUMENT_AI_RETRY_ATTEMPTS=2
+DOCUMENT_AI_TIMEOUT_SECONDS=30
+DOCUMENT_AI_RETRY_ATTEMPTS=1
 STALE_PROCESSING_MINUTES=3
 ```
 
