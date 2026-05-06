@@ -703,7 +703,8 @@ def open_page(page: str, document_id: str | None = None) -> None:
     page = LEGACY_PAGE_NAMES.get(page, page)
     if document_id:
         st.session_state["selected_document_id"] = document_id
-        st.session_state["dashboard_selected_document"] = document_id
+        if page == PAGE_DASHBOARD:
+            st.session_state["dashboard_selected_document"] = document_id
     st.session_state["page"] = page
     st.rerun()
 
