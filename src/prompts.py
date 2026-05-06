@@ -43,7 +43,7 @@ Rules:
 Required JSON schema:
 {schema}
 
-Document text:
+Extracted document content:
 {text}
 """
 
@@ -63,7 +63,7 @@ Rules:
 - Do not invent fields.
 - Return JSON only.
 
-Contract text:
+Extracted contract content:
 {text}
 """
 
@@ -81,13 +81,33 @@ Rules:
 - If a field is not present, return null.
 - Return JSON only.
 
-Invoice text:
+Extracted invoice content:
 {text}
 """
 
 
-def build_prompt(document_type: DocumentType, extracted_text: str, max_chars: int) -> str:
-    text = extracted_text[:max_chars]
+def build_extraction_context(
+    extracted_text: str,
+    key_values: dict | None = None,
+    table_count: int = 0,
+) -> str:
+    sections = [f"Text:\n{extracted_text}"]
+    if key_values:
+        rendered = "\n".join(f"- {key}: {value}" for key, value in key_values.items())
+        sections.append(f"Key values detected by OCI Document Understanding:\n{rendered}")
+    if table_count:
+        sections.append(f"Tables detected by OCI Document Understanding: {table_count}")
+    return "\n\n".join(sections)
+
+
+def build_prompt(
+    document_type: DocumentType,
+    extracted_text: str,
+    max_chars: int,
+    key_values: dict | None = None,
+    table_count: int = 0,
+) -> str:
+    text = build_extraction_context(extracted_text[:max_chars], key_values, table_count)
     template = BASE_PROMPT
     if document_type == DocumentType.CONTRACT:
         template = CONTRACT_PROMPT

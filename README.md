@@ -1,6 +1,6 @@
 # OCI AI Document Review Portal
 
-A deployed Oracle Cloud Infrastructure demo that turns uploaded business documents into structured AI review reports using Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI.
+A deployed Oracle Cloud Infrastructure MVP that turns uploaded business documents into structured AI review reports using Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI.
 
 ## Description
 

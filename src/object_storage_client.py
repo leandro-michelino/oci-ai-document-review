@@ -26,5 +26,26 @@ class ObjectStorageClient:
             )
         return object_name
 
+    def get_bucket(self):
+        return self.client.get_bucket(
+            namespace_name=self.config.oci_namespace,
+            bucket_name=self.config.oci_bucket_name,
+        ).data
+
+    def get_object_text(self, object_name: str) -> str:
+        response = self.client.get_object(
+            namespace_name=self.config.oci_namespace,
+            bucket_name=self.config.oci_bucket_name,
+            object_name=object_name,
+        )
+        return response.data.content.decode("utf-8")
+
+    def delete_object(self, object_name: str) -> None:
+        self.client.delete_object(
+            namespace_name=self.config.oci_namespace,
+            bucket_name=self.config.oci_bucket_name,
+            object_name=object_name,
+        )
+
     def object_uri(self, object_name: str) -> str:
         return f"oci://{self.config.oci_bucket_name}@{self.config.oci_namespace}/{object_name}"

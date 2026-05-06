@@ -64,11 +64,17 @@ class DocumentProcessor:
         document_type: DocumentType,
         business_reference: str | None = None,
         notes: str | None = None,
+        progress_callback=None,
     ) -> DocumentRecord:
+        def progress(message: str) -> None:
+            if progress_callback:
+                progress_callback(message)
+
         document_id = create_document_id()
         storage_name = safe_document_name(document_name)
         local_path = self.config.local_uploads_dir / f"{document_id}-{storage_name}"
         shutil.copyfile(source_path, local_path)
+        progress("Stored local working copy")
 
         record = DocumentRecord(
             document_id=document_id,
@@ -85,21 +91,31 @@ class DocumentProcessor:
             record.object_storage_path = self.object_storage.object_uri(object_name)
             record.status = ProcessingStatus.PROCESSING
             self.store.save(record)
+            progress("Uploaded original file to OCI Object Storage")
 
             extraction = self.document_ai.extract_document(object_name)
+            if not extraction.text.strip():
+                raise ValueError(
+                    "OCI Document Understanding returned no extractable text. "
+                    "Try a clearer PDF or image."
+                )
             record.status = ProcessingStatus.EXTRACTED
             record.extracted_text_preview = extraction.text[:2000]
             self.store.save(record)
+            progress("Extracted text with OCI Document Understanding")
 
             prompt = build_prompt(
                 document_type=document_type,
                 extracted_text=extraction.text,
                 max_chars=self.config.max_document_chars,
+                key_values=extraction.key_values,
+                table_count=len(extraction.tables),
             )
             analysis = self.genai.analyze_document(prompt)
             record.status = ProcessingStatus.AI_ANALYZED
             record.analysis = analysis
             self.store.save(record)
+            progress("Generated structured analysis with OCI Generative AI")
 
             record.status = ProcessingStatus.REVIEW_REQUIRED
             record.processed_at = datetime.now(timezone.utc)
@@ -108,6 +124,7 @@ class DocumentProcessor:
             report_path.write_text(report, encoding="utf-8")
             record.report_path = str(report_path)
             self.store.save(record)
+            progress("Saved review metadata and Markdown report")
             return record
         except Exception as exc:
             logger.exception("Document processing failed for %s", document_id)

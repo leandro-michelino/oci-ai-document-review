@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from src.config import get_config
+from src.health_checks import run_preflight
 from src.metadata_store import MetadataStore
 from src.models import DocumentType
 from src.processor import DocumentProcessor, error_message
@@ -151,9 +152,6 @@ def upload_page(config, store):
 
         processor = DocumentProcessor(config)
         with st.status("Processing document", expanded=True) as status:
-            st.write("Uploading to Object Storage")
-            st.write("Extracting content with OCI Document Understanding")
-            st.write(f"Analyzing with OCI Generative AI in `{config.genai_region}`")
             try:
                 record = processor.process(
                     source_path=tmp_path,
@@ -161,6 +159,7 @@ def upload_page(config, store):
                     document_type=DocumentType(document_type),
                     business_reference=business_reference or None,
                     notes=notes or None,
+                    progress_callback=st.write,
                 )
                 status.update(label="Document processed", state="complete")
                 st.session_state["selected_document_id"] = record.document_id
@@ -359,6 +358,24 @@ def settings_page(config):
     st.write(f"Compartment: `{config.oci_compartment_id}`")
     st.write(f"Bucket: `{config.oci_bucket_name}`")
     st.info("Run `python scripts/setup.py` to refresh GenAI region availability.")
+
+    st.subheader("OCI Preflight")
+    st.write(
+        "Run this before processing customer documents. It performs real OCI API "
+        "calls with the same runtime credentials used by document processing."
+    )
+    if st.button("Run OCI Preflight", type="primary"):
+        with st.spinner("Checking Object Storage, Document Understanding, and GenAI"):
+            results = run_preflight(config)
+        for result in results:
+            if result.ok:
+                st.success(f"{result.name}: {result.detail}")
+            else:
+                st.error(f"{result.name}: {result.detail}")
+        if all(result.ok for result in results):
+            st.success("All OCI runtime checks passed.")
+        else:
+            st.warning("Fix the failed checks before processing customer documents.")
 
 
 def main():

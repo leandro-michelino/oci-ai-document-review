@@ -115,7 +115,7 @@ Estimated monthly total
 
 These scenarios are intentionally rough. They are meant to show what to check, not to predict a bill.
 
-### Scenario A - Small Article Demo
+### Scenario A - Small Article MVP Run
 
 ```text
 Documents processed: 10 to 50 per month
@@ -134,7 +134,7 @@ Expected cost behavior:
 Planning estimate:
 
 ```text
-Low demo estimate: possibly low single digits to low tens of USD per month
+Low MVP estimate: possibly low single digits to low tens of USD per month
 Confidence: low
 Reason: AI service usage and account-specific free tier eligibility can change the bill materially
 ```
@@ -194,11 +194,11 @@ Limit file upload size.
 Limit extracted text sent to GenAI.
 Avoid reprocessing unchanged documents.
 Store generated reports and JSON results.
-Set Object Storage lifecycle policies for old demo files.
+Set Object Storage lifecycle policies for old uploaded files.
 Stop or resize the VM when not needed.
 Use OCI budgets and alarms.
 Tag all resources with project and owner.
-Review Cost Analysis after each demo run.
+Review Cost Analysis after each processing run.
 Use smaller documents for article screenshots.
 ```
 

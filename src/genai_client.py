@@ -29,16 +29,22 @@ class GenAIClient:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
     def analyze_document(self, prompt: str) -> DocumentAnalysis:
-        raw_text = self._chat(prompt)
+        raw_text = self._chat(prompt, max_tokens=self.config.genai_max_tokens)
         payload = self._extract_json(raw_text)
         return DocumentAnalysis.model_validate(payload)
 
-    def _chat(self, prompt: str) -> str:
+    def ping(self) -> str:
+        return self._chat(
+            "Reply with the exact text OCI_GENAI_OK and no other words.",
+            max_tokens=20,
+        )
+
+    def _chat(self, prompt: str, max_tokens: int) -> str:
         models = self.oci.generative_ai_inference.models
         request = models.CohereChatRequest(
             message=prompt,
             temperature=self.config.genai_temperature,
-            max_tokens=self.config.genai_max_tokens,
+            max_tokens=max_tokens,
         )
         details = models.ChatDetails(
             compartment_id=self.config.oci_compartment_id,

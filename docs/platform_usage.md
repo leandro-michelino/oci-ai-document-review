@@ -175,7 +175,7 @@ The same information is also printed by `scripts/deploy.sh`.
 
 Open the `streamlit_url` output in your browser.
 
-Recommended demo flow:
+Recommended processing flow:
 
 ```text
 1. Open the portal.

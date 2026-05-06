@@ -15,3 +15,17 @@ def test_prompt_truncates_document_text():
 
     assert "x" * 10 in prompt
     assert "x" * 11 not in prompt
+
+
+def test_prompt_includes_document_understanding_key_values():
+    prompt = build_prompt(
+        DocumentType.INVOICE,
+        "Invoice body",
+        max_chars=1000,
+        key_values={"Total": "$42.00"},
+        table_count=1,
+    )
+
+    assert "Key values detected by OCI Document Understanding" in prompt
+    assert "Total: $42.00" in prompt
+    assert "Tables detected by OCI Document Understanding: 1" in prompt

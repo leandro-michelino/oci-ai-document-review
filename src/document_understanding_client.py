@@ -39,6 +39,13 @@ class DocumentUnderstandingClient:
             key_values=self._extract_key_values(result),
         )
 
+    def list_recent_work_requests(self) -> int:
+        response = self.client.list_work_requests(
+            compartment_id=self.config.oci_compartment_id,
+            limit=1,
+        )
+        return len(getattr(response.data, "items", []) or [])
+
     @staticmethod
     def _extract_text(result) -> str:
         if getattr(result, "pages", None):
