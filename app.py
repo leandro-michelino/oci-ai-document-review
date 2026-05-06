@@ -795,9 +795,6 @@ def dashboard_page(config, store):
         "Review Dashboard",
         "Prioritize documents, inspect analysis, and record the human decision.",
     )
-    stale_count = store.fail_stale_processing(config.stale_processing_minutes)
-    if stale_count:
-        st.warning(f"{stale_count} stale processing run was marked as failed.")
     records = store.list_records()
     if not records:
         with st.container(border=True):
@@ -963,9 +960,6 @@ def detail_page(config, store):
         "Document Details",
         "Inspect lifecycle evidence, AI analysis, source data, and review outcome.",
     )
-    stale_count = store.fail_stale_processing(config.stale_processing_minutes)
-    if stale_count:
-        st.warning(f"{stale_count} stale processing run was marked as failed.")
     records = store.list_records()
     ids = [record.document_id for record in records]
     if not ids:
@@ -1143,6 +1137,9 @@ def main():
     store = MetadataStore(config)
     st.set_page_config(page_title=config.app_title, layout="wide")
     apply_theme()
+    stale_count = store.fail_stale_processing(config.stale_processing_minutes)
+    if stale_count:
+        st.warning(f"{stale_count} stale processing run was marked as failed.")
 
     pages = ["Upload Document", "Review Dashboard", "Document Details", "Settings"]
     st.sidebar.title(config.app_title)

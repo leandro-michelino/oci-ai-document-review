@@ -167,7 +167,7 @@ Document Understanding calls are bounded by runtime settings:
 ```text
 DOCUMENT_AI_TIMEOUT_SECONDS=60
 DOCUMENT_AI_RETRY_ATTEMPTS=2
-STALE_PROCESSING_MINUTES=10
+STALE_PROCESSING_MINUTES=3
 ```
 
 If a browser session is interrupted or a processing run stays in `PROCESSING` beyond the stale window, the portal marks it as `FAILED` with a retry message instead of leaving it stuck.

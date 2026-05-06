@@ -104,7 +104,7 @@ Document Understanding calls use a bounded timeout and retry configuration:
 ```text
 DOCUMENT_AI_TIMEOUT_SECONDS=60
 DOCUMENT_AI_RETRY_ATTEMPTS=2
-STALE_PROCESSING_MINUTES=10
+STALE_PROCESSING_MINUTES=3
 ```
 
 If a browser session is interrupted or a processing run remains in `PROCESSING` beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.

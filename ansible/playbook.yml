@@ -91,7 +91,7 @@
           GENAI_MAX_TOKENS={{ genai_max_tokens | default('3000') }}
           DOCUMENT_AI_TIMEOUT_SECONDS={{ document_ai_timeout_seconds | default('60') }}
           DOCUMENT_AI_RETRY_ATTEMPTS={{ document_ai_retry_attempts | default('2') }}
-          STALE_PROCESSING_MINUTES={{ stale_processing_minutes | default('10') }}
+          STALE_PROCESSING_MINUTES={{ stale_processing_minutes | default('3') }}
           MAX_DOCUMENT_CHARS={{ max_document_chars | default('50000') }}
           MAX_UPLOAD_MB={{ max_upload_mb | default('10') }}
           LOCAL_METADATA_DIR=data/metadata
