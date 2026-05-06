@@ -54,6 +54,30 @@ Reviewer approves or rejects the document
 
 The dashboard and Document Details page both show the same next action. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`.
 
+## Field Reference
+
+The portal shows a `?` marker beside the main review and file fields. Hover over it in the app to see the same definitions below.
+
+| Field | Meaning |
+| --- | --- |
+| Status | Processing state for the document lifecycle, from upload through approval or failure. |
+| Review | Human review decision state: `PENDING`, `APPROVED`, or `REJECTED`. |
+| Risk | Highest severity found in AI risk notes. `NONE` means no risk note was returned. |
+| Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
+| Action | The next human or operational step for the selected document. |
+| Document type | Review category chosen during upload. It guides the GenAI prompt. |
+| File name | Original uploaded file name. |
+| Extension | File extension from the uploaded file name. |
+| File size | Original upload size captured by the portal for new uploads. |
+| MIME type | Browser-reported file content type captured during upload. |
+| Business reference | Optional user-provided reference, such as invoice number, case ID, or contract ID. |
+| Document ID | Internal portal identifier created for this processing run. |
+| Report | Whether a Markdown review report exists on the VM. |
+| Text preview | Number of extracted characters stored for quick inspection in the portal. |
+| Storage | Whether the original file has an OCI Object Storage path recorded. |
+
+Confidence, extracted fields, recommendations, missing information, and risk notes are AI-assisted signals. A human reviewer must still verify the document and make the final approval or rejection decision.
+
 ## Description
 
 This project implements an end-to-end AI document review portal on Oracle Cloud Infrastructure. Users upload PDFs or images through a Streamlit web interface, the app stores the originals in a private Object Storage bucket, extracts text and fields with OCI Document Understanding, analyzes the content with OCI Generative AI, and presents a review dashboard with summaries, risks, recommendations, approval actions, and downloadable Markdown or JSON reports.
@@ -219,6 +243,7 @@ The app supports:
 - Dashboard and detail views
 - Dashboard decision panel for pending reviews
 - Processing lifecycle view for each document
+- Field guide with `?` explanations for review and file metadata fields
 - Document Details tabs for analysis, review action, source data, and downloads
 - OCI Preflight checks in Settings
 

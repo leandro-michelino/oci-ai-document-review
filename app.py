@@ -34,6 +34,36 @@ STATE_TONE = {
     "AI_ANALYZED": "state-info",
     "UPLOADED": "state-info",
 }
+FIELD_HELP = {
+    "Action": "The next human or operational step for the selected document.",
+    "Business reference": "Optional user-provided reference, such as invoice number, case ID, or contract ID.",
+    "Confidence": "AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness.",
+    "Document ID": "Internal portal identifier created for this processing run.",
+    "Document type": "Review category chosen during upload. It guides the GenAI prompt.",
+    "Extension": "File extension from the uploaded file name.",
+    "File name": "Original uploaded file name.",
+    "File size": "Original upload size captured by the portal for new uploads.",
+    "MIME type": "Browser-reported file content type captured during upload.",
+    "Report": "Whether a Markdown review report exists on the VM.",
+    "Review": "Human review decision state: PENDING, APPROVED, or REJECTED.",
+    "Risk": "Highest severity found in AI risk notes. NONE means no risk note was returned.",
+    "Status": "Processing state for the document lifecycle, from upload through approval or failure.",
+    "Storage": "Whether the original file has an OCI Object Storage path recorded.",
+    "Text preview": "Number of extracted characters stored for quick inspection in the portal.",
+}
+FIELD_GUIDE_ROWS = [
+    ("Status", FIELD_HELP["Status"]),
+    ("Review", FIELD_HELP["Review"]),
+    ("Risk", FIELD_HELP["Risk"]),
+    ("Confidence", FIELD_HELP["Confidence"]),
+    ("Action", FIELD_HELP["Action"]),
+    ("Document type", FIELD_HELP["Document type"]),
+    ("File size", FIELD_HELP["File size"]),
+    ("MIME type", FIELD_HELP["MIME type"]),
+    ("Report", FIELD_HELP["Report"]),
+    ("Text preview", FIELD_HELP["Text preview"]),
+    ("Storage", FIELD_HELP["Storage"]),
+]
 
 
 def apply_theme() -> None:
@@ -237,6 +267,22 @@ def apply_theme() -> None:
             line-height: 1.35;
             overflow-wrap: anywhere;
         }
+        .help-dot {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1rem;
+            height: 1rem;
+            margin-left: 0.25rem;
+            border-radius: 999px;
+            border: 1px solid #c7c1b8;
+            color: #5f5a52;
+            background: #ffffff;
+            font-size: 0.68rem;
+            font-weight: 900;
+            cursor: help;
+            vertical-align: text-top;
+        }
         @media (max-width: 980px) {
             .review-snapshot,
             .info-grid {
@@ -294,6 +340,13 @@ def badge(label: str, tone: str) -> str:
     return f'<span class="badge {tone}">{escape(label)}</span>'
 
 
+def help_dot(label: str) -> str:
+    help_text = FIELD_HELP.get(label)
+    if not help_text:
+        return ""
+    return f'<span class="help-dot" title="{escape(help_text)}">?</span>'
+
+
 def state_tone(value: str) -> str:
     return STATE_TONE.get(value.upper(), "state-info")
 
@@ -328,6 +381,16 @@ def render_summary_panel(title: str, body: str, label: str | None = None) -> Non
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_field_guide() -> None:
+    with st.expander("Field guide"):
+        st.dataframe(
+            pd.DataFrame(FIELD_GUIDE_ROWS, columns=["Field", "Meaning"]),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.caption("Confidence and risk are AI-assisted signals. The human reviewer owns the final decision.")
 
 
 def file_size_label(size_bytes: int | None) -> str:
@@ -370,7 +433,7 @@ def render_review_snapshot(record) -> None:
     cells = "\n".join(
         f"""
         <div class="snapshot-cell">
-          <div class="snapshot-label">{escape(label)}</div>
+          <div class="snapshot-label">{escape(label)}{help_dot(label)}</div>
           <div class="snapshot-value">{escape(value)}</div>
         </div>
         """
@@ -400,7 +463,7 @@ def render_file_information(record) -> None:
     items = "\n".join(
         f"""
         <div class="info-item">
-          <div class="info-label">{escape(label)}</div>
+          <div class="info-label">{escape(label)}{help_dot(label)}</div>
           <div class="info-value">{escape(value)}</div>
         </div>
         """
@@ -805,13 +868,34 @@ def dashboard_page(store):
         hide_index=True,
         column_config={
             "Name": st.column_config.TextColumn("Name", width="medium"),
-            "Type": st.column_config.TextColumn("Type", width="small"),
-            "Status": st.column_config.TextColumn("Status", width="small"),
-            "Review": st.column_config.TextColumn("Review", width="small"),
-            "Risk Level": st.column_config.TextColumn("Risk", width="small"),
-            "Action": st.column_config.TextColumn("Action", width="medium"),
+            "Type": st.column_config.TextColumn(
+                "Type",
+                help=FIELD_HELP["Document type"],
+                width="small",
+            ),
+            "Status": st.column_config.TextColumn(
+                "Status",
+                help=FIELD_HELP["Status"],
+                width="small",
+            ),
+            "Review": st.column_config.TextColumn(
+                "Review",
+                help=FIELD_HELP["Review"],
+                width="small",
+            ),
+            "Risk Level": st.column_config.TextColumn(
+                "Risk",
+                help=FIELD_HELP["Risk"],
+                width="small",
+            ),
+            "Action": st.column_config.TextColumn(
+                "Action",
+                help=FIELD_HELP["Action"],
+                width="medium",
+            ),
             "Confidence": st.column_config.ProgressColumn(
                 "Confidence",
+                help=FIELD_HELP["Confidence"],
                 min_value=0,
                 max_value=100,
                 format="%d%%",
@@ -844,6 +928,7 @@ def dashboard_page(store):
         st.subheader(selected_record.document_name)
         render_status_strip(selected_record)
         render_review_snapshot(selected_record)
+        render_field_guide()
         st.markdown("### File Information")
         render_file_information(selected_record)
         review_col, action_col = st.columns([1.4, 1], gap="large")
@@ -890,6 +975,7 @@ def detail_page(config, store):
     st.subheader(record.document_name)
     render_status_strip(record)
     render_review_snapshot(record)
+    render_field_guide()
 
     with st.container(border=True):
         st.subheader("File Information")
