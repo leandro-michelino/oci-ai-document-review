@@ -185,10 +185,10 @@ Recommended demo flow:
 4. Upload a PDF, PNG, JPG, or JPEG.
 5. Click Process Document.
 6. Wait for Object Storage upload, Document Understanding extraction, and GenAI analysis.
-7. Review the executive summary, extracted fields, risk notes, and recommendations.
-8. Approve or reject the review.
-9. Download Markdown or JSON results.
-10. Use Review Dashboard to inspect processed documents.
+7. Use Review Dashboard to search, filter, and triage processed documents.
+8. Review the executive summary, extracted fields, risk notes, and recommendations.
+9. Approve or reject the review.
+10. Download Markdown or JSON results.
 ```
 
 ## Operating The VM

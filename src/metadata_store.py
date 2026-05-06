@@ -3,7 +3,11 @@ from pathlib import Path
 from typing import Any
 
 from src.config import AppConfig
+from src.logger import get_logger
 from src.models import DocumentRecord, ProcessingStatus, ReviewStatus
+
+
+logger = get_logger(__name__)
 
 
 class MetadataStore:
@@ -27,7 +31,10 @@ class MetadataStore:
     def list_records(self) -> list[DocumentRecord]:
         records = []
         for path in sorted(self.root.glob("*.json"), reverse=True):
-            records.append(DocumentRecord.model_validate_json(path.read_text(encoding="utf-8")))
+            try:
+                records.append(DocumentRecord.model_validate_json(path.read_text(encoding="utf-8")))
+            except Exception as exc:
+                logger.warning("Skipping invalid metadata file %s: %s", path, exc)
         return records
 
     def update(self, document_id: str, **changes: Any) -> DocumentRecord:
