@@ -1,5 +1,7 @@
 # Article Outline
 
+Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+
 1. Why document-heavy processes remain manual
 2. Why Document Understanding plus GenAI is useful
 3. Architecture overview

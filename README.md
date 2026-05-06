@@ -2,6 +2,8 @@
 
 A deployed Oracle Cloud Infrastructure MVP that turns uploaded business documents into structured AI review reports using Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI.
 
+Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+
 ## What This Project Does
 
 This project is a working document review portal for OCI. It is designed for business documents such as receipts, invoices, contracts, compliance files, reports, and general PDFs or images.

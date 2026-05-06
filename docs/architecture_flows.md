@@ -1,5 +1,7 @@
 # Architecture Flows
 
+Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+
 ## End-to-End MVP Flow
 
 ```text

@@ -2,6 +2,8 @@
 
 This project is deployed from a local laptop. It does not use GitHub Actions or Git-based deployment automation.
 
+Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+
 ## Local Preparation
 
 ```bash

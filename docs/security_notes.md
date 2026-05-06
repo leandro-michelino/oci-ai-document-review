@@ -1,5 +1,7 @@
 # Security Notes
 
+Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+
 ## MVP Controls
 
 - Keep Object Storage buckets private.

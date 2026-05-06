@@ -2,6 +2,8 @@
 
 This is an illustrative cost estimate for the OCI AI Document Review Portal.
 
+Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+
 Important:
 
 - This is not an official Oracle quote.

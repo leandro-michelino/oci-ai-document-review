@@ -16,6 +16,8 @@ from src.processor import DocumentProcessor, error_message
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
 READY_FOR_DECISION = {"REVIEW_REQUIRED"}
+CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
+CONTACT_MESSAGE = "In case of any question, get in touch."
 RISK_TONE = {
     "HIGH": "risk-high",
     "MEDIUM": "risk-medium",
@@ -1126,6 +1128,9 @@ def settings_page(config):
                 else:
                     st.warning("Fix the failed checks before processing customer documents.")
 
+    st.divider()
+    st.caption(f"{CONTACT_TEXT}. {CONTACT_MESSAGE}")
+
 
 def main():
     config = load_app_config()
@@ -1145,6 +1150,9 @@ def main():
     st.sidebar.divider()
     st.sidebar.metric("GenAI region", config.genai_region)
     st.sidebar.caption("Deployment is managed from the local laptop.")
+    st.sidebar.divider()
+    st.sidebar.caption(CONTACT_TEXT)
+    st.sidebar.caption(CONTACT_MESSAGE)
 
     if page == "Upload Document":
         upload_page(config, store)
