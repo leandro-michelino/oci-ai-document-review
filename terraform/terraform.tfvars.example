@@ -1,0 +1,47 @@
+# Copy this file to terraform.tfvars for local laptop deployment.
+# Do not commit terraform.tfvars because it contains tenancy-specific values.
+
+# Runtime region for Object Storage, networking, compute, and Document Understanding.
+# The setup wizard can discover GenAI-capable regions before writing terraform.tfvars.
+region = "your-region"
+
+# OCI Generative AI region selected after live discovery.
+genai_region = "your-genai-region"
+
+# OCI home region for IAM operations, if you enable optional IAM policy creation.
+home_region = "your-home-region"
+
+# Replace these OCIDs with your own tenancy and compartment values.
+tenancy_id            = "ocid1.tenancy.oc1..example"
+parent_compartment_id = "ocid1.compartment.oc1..exampleparent"
+compartment_id        = "ocid1.compartment.oc1..exampleproject"
+
+# Object Storage namespace from `oci os ns get`.
+object_storage_namespace = "your_namespace"
+bucket_name              = "doc-review-input"
+
+# Restrict SSH and Streamlit access to your current public IP.
+# Example: "203.0.113.10/32"
+allowed_ingress_cidr = "x.x.x.x/32"
+
+# Public key used for the compute instance.
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# Compute sizing.
+instance_shape      = "VM.Standard.A1.Flex"
+instance_ocpus      = 1
+instance_memory_gbs = 6
+
+# Network CIDRs.
+vcn_cidr            = "10.42.0.0/16"
+subnet_cidr         = "10.42.1.0/24"
+private_subnet_cidr = "10.42.2.0/24"
+
+# Optional: create a policy for an existing admin group.
+# Leave disabled if your IAM policies already exist.
+enable_admin_group_policy = false
+admin_group_name          = ""
+
+freeform_tags = {
+  project = "oci-ai-document-review"
+}

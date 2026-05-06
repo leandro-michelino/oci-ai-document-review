@@ -1,0 +1,169 @@
+- name: Deploy OCI AI Document Review Portal
+  hosts: doc_review
+  become: true
+  gather_facts: true
+
+  vars:
+    app_user: opc
+    app_dir: /opt/oci-ai-document-review
+    app_archive: "{{ playbook_dir }}/../.deploy/oci-ai-document-review.tar.gz"
+    app_port: 8501
+    oci_auth: config_file
+
+  tasks:
+    - name: Install runtime packages
+      ansible.builtin.dnf:
+        name:
+          - python3.11
+          - python3.11-pip
+          - firewalld
+          - tar
+        state: present
+
+    - name: Ensure firewalld is running
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Open Streamlit port on host firewall
+      ansible.posix.firewalld:
+        port: "{{ app_port }}/tcp"
+        permanent: true
+        immediate: true
+        state: enabled
+
+    - name: Create app directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+
+    - name: Unpack app release
+      ansible.builtin.unarchive:
+        src: "{{ app_archive }}"
+        dest: "{{ app_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+
+    - name: Write runtime environment
+      ansible.builtin.copy:
+        dest: "{{ app_dir }}/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0640"
+        content: |
+          OCI_AUTH={{ oci_auth }}
+          OCI_CONFIG_FILE={{ app_dir }}/.oci/config
+          OCI_PROFILE=DEFAULT
+          OCI_REGION={{ oci_region }}
+          GENAI_REGION={{ genai_region }}
+          OCI_COMPARTMENT_ID={{ compartment_id }}
+          OCI_NAMESPACE={{ object_storage_namespace }}
+          OCI_BUCKET_NAME={{ bucket_name }}
+          GENAI_MODEL_ID={{ genai_model_id }}
+          GENAI_TEMPERATURE={{ genai_temperature | default('0.2') }}
+          GENAI_MAX_TOKENS={{ genai_max_tokens | default('3000') }}
+          MAX_DOCUMENT_CHARS={{ max_document_chars | default('50000') }}
+          MAX_UPLOAD_MB={{ max_upload_mb | default('10') }}
+          LOCAL_METADATA_DIR=data/metadata
+          LOCAL_REPORTS_DIR=data/reports
+          LOCAL_UPLOADS_DIR=data/uploads
+          APP_TITLE=OCI AI Document Review Portal
+          LOG_LEVEL=INFO
+
+    - name: Create OCI config directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}/.oci"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0700"
+      when: oci_auth == "config_file"
+
+    - name: Copy dedicated OCI API key
+      ansible.builtin.copy:
+        src: "{{ oci_api_key_file }}"
+        dest: "{{ app_dir }}/.oci/oci_api_key.pem"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0600"
+      when: oci_auth == "config_file"
+
+    - name: Write OCI SDK config
+      ansible.builtin.copy:
+        dest: "{{ app_dir }}/.oci/config"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0600"
+        content: |
+          [DEFAULT]
+          user={{ oci_user_id }}
+          fingerprint={{ oci_fingerprint }}
+          tenancy={{ oci_tenancy_id }}
+          region={{ oci_region }}
+          key_file={{ app_dir }}/.oci/oci_api_key.pem
+      when: oci_auth == "config_file"
+
+    - name: Create data directories
+      ansible.builtin.file:
+        path: "{{ app_dir }}/{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+      loop:
+        - data/metadata
+        - data/reports
+        - data/uploads
+
+    - name: Create virtual environment
+      ansible.builtin.command:
+        cmd: python3.11 -m venv {{ app_dir }}/.venv
+        creates: "{{ app_dir }}/.venv/bin/python"
+
+    - name: Install Python dependencies
+      ansible.builtin.pip:
+        requirements: "{{ app_dir }}/requirements.txt"
+        virtualenv: "{{ app_dir }}/.venv"
+        virtualenv_command: python3.11 -m venv
+
+    - name: Install systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/oci-ai-document-review.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=OCI AI Document Review Portal
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User={{ app_user }}
+          Group={{ app_user }}
+          WorkingDirectory={{ app_dir }}
+          EnvironmentFile={{ app_dir }}/.env
+          ExecStart={{ app_dir }}/.venv/bin/streamlit run app.py --server.address=0.0.0.0 --server.port={{ app_port }} --server.headless=true
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start portal service
+      ansible.builtin.systemd_service:
+        name: oci-ai-document-review
+        state: restarted
+        enabled: true
+        daemon_reload: true
+
+    - name: Wait for app port
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ app_port }}"
+        delay: 3
+        timeout: 120
