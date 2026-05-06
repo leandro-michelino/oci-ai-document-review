@@ -2,6 +2,24 @@
 
 A deployed Oracle Cloud Infrastructure MVP that turns uploaded business documents into structured AI review reports using Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI.
 
+## What This Project Does
+
+This project is a working document review portal for OCI. It is designed for business documents such as receipts, invoices, contracts, compliance files, reports, and general PDFs or images.
+
+Users upload a document in the web portal. The platform then:
+
+```text
+1. Stores the original file in a private OCI Object Storage bucket.
+2. Extracts text, tables, and key values with OCI Document Understanding.
+3. Sends the extracted content to OCI Generative AI for structured review.
+4. Creates a JSON metadata record and a Markdown report.
+5. Shows the result in a dashboard for human review.
+6. Lets a reviewer approve or reject the document.
+7. Provides search, filters, risk level, confidence, and report downloads.
+```
+
+The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
+
 ## Description
 
 This project implements an end-to-end AI document review portal on Oracle Cloud Infrastructure. Users upload PDFs or images through a Streamlit web interface, the app stores the originals in a private Object Storage bucket, extracts text and fields with OCI Document Understanding, analyzes the content with OCI Generative AI, and presents a review dashboard with summaries, risks, recommendations, approval actions, and downloadable Markdown or JSON reports.
