@@ -12,10 +12,8 @@ class DocumentUnderstandingClient:
         self.config = config
         self.oci = oci
         oci_config, signer = get_oci_client_config(config, config.oci_region)
-        self.client = oci.ai_document.AIServiceDocumentClient(
-            oci_config,
-            signer=signer,
-        )
+        client_kwargs = {"signer": signer} if signer else {}
+        self.client = oci.ai_document.AIServiceDocumentClient(oci_config, **client_kwargs)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
     def extract_document(self, object_name: str) -> ExtractionResult:

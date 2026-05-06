@@ -20,10 +20,11 @@ class GenAIClient:
             )
         self.oci = oci
         oci_config, signer = get_oci_client_config(config, config.genai_region)
+        client_kwargs = {"signer": signer} if signer else {}
         self.client = oci.generative_ai_inference.GenerativeAiInferenceClient(
             oci_config,
-            signer=signer,
             service_endpoint=config.genai_endpoint,
+            **client_kwargs,
         )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))

@@ -12,10 +12,8 @@ class ObjectStorageClient:
 
         self.config = config
         oci_config, signer = get_oci_client_config(config, config.oci_region)
-        self.client = oci.object_storage.ObjectStorageClient(
-            oci_config,
-            signer=signer,
-        )
+        client_kwargs = {"signer": signer} if signer else {}
+        self.client = oci.object_storage.ObjectStorageClient(oci_config, **client_kwargs)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8))
     def upload_file(self, file_path: Path, object_name: str) -> str:

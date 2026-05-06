@@ -9,7 +9,7 @@ import streamlit as st
 from src.config import get_config
 from src.metadata_store import MetadataStore
 from src.models import DocumentType
-from src.processor import DocumentProcessor
+from src.processor import DocumentProcessor, error_message
 
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
@@ -127,7 +127,15 @@ def upload_page(config, store):
     document_type = st.selectbox("Document type", [item.value for item in DocumentType])
     business_reference = st.text_input("Business reference")
     notes = st.text_area("Notes")
-    uploaded = st.file_uploader("Document file", type=["pdf", "png", "jpg", "jpeg"])
+    st.caption(f"Supported: PDF, PNG, JPG, JPEG. App upload limit: {config.max_upload_mb} MB.")
+    uploaded = st.file_uploader(
+        "Document file",
+        type=["pdf", "png", "jpg", "jpeg"],
+        help=(
+            "Streamlit may show its server upload limit, but this app enforces "
+            f"{config.max_upload_mb} MB before processing."
+        ),
+    )
 
     if uploaded:
         size_mb = uploaded.size / (1024 * 1024)
@@ -159,7 +167,9 @@ def upload_page(config, store):
                 st.success("Document is ready for review.")
             except Exception as exc:
                 status.update(label="Processing failed", state="error")
-                st.error(str(exc))
+                st.error(f"Processing failed: {error_message(exc)}")
+                with st.expander("Technical details"):
+                    st.exception(exc)
 
         tmp_path.unlink(missing_ok=True)
 
