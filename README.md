@@ -60,6 +60,30 @@ More ASCII flows are in `docs/architecture_flows.md`.
 
 Detailed Terraform outputs, Ansible output, deployment flow, operations commands, and portal usage instructions are in `docs/platform_usage.md`.
 
+## Real MVP Verification
+
+The app is wired to real OCI services. It does not use simulated processing in the runtime path.
+
+Before processing customer documents, open `Settings` and run `OCI Preflight`. It performs live checks with the same credentials used by processing:
+
+- Object Storage bucket reachability plus write, read, and delete.
+- Document Understanding API access in the configured compartment.
+- Generative AI model response in the selected GenAI region.
+
+The processing path is:
+
+```text
+Uploaded file
+  -> private Object Storage bucket
+  -> OCI Document Understanding using ObjectStorageDocumentDetails
+  -> OCI Generative AI Cohere chat model
+  -> local metadata JSON
+  -> Markdown report
+  -> human review dashboard
+```
+
+If Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
+
 ## Cost Estimate
 
 An illustrative cost estimate and pricing worksheet is available in `docs/cost_estimate.md`.
@@ -122,6 +146,8 @@ Deploy end to end:
 
 The deployed VM uses the existing OCI API key and policies from your local OCI profile.
 
+The release package excludes local-only files such as `.env`, `.oci/`, `terraform.tfvars`, Terraform state, API keys, private keys, and local metadata. Ansible also scrubs those file patterns after unpacking before writing the intended runtime `.env` and OCI SDK config.
+
 ## Run Locally
 
 ```bash
@@ -138,6 +164,7 @@ The app supports:
 - Local JSON metadata
 - Approve and reject review actions
 - Dashboard and detail views
+- OCI Preflight checks in Settings
 
 ## Future Enhancements
 

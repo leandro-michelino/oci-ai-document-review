@@ -35,6 +35,7 @@ Compute VM
   - systemd service
   - runtime .env
   - OCI SDK config copied from local profile
+  - local JSON metadata and Markdown reports
 ```
 
 No NSGs are used. Access is controlled with security lists.
@@ -57,6 +58,29 @@ The repository includes safe examples:
 .env.example
 terraform/terraform.tfvars.example
 ```
+
+The deploy archive excludes local-only files and directories:
+
+```text
+.env
+.env.*
+.oci/
+.deploy/
+.venv/
+terraform/terraform.tfvars
+terraform/*.tfvars
+terraform/*.tfvars.json
+terraform/terraform.tfstate*
+*.pem
+*.key
+id_rsa*
+oci_api_key*
+data/metadata/*.json
+data/reports/*.md
+data/uploads/*
+```
+
+Ansible also scrubs these file patterns after unpacking the release on the VM. Then it writes the intended runtime `.env` and OCI SDK config under `/opt/oci-ai-document-review`.
 
 ## First-Time Setup
 
@@ -100,12 +124,16 @@ The deploy script:
 
 ```text
 1. Packages the app.
-2. Runs terraform init.
-3. Runs terraform apply.
-4. Writes a temporary local Ansible inventory in .deploy/.
-5. Installs required Ansible collections.
-6. Runs ansible/playbook.yml.
-7. Prints a structured deployment summary.
+2. Excludes local-only secrets, tfvars, state, metadata, and upload files.
+3. Runs terraform init.
+4. Runs terraform apply.
+5. Writes a temporary local Ansible inventory in .deploy/.
+6. Installs required Ansible collections.
+7. Runs ansible/playbook.yml.
+8. Scrubs accidental local-only files from the VM release tree.
+9. Writes the runtime .env and OCI SDK config.
+10. Restarts the systemd service.
+11. Prints a structured deployment summary.
 ```
 
 ## Terraform Outputs
@@ -175,6 +203,24 @@ The same information is also printed by `scripts/deploy.sh`.
 
 Open the `streamlit_url` output in your browser.
 
+Before processing customer documents, go to `Settings` and run `OCI Preflight`.
+
+The preflight performs real runtime checks:
+
+```text
+Object Storage
+  - Reads bucket metadata.
+  - Uploads a temporary object.
+  - Reads the object back.
+  - Deletes the temporary object.
+
+Document Understanding
+  - Calls the service API with the configured compartment.
+
+Generative AI
+  - Sends a short prompt to the configured Cohere chat model.
+```
+
 Recommended processing flow:
 
 ```text
@@ -184,12 +230,15 @@ Recommended processing flow:
    CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, or GENERAL.
 4. Upload a PDF, PNG, JPG, or JPEG.
 5. Click Process Document.
-6. Wait for Object Storage upload, Document Understanding extraction, and GenAI analysis.
+6. Wait for each real step to complete:
+   local working copy, Object Storage upload, Document Understanding extraction, GenAI analysis, metadata/report save.
 7. Use Review Dashboard to search, filter, and triage processed documents.
 8. Review the executive summary, extracted fields, risk notes, and recommendations.
 9. Approve or reject the review.
 10. Download Markdown or JSON results.
 ```
+
+Processing fails clearly if a required live service step fails. For example, if Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
 
 ## Operating The VM
 
@@ -217,9 +266,32 @@ Remote paths:
 ```text
 /opt/oci-ai-document-review
 /opt/oci-ai-document-review/.env
+/opt/oci-ai-document-review/.oci/config
+/opt/oci-ai-document-review/.oci/oci_api_key.pem
 /opt/oci-ai-document-review/data/metadata
 /opt/oci-ai-document-review/data/reports
 /opt/oci-ai-document-review/data/uploads
+```
+
+Expected runtime files on the VM:
+
+```text
+.env
+.oci/config
+.oci/oci_api_key.pem
+data/metadata/*.json
+data/reports/*.md
+data/uploads/*
+```
+
+Unexpected runtime files on the VM:
+
+```text
+terraform/terraform.tfvars
+terraform/*.tfvars
+terraform/terraform.tfstate*
+local laptop .env files
+local private keys outside .oci/oci_api_key.pem
 ```
 
 ## Updating The App
@@ -231,6 +303,32 @@ After changing code locally:
 ```
 
 The script reuses Terraform state, refreshes the app archive, reruns Ansible, updates dependencies if needed, and restarts the systemd service.
+
+## End-To-End Verification
+
+Use this checklist after any wiring or deployment change:
+
+```text
+1. terraform validate
+2. ./scripts/deploy.sh
+3. Confirm Terraform reports 0 unexpected infrastructure changes.
+4. Confirm Ansible finishes with failed=0.
+5. Confirm service is active and enabled.
+6. Run OCI Preflight from Settings.
+7. Upload a small real PDF or image.
+8. Confirm the record reaches REVIEW_REQUIRED.
+9. Confirm object_storage_path is populated.
+10. Confirm analysis is populated.
+11. Confirm the Markdown report exists.
+```
+
+Useful VM commands:
+
+```bash
+sudo systemctl is-active oci-ai-document-review
+sudo systemctl is-enabled oci-ai-document-review
+find /opt/oci-ai-document-review -path /opt/oci-ai-document-review/.venv -prune -o -type f \( -name "terraform.tfvars" -o -name "*.tfvars" -o -name "terraform.tfstate*" \) -print
+```
 
 ## Network Model
 
@@ -314,6 +412,8 @@ OCI namespace is correct.
 OCI policies allow the configured user to use Object Storage, Document Understanding, and Generative AI.
 Selected GenAI region has active supported Cohere chat models.
 Uploaded file is supported and below MAX_UPLOAD_MB.
+Settings -> OCI Preflight passes.
+Document Understanding extracted text from the file.
 ```
 
 ### Recreate Infrastructure

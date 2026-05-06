@@ -23,6 +23,8 @@ Prepared resources:
 - Compute VM for the Streamlit app
 - Optional IAM policy for an existing admin group, disabled by default
 
+Terraform does not deploy application code. Application deployment is handled by `../scripts/deploy.sh` and `../ansible/playbook.yml` after Terraform creates or refreshes the infrastructure.
+
 Create or choose a project compartment before deployment:
 
 ```text
@@ -63,3 +65,22 @@ Apply only after explicit approval:
 ```bash
 terraform apply
 ```
+
+Expected network wiring:
+
+```text
+Public subnet
+  - Streamlit VM
+  - Public IP enabled
+  - Route table sends 0.0.0.0/0 to Internet Gateway
+  - Security list allows SSH and Streamlit from allowed_ingress_cidr
+
+Private subnet
+  - Reserved for future backend services
+  - Public IP disabled
+  - Route table sends Oracle Services Network to Service Gateway
+  - Route table sends 0.0.0.0/0 to NAT Gateway
+  - Security list allows VCN CIDR traffic
+```
+
+No NSGs are created by this configuration.

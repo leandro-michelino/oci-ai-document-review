@@ -54,6 +54,11 @@ Networking
   - Public IP
   - Outbound data transfer
   - Optional load balancer, if added later
+
+Runtime validation
+  - OCI Preflight creates a small temporary Object Storage object and deletes it.
+  - Full smoke tests call Document Understanding and Generative AI.
+  - Repeated validation runs can add small usage charges.
 ```
 
 ## Official Pricing References
@@ -200,6 +205,7 @@ Use OCI budgets and alarms.
 Tag all resources with project and owner.
 Review Cost Analysis after each processing run.
 Use smaller documents for article screenshots.
+Run preflight intentionally, not in a tight loop.
 ```
 
 ## Recommended Disclaimer For The Article

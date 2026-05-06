@@ -77,6 +77,78 @@
 +-------------------+  +---------------------+  +-------------------+
 ```
 
+## Processing Sequence
+
+```text
++----------------------+
+| Streamlit Upload     |
++----------+-----------+
+           |
+           v
++----------------------+
+| Local Working Copy   |
+| data/uploads         |
++----------+-----------+
+           |
+           | put_object
+           v
++----------------------+
+| Object Storage       |
+| Private Bucket       |
++----------+-----------+
+           |
+           | ObjectStorageDocumentDetails
+           v
++----------------------------+
+| Document Understanding     |
+| Text, Tables, Key Values   |
++----------+-----------------+
+           |
+           | extracted content
+           v
++----------------------------+
+| Generative AI              |
+| CohereChatRequest          |
++----------+-----------------+
+           |
+           | strict JSON analysis
+           v
++----------------------------+
+| Metadata + Report          |
+| JSON + Markdown            |
++----------+-----------------+
+           |
+           v
++----------------------------+
+| Review Dashboard           |
+| Human Approve / Reject     |
++----------------------------+
+```
+
+## Preflight Flow
+
+```text
++----------------------+
+| Settings Page        |
+| Run OCI Preflight    |
++----------+-----------+
+           |
+           +--------------------+----------------------+--------------------+
+           |                    |                      |                    |
+           v                    v                      v                    |
++-------------------+  +---------------------+  +-------------------+     |
+| Object Storage    |  | Document             |  | Generative AI     |     |
+| write/read/delete |  | Understanding API    |  | model response    |     |
++-------------------+  +---------------------+  +-------------------+     |
+           |                    |                      |                    |
+           +--------------------+----------------------+--------------------+
+                                |
+                                v
+                     +----------------------+
+                     | Pass / Fail Results  |
+                     +----------------------+
+```
+
 ## OCI Network Flow
 
 ```text
@@ -141,7 +213,7 @@
                                            v
                                 +---------------------+
                                 | Ansible             |
-                                | App Configuration   |
+                                | App Release + Config|
                                 +----------+----------+
                                            |
                                            v
@@ -149,6 +221,35 @@
                                 | systemd Streamlit   |
                                 | Running Portal      |
                                 +---------------------+
+```
+
+## Release Hygiene Flow
+
+```text
++---------------------+
+| Local Repository    |
++----------+----------+
+           |
+           | tar excludes local-only files
+           v
++---------------------+
+| Release Archive     |
+| App Code Only       |
++----------+----------+
+           |
+           | Ansible unarchive
+           v
++---------------------+
+| VM App Directory    |
+| Scrub Local Files   |
++----------+----------+
+           |
+           | Write runtime config
+           v
++---------------------+
+| Expected Runtime    |
+| .env + .oci/config  |
++---------------------+
 ```
 
 ## Phase 2 Enterprise Flow
