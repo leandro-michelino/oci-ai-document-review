@@ -13,6 +13,11 @@ class GenAIClient:
         import oci
 
         self.config = config
+        if not config.genai_model_id.lower().startswith("cohere."):
+            raise ValueError(
+                "This app currently supports OCI Generative AI Cohere chat models. "
+                "Run scripts/setup.py again and select a Cohere chat model."
+            )
         self.oci = oci
         oci_config, signer = get_oci_client_config(config, config.genai_region)
         self.client = oci.generative_ai_inference.GenerativeAiInferenceClient(

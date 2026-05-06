@@ -1,4 +1,11 @@
-from src.models import DocumentAnalysis, DocumentRecord, DocumentType, ProcessingStatus
+from src.models import (
+    DocumentAnalysis,
+    DocumentRecord,
+    DocumentType,
+    ExtractedFields,
+    ProcessingStatus,
+    RiskNote,
+)
 from src.report_generator import generate_markdown_report
 
 
@@ -23,3 +30,32 @@ def test_generate_markdown_report_contains_summary_and_model():
     assert "# Document Intelligence Report" in report
     assert "A short summary." in report
     assert "cohere.command-r-plus-08-2024" in report
+
+
+def test_generate_markdown_report_escapes_table_values():
+    record = DocumentRecord(
+        document_id="doc-2",
+        document_name="invoice.pdf",
+        document_type=DocumentType.INVOICE,
+        status=ProcessingStatus.REVIEW_REQUIRED,
+        analysis=DocumentAnalysis(
+            document_class="INVOICE",
+            executive_summary="A short summary.",
+            key_points=["Contains pipe | value"],
+            extracted_fields=ExtractedFields(payment_terms="Net 30 | urgent"),
+            risk_notes=[
+                RiskNote(
+                    risk="Mismatch | amount",
+                    severity="HIGH",
+                    evidence="Line one\nLine two",
+                )
+            ],
+            confidence_score=0.7,
+        ),
+    )
+
+    report = generate_markdown_report(record, model_id="cohere.command-r-plus-08-2024")
+
+    assert "Net 30 \\| urgent" in report
+    assert "Mismatch \\| amount" in report
+    assert "Line one<br>Line two" in report

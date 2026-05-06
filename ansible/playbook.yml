@@ -84,7 +84,7 @@
         mode: "0700"
       when: oci_auth == "config_file"
 
-    - name: Copy dedicated OCI API key
+    - name: Copy existing OCI API key from local profile
       ansible.builtin.copy:
         src: "{{ oci_api_key_file }}"
         dest: "{{ app_dir }}/.oci/oci_api_key.pem"

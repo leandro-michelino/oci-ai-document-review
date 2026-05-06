@@ -1,3 +1,4 @@
+import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,11 @@ def create_document_id() -> str:
     return f"{timestamp}-{uuid4().hex[:8]}"
 
 
+def safe_document_name(document_name: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(document_name).name).strip("._")
+    return cleaned or "document"
+
+
 class DocumentProcessor:
     def __init__(self, config: AppConfig):
         self.config = config
@@ -35,7 +41,8 @@ class DocumentProcessor:
         notes: str | None = None,
     ) -> DocumentRecord:
         document_id = create_document_id()
-        local_path = self.config.local_uploads_dir / f"{document_id}-{document_name}"
+        storage_name = safe_document_name(document_name)
+        local_path = self.config.local_uploads_dir / f"{document_id}-{storage_name}"
         shutil.copyfile(source_path, local_path)
 
         record = DocumentRecord(
@@ -48,7 +55,7 @@ class DocumentProcessor:
         self.store.save(record)
 
         try:
-            object_name = f"documents/{document_id}/{document_name}"
+            object_name = f"documents/{document_id}/{storage_name}"
             self.object_storage.upload_file(local_path, object_name)
             record.object_storage_path = self.object_storage.object_uri(object_name)
             record.status = ProcessingStatus.PROCESSING

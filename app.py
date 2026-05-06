@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -9,6 +10,11 @@ from src.config import get_config
 from src.metadata_store import MetadataStore
 from src.models import DocumentType
 from src.processor import DocumentProcessor
+
+
+def safe_upload_suffix(filename: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(filename).name).strip("._")
+    return f"-{cleaned or 'upload'}"
 
 
 def load_app_config():
@@ -49,7 +55,7 @@ def upload_page(config, store):
             return
 
     if st.button("Process Document", disabled=uploaded is None):
-        with NamedTemporaryFile(delete=False, suffix=f"-{uploaded.name}") as tmp:
+        with NamedTemporaryFile(delete=False, suffix=safe_upload_suffix(uploaded.name)) as tmp:
             tmp.write(uploaded.getbuffer())
             tmp_path = Path(tmp.name)
 
@@ -100,6 +106,10 @@ def dashboard_page(store):
         filtered = filtered[filtered["Type"].isin(selected_type)]
 
     st.dataframe(filtered, use_container_width=True, hide_index=True)
+    if filtered.empty:
+        st.info("No documents match the selected filters.")
+        return
+
     selected = st.selectbox("Open document", filtered["Document ID"].tolist())
     if st.button("Open"):
         st.session_state["selected_document_id"] = selected
@@ -135,10 +145,13 @@ def detail_page(config, store):
         st.markdown("### Extracted Fields")
         st.json(analysis.extracted_fields.model_dump())
         st.markdown("### Risk Notes")
-        st.dataframe(
-            pd.DataFrame([risk.model_dump() for risk in analysis.risk_notes]),
-            use_container_width=True,
-        )
+        if analysis.risk_notes:
+            st.dataframe(
+                pd.DataFrame([risk.model_dump() for risk in analysis.risk_notes]),
+                use_container_width=True,
+            )
+        else:
+            st.info("No risk notes found.")
         st.markdown("### Recommendations")
         st.write(analysis.recommendations or ["None found"])
 

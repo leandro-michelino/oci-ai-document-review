@@ -2,7 +2,7 @@
 # Do not commit terraform.tfvars because it contains tenancy-specific values.
 
 # Runtime region for Object Storage, networking, compute, and Document Understanding.
-# The setup wizard can discover GenAI-capable regions before writing terraform.tfvars.
+# The setup wizard can discover supported GenAI regions before writing terraform.tfvars.
 region = "your-region"
 
 # OCI Generative AI region selected after live discovery.
@@ -11,8 +11,7 @@ genai_region = "your-genai-region"
 # OCI home region for IAM operations, if you enable optional IAM policy creation.
 home_region = "your-home-region"
 
-# Replace these OCIDs with your own tenancy and compartment values.
-tenancy_id            = "ocid1.tenancy.oc1..example"
+# Replace these OCIDs with your own compartment values.
 parent_compartment_id = "ocid1.compartment.oc1..exampleparent"
 compartment_id        = "ocid1.compartment.oc1..exampleproject"
 

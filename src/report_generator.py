@@ -3,10 +3,15 @@ from datetime import datetime, timezone
 from src.models import DocumentAnalysis, DocumentRecord
 
 
+def _normalize_markdown(value: object) -> str:
+    text = str(value)
+    return text.replace("\n", "<br>").replace("|", "\\|")
+
+
 def _bullet_list(items: list[str]) -> str:
     if not items:
         return "- None found"
-    return "\n".join(f"- {item}" for item in items)
+    return "\n".join(f"- {_normalize_markdown(item)}" for item in items)
 
 
 def _fields_table(analysis: DocumentAnalysis) -> str:
@@ -17,7 +22,7 @@ def _fields_table(analysis: DocumentAnalysis) -> str:
             rendered = ", ".join(value) if value else "None found"
         else:
             rendered = value or "Not found"
-        lines.append(f"| {key.replace('_', ' ').title()} | {rendered} |")
+        lines.append(f"| {key.replace('_', ' ').title()} | {_normalize_markdown(rendered)} |")
     return "\n".join(lines)
 
 
@@ -26,7 +31,10 @@ def _risks_table(analysis: DocumentAnalysis) -> str:
         return "| Severity | Risk | Evidence |\n| --- | --- | --- |\n| - | None found | - |"
     lines = ["| Severity | Risk | Evidence |", "| --- | --- | --- |"]
     for risk in analysis.risk_notes:
-        lines.append(f"| {risk.severity} | {risk.risk} | {risk.evidence or '-'} |")
+        lines.append(
+            f"| {risk.severity} | {_normalize_markdown(risk.risk)} | "
+            f"{_normalize_markdown(risk.evidence or '-')} |"
+        )
     return "\n".join(lines)
 
 

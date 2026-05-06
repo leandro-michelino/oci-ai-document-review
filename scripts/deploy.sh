@@ -11,7 +11,13 @@ OCI_RUNTIME_META="$DEPLOY_DIR/oci_existing_config.env"
 cd "$ROOT_DIR"
 
 if [[ ! -f .env ]]; then
-  echo ".env not found. Run: python scripts/setup.py"
+  echo ".env not found. Run scripts/setup.py with your compartment values first."
+  exit 1
+fi
+
+if [[ ! -x "$ROOT_DIR/.venv/bin/python" ]]; then
+  echo "Python virtual environment not found at .venv/bin/python."
+  echo "Run: python3.11 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt"
   exit 1
 fi
 
@@ -22,6 +28,8 @@ env_value() {
 
 OCI_REGION="$(env_value OCI_REGION)"
 GENAI_REGION="$(env_value GENAI_REGION)"
+OCI_CONFIG_FILE="$(env_value OCI_CONFIG_FILE)"
+OCI_PROFILE="$(env_value OCI_PROFILE)"
 OCI_COMPARTMENT_ID="$(env_value OCI_COMPARTMENT_ID)"
 OCI_NAMESPACE="$(env_value OCI_NAMESPACE)"
 OCI_BUCKET_NAME="$(env_value OCI_BUCKET_NAME)"
@@ -30,6 +38,9 @@ GENAI_TEMPERATURE="$(env_value GENAI_TEMPERATURE)"
 GENAI_MAX_TOKENS="$(env_value GENAI_MAX_TOKENS)"
 MAX_DOCUMENT_CHARS="$(env_value MAX_DOCUMENT_CHARS)"
 MAX_UPLOAD_MB="$(env_value MAX_UPLOAD_MB)"
+
+export OCI_CONFIG_FILE="${OCI_CONFIG_FILE:-~/.oci/config}"
+export OCI_PROFILE="${OCI_PROFILE:-DEFAULT}"
 
 mkdir -p "$DEPLOY_DIR"
 

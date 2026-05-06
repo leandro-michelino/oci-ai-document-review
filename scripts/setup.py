@@ -20,6 +20,7 @@ except Exception:  # pragma: no cover - fallback before dependencies are install
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BUCKET = "doc-review-input"
+SUPPORTED_CHAT_MODEL_PREFIXES = ("cohere.",)
 
 
 @dataclass
@@ -47,16 +48,16 @@ class UI:
 
     def show_regions(self, regions: list[GenAIRegion]) -> None:
         if self.console and Table:
-            table = Table(title="GenAI-capable regions discovered in this tenancy")
+            table = Table(title="Supported GenAI regions discovered in this tenancy")
             table.add_column("#", justify="right")
             table.add_column("Region")
-            table.add_column("Sample chat models")
+            table.add_column("Supported chat models")
             for index, region in enumerate(regions, start=1):
                 table.add_row(str(index), region.name, ", ".join(region.models[:5]))
             self.console.print(table)
             return
 
-        print("GenAI-capable regions discovered in this tenancy:")
+        print("Supported GenAI regions discovered in this tenancy:")
         for index, region in enumerate(regions, start=1):
             print(f"{index}. {region.name}: {', '.join(region.models[:5])}")
 
@@ -137,9 +138,10 @@ def list_chat_models_in_region(
 
     names = []
     for item in getattr(response.data, "items", []) or []:
-        name = getattr(item, "display_name", None)
-        if name and name not in names:
-            names.append(name)
+        for name in (getattr(item, "id", None), getattr(item, "display_name", None)):
+            if name and name not in names:
+                names.append(name)
+    names = supported_chat_models(names)
     if not names:
         return None
     return GenAIRegion(name=region, models=names)
@@ -166,13 +168,15 @@ def choose_region(
 ) -> GenAIRegion:
     if not regions:
         raise SystemExit(
-            "No GenAI chat-capable regions were discovered for this compartment. "
+            "No supported GenAI chat regions were discovered for this compartment. "
             "Check service availability, policies, and limits."
         )
     ui.show_regions(regions)
     by_name = {region.name: region for region in regions}
     if non_interactive:
-        return by_name.get(preferred) or regions[0] if preferred else regions[0]
+        if preferred and preferred in by_name:
+            return by_name[preferred]
+        return regions[0]
 
     default_index = next(
         (index for index, region in enumerate(regions, start=1) if region.name == preferred),
@@ -189,20 +193,35 @@ def choose_region(
         raise SystemExit("Invalid region selection.") from exc
 
 
+def supported_chat_models(models: list[str]) -> list[str]:
+    return [
+        model
+        for model in models
+        if model.lower().startswith(SUPPORTED_CHAT_MODEL_PREFIXES)
+    ]
+
+
 def choose_model(region: GenAIRegion, preferred: str, non_interactive: bool) -> str:
+    models = supported_chat_models(region.models)
+    if not models:
+        raise SystemExit(
+            "This app currently supports Cohere chat models through the OCI SDK "
+            f"CohereChatRequest. Region {region.name} has chat models, but none with "
+            "a supported model id prefix."
+        )
     if non_interactive:
-        return preferred if preferred in region.models else region.models[0]
+        return preferred if preferred in models else models[0]
     print("\nAvailable chat models:")
-    for index, name in enumerate(region.models, start=1):
+    for index, name in enumerate(models, start=1):
         print(f"{index}. {name}")
     default_index = 1
-    if preferred in region.models:
-        default_index = region.models.index(preferred) + 1
+    if preferred in models:
+        default_index = models.index(preferred) + 1
     answer = input(f"Select model [default {default_index}]: ").strip()
     if not answer:
-        return region.models[default_index - 1]
+        return models[default_index - 1]
     try:
-        return region.models[int(answer) - 1]
+        return models[int(answer) - 1]
     except (ValueError, IndexError) as exc:
         raise SystemExit("Invalid model selection.") from exc
 
@@ -240,7 +259,6 @@ LOG_LEVEL=INFO
 
 def write_tfvars(
     args: argparse.Namespace,
-    tenancy_id: str,
     region: str,
     genai_region: str,
     os_namespace: str,
@@ -250,7 +268,6 @@ def write_tfvars(
 region = "{region}"
 genai_region = "{genai_region}"
 home_region = "{args.home_region}"
-tenancy_id = "{tenancy_id}"
 compartment_id = "{args.compartment_id}"
 parent_compartment_id = "{args.parent_compartment_id}"
 bucket_name = "{args.bucket_name}"
@@ -300,7 +317,6 @@ def main() -> None:
         )
         write_tfvars(
             args=args,
-            tenancy_id=config["tenancy"],
             region=selected_region.name,
             genai_region=selected_region.name,
             os_namespace=os_namespace,

@@ -32,7 +32,10 @@ ocid1.compartment.oc1..exampleproject
 Run the setup wizard first. It fetches subscribed OCI regions and probes OCI Generative AI before writing local config files.
 
 ```bash
-python scripts/setup.py
+python scripts/setup.py \
+  --compartment-id ocid1.compartment.oc1..exampleproject \
+  --parent-compartment-id ocid1.compartment.oc1..exampleparent \
+  --home-region your-home-region
 ```
 
 Or copy the sample and edit it manually:

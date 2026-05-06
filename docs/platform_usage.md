@@ -83,8 +83,9 @@ The setup wizard:
 1. Reads your local OCI config.
 2. Fetches subscribed OCI regions.
 3. Probes each region for active OCI Generative AI chat models.
-4. Shows only GenAI-capable regions.
-5. Writes local .env and terraform/terraform.tfvars.
+4. Shows only supported GenAI regions for this app.
+5. Writes a supported Cohere chat model id.
+6. Writes local .env and terraform/terraform.tfvars.
 ```
 
 ## Deploy From Laptop
@@ -130,7 +131,7 @@ bucket_name
   Object Storage bucket for uploaded documents.
 
 genai_region
-  OCI Generative AI region selected by setup.
+  OCI Generative AI region discovered and selected by setup.
 
 vcn_id
   VCN created for the portal.
@@ -234,16 +235,24 @@ The script reuses Terraform state, refreshes the app archive, reruns Ansible, up
 ## Network Model
 
 ```text
-Public subnet
-  - Streamlit VM
-  - Route to Internet Gateway
-  - Security list allows SSH and Streamlit from allowed_ingress_cidr
-
-Private subnet
-  - Reserved for future backend services
-  - Route to NAT Gateway for outbound internet
-  - Route to Service Gateway for Oracle Services Network
-  - Security list allows traffic from VCN CIDR
++------------------------------------------------------+
+| VCN                                                  |
+|                                                      |
+|  Public subnet                 Private subnet        |
+|  - Streamlit VM                - Future services     |
+|  - Public IP enabled           - Public IP disabled  |
+|  - Security list allows        - Security list allows|
+|    22 and 8501 from CIDR         VCN CIDR traffic    |
+|                                                      |
+|  Public route table            Private route table   |
+|  - 0.0.0.0/0 -> IGW            - OSN -> SGW          |
+|                                - 0.0.0.0/0 -> NAT GW |
+|                                                      |
+|  Gateways                                            |
+|  - Internet Gateway for public ingress               |
+|  - NAT Gateway for private outbound internet         |
+|  - Service Gateway for Oracle Services Network       |
++------------------------------------------------------+
 ```
 
 No NSGs are created by this Terraform configuration.
@@ -303,7 +312,7 @@ Check:
 OCI bucket exists.
 OCI namespace is correct.
 OCI policies allow the configured user to use Object Storage, Document Understanding, and Generative AI.
-Selected GenAI region has active chat models.
+Selected GenAI region has active supported Cohere chat models.
 Uploaded file is supported and below MAX_UPLOAD_MB.
 ```
 

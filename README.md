@@ -76,17 +76,21 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-Run the setup wizard:
+Run the setup wizard with your own local values:
 
 ```bash
-python scripts/setup.py
+python scripts/setup.py \
+  --compartment-id ocid1.compartment.oc1..exampleproject \
+  --parent-compartment-id ocid1.compartment.oc1..exampleparent \
+  --home-region your-home-region
 ```
 
-The wizard does three important things before showing region choices:
+The wizard does four important things before showing region choices:
 
 - Fetches the OCI regions subscribed in your tenancy.
 - Probes each subscribed region for active OCI Generative AI chat models.
-- Shows only GenAI-capable regions and writes the selected region to `.env`.
+- Shows only supported GenAI regions and writes the selected region to `.env`.
+- Writes a Cohere chat model id that matches the app runtime.
 
 ## Prepared Infrastructure
 

@@ -13,11 +13,6 @@ variable "home_region" {
   type        = string
 }
 
-variable "tenancy_id" {
-  description = "OCI tenancy OCID."
-  type        = string
-}
-
 variable "compartment_id" {
   description = "Project compartment OCID."
   type        = string
