@@ -1,6 +1,7 @@
 import multiprocessing as mp
 import queue
 import time
+from typing import Any
 
 from src.config import AppConfig
 from src.models import ExtractionResult
@@ -109,11 +110,36 @@ class DocumentUnderstandingClient:
         return getattr(result, "document_text", None) or ""
 
     @staticmethod
+    def _to_plain(value: Any) -> Any:
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        if isinstance(value, list):
+            return [DocumentUnderstandingClient._to_plain(item) for item in value]
+        if isinstance(value, dict):
+            return {
+                str(key): DocumentUnderstandingClient._to_plain(item)
+                for key, item in value.items()
+            }
+        if hasattr(value, "to_dict"):
+            return DocumentUnderstandingClient._to_plain(value.to_dict())
+        try:
+            import oci
+
+            converted = oci.util.to_dict(value)
+            if converted is not value:
+                return DocumentUnderstandingClient._to_plain(converted)
+        except Exception:
+            pass
+        if hasattr(value, "__dict__"):
+            return DocumentUnderstandingClient._to_plain(vars(value))
+        return str(value)
+
+    @staticmethod
     def _extract_tables(result) -> list:
         tables = []
         for page in getattr(result, "pages", []) or []:
             for table in getattr(page, "tables", []) or []:
-                tables.append(table.to_dict() if hasattr(table, "to_dict") else table)
+                tables.append(DocumentUnderstandingClient._to_plain(table))
         return tables
 
     @staticmethod
@@ -124,5 +150,11 @@ class DocumentUnderstandingClient:
                 name = getattr(getattr(field, "field_name", None), "text", None)
                 value = getattr(getattr(field, "field_value", None), "text", None)
                 if name:
-                    values[name] = value
+                    values[name] = (
+                        value
+                        if value is not None
+                        else DocumentUnderstandingClient._to_plain(
+                            getattr(field, "field_value", None)
+                        )
+                    )
         return values
