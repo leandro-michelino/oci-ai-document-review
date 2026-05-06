@@ -245,6 +245,16 @@ Recommended processing flow:
 
 Processing fails clearly if a required live service step fails. For example, if Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
 
+Document Understanding calls are bounded by runtime settings:
+
+```text
+DOCUMENT_AI_TIMEOUT_SECONDS=60
+DOCUMENT_AI_RETRY_ATTEMPTS=2
+STALE_PROCESSING_MINUTES=10
+```
+
+If a processing run remains in `PROCESSING` beyond the stale window, the dashboard and details page mark it as `FAILED` with a retry message.
+
 ## Review Workflow
 
 The portal requests a human action after a document is processed.

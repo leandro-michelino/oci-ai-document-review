@@ -97,6 +97,11 @@ class DocumentProcessor:
             self.store.save(record)
             progress("Uploaded original file to OCI Object Storage")
 
+            progress(
+                "Starting OCI Document Understanding extraction "
+                f"(timeout {self.config.document_ai_timeout_seconds}s, "
+                f"attempts {self.config.document_ai_retry_attempts})"
+            )
             extraction = self.document_ai.extract_document(object_name)
             if not extraction.text.strip():
                 raise ValueError(

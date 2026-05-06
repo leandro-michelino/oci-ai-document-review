@@ -789,12 +789,15 @@ def upload_page(config, store):
         tmp_path.unlink(missing_ok=True)
 
 
-def dashboard_page(store):
+def dashboard_page(config, store):
     page_header(
         "Review Queue",
         "Review Dashboard",
         "Prioritize documents, inspect analysis, and record the human decision.",
     )
+    stale_count = store.fail_stale_processing(config.stale_processing_minutes)
+    if stale_count:
+        st.warning(f"{stale_count} stale processing run was marked as failed.")
     records = store.list_records()
     if not records:
         with st.container(border=True):
@@ -960,6 +963,9 @@ def detail_page(config, store):
         "Document Details",
         "Inspect lifecycle evidence, AI analysis, source data, and review outcome.",
     )
+    stale_count = store.fail_stale_processing(config.stale_processing_minutes)
+    if stale_count:
+        st.warning(f"{stale_count} stale processing run was marked as failed.")
     records = store.list_records()
     ids = [record.document_id for record in records]
     if not ids:
@@ -1157,7 +1163,7 @@ def main():
     if page == "Upload Document":
         upload_page(config, store)
     elif page == "Review Dashboard":
-        dashboard_page(store)
+        dashboard_page(config, store)
     elif page == "Document Details":
         detail_page(config, store)
     else:

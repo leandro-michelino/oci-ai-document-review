@@ -1,4 +1,4 @@
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import Retrying, stop_after_attempt, wait_exponential
 
 from src.config import AppConfig
 from src.models import ExtractionResult
@@ -12,10 +12,11 @@ class DocumentUnderstandingClient:
         self.config = config
         self.oci = oci
         oci_config, signer = get_oci_client_config(config, config.oci_region)
-        client_kwargs = {"signer": signer} if signer else {}
+        client_kwargs = {"timeout": (10, config.document_ai_timeout_seconds)}
+        if signer:
+            client_kwargs["signer"] = signer
         self.client = oci.ai_document.AIServiceDocumentClient(oci_config, **client_kwargs)
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
     def extract_document(self, object_name: str) -> ExtractionResult:
         models = self.oci.ai_document.models
         details = models.AnalyzeDocumentDetails(
@@ -32,7 +33,17 @@ class DocumentUnderstandingClient:
                 models.DocumentKeyValueExtractionFeature(),
             ],
         )
-        response = self.client.analyze_document(analyze_document_details=details)
+        response = None
+        retryer = Retrying(
+            stop=stop_after_attempt(self.config.document_ai_retry_attempts),
+            wait=wait_exponential(min=2, max=10),
+            reraise=True,
+        )
+        for attempt in retryer:
+            with attempt:
+                response = self.client.analyze_document(analyze_document_details=details)
+        if response is None:
+            raise RuntimeError("OCI Document Understanding did not return a response.")
         result = response.data
         return ExtractionResult(
             text=self._extract_text(result),

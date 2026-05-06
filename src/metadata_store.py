@@ -55,3 +55,22 @@ class MetadataStore:
             review_comments=comments,
             processed_at=datetime.now(timezone.utc),
         )
+
+    def fail_stale_processing(self, max_age_minutes: int) -> int:
+        now = datetime.now(timezone.utc)
+        failed_count = 0
+        for record in self.list_records():
+            if record.status != ProcessingStatus.PROCESSING:
+                continue
+            age_seconds = (now - record.uploaded_at).total_seconds()
+            if age_seconds < max_age_minutes * 60:
+                continue
+            record.status = ProcessingStatus.FAILED
+            record.error_message = (
+                "Processing did not complete before the configured timeout window. "
+                "Retry the upload or check OCI Document Understanding service health."
+            )
+            record.processed_at = now
+            self.save(record)
+            failed_count += 1
+        return failed_count

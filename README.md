@@ -162,6 +162,16 @@ Uploaded file
 
 If Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
 
+Document Understanding calls are bounded by runtime settings:
+
+```text
+DOCUMENT_AI_TIMEOUT_SECONDS=60
+DOCUMENT_AI_RETRY_ATTEMPTS=2
+STALE_PROCESSING_MINUTES=10
+```
+
+If a browser session is interrupted or a processing run stays in `PROCESSING` beyond the stale window, the portal marks it as `FAILED` with a retry message instead of leaving it stuck.
+
 ## Cost Estimate
 
 An illustrative cost estimate and pricing worksheet is available in `docs/cost_estimate.md`.

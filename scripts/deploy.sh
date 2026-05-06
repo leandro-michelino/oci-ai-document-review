@@ -36,6 +36,9 @@ OCI_BUCKET_NAME="$(env_value OCI_BUCKET_NAME)"
 GENAI_MODEL_ID="$(env_value GENAI_MODEL_ID)"
 GENAI_TEMPERATURE="$(env_value GENAI_TEMPERATURE)"
 GENAI_MAX_TOKENS="$(env_value GENAI_MAX_TOKENS)"
+DOCUMENT_AI_TIMEOUT_SECONDS="$(env_value DOCUMENT_AI_TIMEOUT_SECONDS)"
+DOCUMENT_AI_RETRY_ATTEMPTS="$(env_value DOCUMENT_AI_RETRY_ATTEMPTS)"
+STALE_PROCESSING_MINUTES="$(env_value STALE_PROCESSING_MINUTES)"
 MAX_DOCUMENT_CHARS="$(env_value MAX_DOCUMENT_CHARS)"
 MAX_UPLOAD_MB="$(env_value MAX_UPLOAD_MB)"
 
@@ -127,6 +130,9 @@ ansible-playbook -i "$INVENTORY" ansible/playbook.yml \
   -e "genai_model_id=$GENAI_MODEL_ID" \
   -e "genai_temperature=${GENAI_TEMPERATURE:-0.2}" \
   -e "genai_max_tokens=${GENAI_MAX_TOKENS:-3000}" \
+  -e "document_ai_timeout_seconds=${DOCUMENT_AI_TIMEOUT_SECONDS:-60}" \
+  -e "document_ai_retry_attempts=${DOCUMENT_AI_RETRY_ATTEMPTS:-2}" \
+  -e "stale_processing_minutes=${STALE_PROCESSING_MINUTES:-10}" \
   -e "max_document_chars=${MAX_DOCUMENT_CHARS:-50000}" \
   -e "max_upload_mb=${MAX_UPLOAD_MB:-10}"
 

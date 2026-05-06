@@ -99,6 +99,16 @@ Streamlit upload
 
 The app records progress only after each service step completes. If Document Understanding returns no extractable text, processing fails with a clear error.
 
+Document Understanding calls use a bounded timeout and retry configuration:
+
+```text
+DOCUMENT_AI_TIMEOUT_SECONDS=60
+DOCUMENT_AI_RETRY_ATTEMPTS=2
+STALE_PROCESSING_MINUTES=10
+```
+
+If a browser session is interrupted or a processing run remains in `PROCESSING` beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
+
 ## Preflight
 
 Open `Settings` and run `OCI Preflight` after deployment. It uses the same runtime credentials as processing and verifies:
