@@ -66,13 +66,14 @@ class DocumentProcessor:
         notes: str | None = None,
         source_file_size_bytes: int | None = None,
         source_file_mime_type: str | None = None,
+        document_id: str | None = None,
         progress_callback=None,
     ) -> DocumentRecord:
         def progress(message: str) -> None:
             if progress_callback:
                 progress_callback(message)
 
-        document_id = create_document_id()
+        document_id = document_id or create_document_id()
         storage_name = safe_document_name(document_name)
         local_path = self.config.local_uploads_dir / f"{document_id}-{storage_name}"
         shutil.copyfile(source_path, local_path)

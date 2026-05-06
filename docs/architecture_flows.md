@@ -21,6 +21,12 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
         |
         v
 +-----------------------+
+| Background Worker     |
+| Queue, Parallel Jobs  |
++-------+---------------+
+        |
+        v
++-----------------------+
 | OCI Object Storage    |
 | Private Bucket        |
 +-------+---------------+
@@ -60,7 +66,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
             v
 +-------------------------+
 | OCI Compute VM          |
-| Streamlit + Python      |
+| Streamlit + Worker Pool |
 +-----------+-------------+
             |
             | OCI SDK
@@ -90,6 +96,19 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 +----------------------+
 | Local Working Copy   |
 | data/uploads         |
++----------+-----------+
+           |
+           | metadata status UPLOADED
+           v
++----------------------+
+| Worker Pool          |
+| MAX_PARALLEL_JOBS    |
++----------+-----------+
+           |
+           | each active worker runs the live OCI path
+           v
++----------------------+
+| Active Worker        |
 +----------+-----------+
            |
            | put_object

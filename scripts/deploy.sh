@@ -46,6 +46,7 @@ GENAI_MAX_TOKENS="$(env_value GENAI_MAX_TOKENS)"
 DOCUMENT_AI_TIMEOUT_SECONDS="$(env_value DOCUMENT_AI_TIMEOUT_SECONDS)"
 DOCUMENT_AI_RETRY_ATTEMPTS="$(env_value DOCUMENT_AI_RETRY_ATTEMPTS)"
 STALE_PROCESSING_MINUTES="$(env_value STALE_PROCESSING_MINUTES)"
+MAX_PARALLEL_JOBS="$(env_value MAX_PARALLEL_JOBS)"
 MAX_DOCUMENT_CHARS="$(env_value MAX_DOCUMENT_CHARS)"
 MAX_UPLOAD_MB="$(env_value MAX_UPLOAD_MB)"
 
@@ -140,6 +141,7 @@ ansible-playbook -i "$INVENTORY" ansible/playbook.yml \
   -e "document_ai_timeout_seconds=${DOCUMENT_AI_TIMEOUT_SECONDS:-30}" \
   -e "document_ai_retry_attempts=${DOCUMENT_AI_RETRY_ATTEMPTS:-1}" \
   -e "stale_processing_minutes=${STALE_PROCESSING_MINUTES:-3}" \
+  -e "max_parallel_jobs=${MAX_PARALLEL_JOBS:-2}" \
   -e "max_document_chars=${MAX_DOCUMENT_CHARS:-50000}" \
   -e "max_upload_mb=${MAX_UPLOAD_MB:-10}"
 

@@ -9,9 +9,10 @@ import streamlit as st
 
 from src.config import get_config
 from src.health_checks import run_preflight
+from src.job_queue import submit_document_processing, submitted_document_ids
 from src.metadata_store import MetadataStore
-from src.models import DocumentType
-from src.processor import DocumentProcessor, error_message
+from src.models import DocumentRecord, DocumentType, ProcessingStatus
+from src.processor import create_document_id
 
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
@@ -647,16 +648,16 @@ def open_page(page: str, document_id: str | None = None) -> None:
     st.rerun()
 
 
-def render_post_process_actions(record) -> None:
+def render_queued_actions(record) -> None:
     with st.container(border=True):
-        st.subheader("Next Action Required")
+        st.subheader("Document Queued")
         render_status_strip(record)
-        st.write("The document was processed and is ready for human review.")
+        st.write("The file was accepted and background processing has started.")
         cols = st.columns(3)
-        if cols[0].button("Review Now", type="primary"):
-            open_page("Document Details", record.document_id)
-        if cols[1].button("Open Dashboard"):
+        if cols[0].button("Open Dashboard", type="primary"):
             open_page("Review Dashboard", record.document_id)
+        if cols[1].button("Open Details"):
+            open_page("Document Details", record.document_id)
         if cols[2].button("Upload Another"):
             st.session_state["upload_widget_version"] = (
                 st.session_state.get("upload_widget_version", 0) + 1
@@ -742,6 +743,7 @@ def upload_page(config, store):
             st.subheader("Runtime")
             st.metric("GenAI region", config.genai_region)
             st.metric("Upload limit", f"{config.max_upload_mb} MB")
+            st.metric("Parallel jobs", config.max_parallel_jobs)
             st.caption("The processing path uses the configured OCI services and credentials.")
         with st.container(border=True):
             st.subheader("Review Flow")
@@ -751,42 +753,43 @@ def upload_page(config, store):
             st.write("Approve or reject")
 
     if process_clicked and uploaded:
-        with NamedTemporaryFile(delete=False, suffix=safe_upload_suffix(uploaded.name)) as tmp:
+        document_id = create_document_id()
+        document_type_value = DocumentType(document_type)
+        with NamedTemporaryFile(
+            delete=False,
+            dir=config.local_uploads_dir,
+            prefix=f"queued-{document_id}",
+            suffix=safe_upload_suffix(uploaded.name),
+        ) as tmp:
             tmp.write(uploaded.getbuffer())
             tmp_path = Path(tmp.name)
 
-        processor = DocumentProcessor(config)
-        with st.status("Processing document", expanded=True) as status:
-            try:
-                record = processor.process(
-                    source_path=tmp_path,
-                    document_name=uploaded.name,
-                    document_type=DocumentType(document_type),
-                    business_reference=business_reference or None,
-                    notes=notes or None,
-                    source_file_size_bytes=uploaded.size,
-                    source_file_mime_type=uploaded.type or None,
-                    progress_callback=st.write,
-                )
-                status.update(label="Document processed", state="complete")
-                st.session_state["selected_document_id"] = record.document_id
-                st.success("Document is ready for human review.")
-                render_post_process_actions(record)
-            except Exception as exc:
-                status.update(label="Processing failed", state="error")
-                st.error(f"Processing failed: {error_message(exc)}")
-                with st.expander("Technical details"):
-                    st.exception(exc)
-                cols = st.columns(2)
-                if cols[0].button("Open Dashboard"):
-                    open_page("Review Dashboard")
-                if cols[1].button("Retry Upload"):
-                    st.session_state["upload_widget_version"] = (
-                        st.session_state.get("upload_widget_version", 0) + 1
-                    )
-                    open_page("Upload Document")
-
-        tmp_path.unlink(missing_ok=True)
+        record = DocumentRecord(
+            document_id=document_id,
+            document_name=uploaded.name,
+            document_type=document_type_value,
+            source_file_size_bytes=uploaded.size,
+            source_file_mime_type=uploaded.type or None,
+            status=ProcessingStatus.UPLOADED,
+            business_reference=business_reference or None,
+            notes=notes or None,
+        )
+        store.save(record)
+        submit_document_processing(
+            config=config,
+            source_path=tmp_path,
+            document_id=document_id,
+            document_name=uploaded.name,
+            document_type=document_type_value,
+            business_reference=business_reference or None,
+            notes=notes or None,
+            source_file_size_bytes=uploaded.size,
+            source_file_mime_type=uploaded.type or None,
+        )
+        st.session_state["selected_document_id"] = record.document_id
+        st.session_state["dashboard_selected_document"] = record.document_id
+        st.success("Document was queued for background processing.")
+        render_queued_actions(record)
 
 
 def dashboard_page(config, store):
@@ -819,6 +822,14 @@ def dashboard_page(config, store):
     failures = df[df["Status"] == "FAILED"]
     if not failures.empty:
         st.warning(f"{len(failures)} document processing run needs attention.")
+    active_runs = df[df["Status"].isin(["UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"])]
+    if not active_runs.empty:
+        st.info(
+            f"{len(active_runs)} document processing run is active. "
+            f"Worker pool size: {config.max_parallel_jobs}."
+        )
+        if st.button("Refresh Status"):
+            st.rerun()
 
     with st.container(border=True):
         st.subheader("Filters")
@@ -1106,6 +1117,8 @@ def settings_page(config):
             st.write(f"GenAI endpoint: `{config.genai_endpoint}`")
             st.write(f"Compartment: `{config.oci_compartment_id}`")
             st.write(f"Bucket: `{config.oci_bucket_name}`")
+            st.write(f"Max parallel jobs: `{config.max_parallel_jobs}`")
+            st.write(f"Document AI timeout: `{config.document_ai_timeout_seconds}s`")
             st.info("Run `python scripts/setup.py` to refresh GenAI region availability.")
 
     with health_col:
@@ -1137,7 +1150,10 @@ def main():
     store = MetadataStore(config)
     st.set_page_config(page_title=config.app_title, layout="wide")
     apply_theme()
-    stale_count = store.fail_stale_processing(config.stale_processing_minutes)
+    stale_count = store.fail_stale_processing(
+        config.stale_processing_minutes,
+        protected_document_ids=submitted_document_ids(),
+    )
     if stale_count:
         st.warning(f"{stale_count} stale processing run was marked as failed.")
 

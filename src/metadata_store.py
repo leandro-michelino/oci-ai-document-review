@@ -56,11 +56,18 @@ class MetadataStore:
             processed_at=datetime.now(timezone.utc),
         )
 
-    def fail_stale_processing(self, max_age_minutes: int) -> int:
+    def fail_stale_processing(
+        self,
+        max_age_minutes: int,
+        protected_document_ids: set[str] | None = None,
+    ) -> int:
+        protected_document_ids = protected_document_ids or set()
         now = datetime.now(timezone.utc)
         failed_count = 0
         for record in self.list_records():
-            if record.status != ProcessingStatus.PROCESSING:
+            if record.status not in {ProcessingStatus.UPLOADED, ProcessingStatus.PROCESSING}:
+                continue
+            if record.document_id in protected_document_ids:
                 continue
             age_seconds = (now - record.uploaded_at).total_seconds()
             if age_seconds < max_age_minutes * 60:

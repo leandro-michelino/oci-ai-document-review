@@ -90,6 +90,8 @@ The MVP uses real OCI services in sequence:
 ```text
 Streamlit upload
   -> local working copy
+  -> metadata status UPLOADED
+  -> background worker pool
   -> Object Storage put_object
   -> Document Understanding analyze_document with ObjectStorageDocumentDetails
   -> GenAI CohereChatRequest
@@ -105,9 +107,10 @@ Document Understanding calls use a bounded timeout and retry configuration:
 DOCUMENT_AI_TIMEOUT_SECONDS=30
 DOCUMENT_AI_RETRY_ATTEMPTS=1
 STALE_PROCESSING_MINUTES=3
+MAX_PARALLEL_JOBS=2
 ```
 
-If a browser session is interrupted or a processing run remains in `PROCESSING` beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
+Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run remains in `PROCESSING` beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
 
 ## Preflight
 

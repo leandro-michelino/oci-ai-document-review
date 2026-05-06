@@ -34,6 +34,7 @@ Local laptop
 Compute VM
   - Python runtime
   - Streamlit app
+  - background worker pool
   - systemd service
   - runtime .env
   - OCI SDK config copied from local profile
@@ -232,15 +233,16 @@ Recommended processing flow:
    CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, or GENERAL.
 4. Upload a PDF, PNG, JPG, or JPEG.
 5. Click Process Document.
-6. Wait for each real step to complete:
-   local working copy, Object Storage upload, Document Understanding extraction, GenAI analysis, metadata/report save.
+6. The portal saves the local working copy and queues the document.
 7. Choose the next action shown by the app:
-   Review Now, Open Dashboard, or Upload Another.
-8. Use Review Dashboard to search, filter, triage, and approve or reject selected documents.
-9. Open Document Details for tabbed analysis, review action, source preview, and downloads.
-10. Review the executive summary, extracted fields, risk notes, and recommendations.
-11. Approve or reject the review. Rejections require comments.
-12. Download Markdown or JSON results.
+   Open Dashboard, Open Details, or Upload Another.
+8. Refresh the dashboard while the worker pool runs the live OCI steps:
+   Object Storage upload, Document Understanding extraction, GenAI analysis, metadata/report save.
+9. Use Review Dashboard to search, filter, triage, and approve or reject selected documents.
+10. Open Document Details for tabbed analysis, review action, source preview, and downloads.
+11. Review the executive summary, extracted fields, risk notes, and recommendations.
+12. Approve or reject the review. Rejections require comments.
+13. Download Markdown or JSON results.
 ```
 
 Processing fails clearly if a required live service step fails. For example, if Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
@@ -251,9 +253,10 @@ Document Understanding calls are bounded by runtime settings:
 DOCUMENT_AI_TIMEOUT_SECONDS=30
 DOCUMENT_AI_RETRY_ATTEMPTS=1
 STALE_PROCESSING_MINUTES=3
+MAX_PARALLEL_JOBS=2
 ```
 
-If a processing run remains in `PROCESSING` beyond the stale window, the dashboard and details page mark it as `FAILED` with a retry message.
+Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a processing run remains in `PROCESSING` beyond the stale window, the dashboard and details page mark it as `FAILED` with a retry message.
 
 ## Review Workflow
 
@@ -261,13 +264,14 @@ The portal requests a human action after a document is processed.
 
 ```text
 Upload Document
-  - Shows real processing steps as they complete.
-  - On success, asks for the next action:
-    Review Now, Open Dashboard, or Upload Another.
-  - On failure, shows the root error and offers Dashboard or Retry Upload.
+  - Saves the upload and creates the initial metadata record.
+  - Queues the document in the background worker pool.
+  - Asks for the next action:
+    Open Dashboard, Open Details, or Upload Another.
 
 Review Dashboard
   - Shows Action Required, High Risk, Failed, and Avg Confidence metrics.
+  - Shows active processing runs and the configured worker pool size.
   - Adds an Action column:
     Approve or reject, Fix and retry, Approved, Rejected, or Wait for processing.
   - Shows the selected document lifecycle:

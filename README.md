@@ -15,24 +15,35 @@ Users upload a document in the web portal. The platform then:
 2. Extracts text, tables, and key values with OCI Document Understanding.
 3. Sends the extracted content to OCI Generative AI for structured review.
 4. Creates a JSON metadata record and a Markdown report.
-5. Shows a next-action prompt asking the user to review now, open the dashboard, or upload another file.
-6. Shows the result in a dashboard for human review with an action-required queue.
-7. Shows a processing lifecycle so reviewers can see what completed behind the scenes.
-8. Lets a reviewer approve or reject the document.
-9. Provides search, filters, risk level, confidence, and report downloads.
+5. Queues the document in a background worker pool so the browser does not wait on OCI processing.
+6. Shows a queued confirmation asking the user to open the dashboard, open details, or upload another file.
+7. Shows the result in a dashboard for human review with an action-required queue.
+8. Shows a processing lifecycle so reviewers can see what completed behind the scenes.
+9. Lets a reviewer approve or reject the document.
+10. Provides search, filters, risk level, confidence, and report downloads.
 ```
 
 The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
 
 ## What Happens After Upload
 
-After the user clicks Process Document, the portal performs the live backend workflow and then asks for a human action.
+After the user clicks Process Document, the portal accepts the file, creates a metadata record, and queues the live backend workflow. The dashboard can be refreshed while workers process documents in parallel.
 
 ```text
 User uploads file
   |
   v
 Local working copy saved
+  |
+  v
+Metadata status is set to UPLOADED
+  |
+  v
+Background worker pool accepts the job
+  |
+  +--> Worker 1 processes a document
+  |
+  +--> Worker 2 processes another document
   |
   v
 Original file uploaded to OCI Object Storage
@@ -47,8 +58,7 @@ OCI Generative AI creates structured review
 Metadata and Markdown report are saved
   |
   v
-Portal asks reviewer to choose the next action:
-  Review Now, Open Dashboard, or Upload Another
+Dashboard asks reviewer to approve or reject
   |
   v
 Reviewer approves or rejects the document
@@ -77,6 +87,7 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | Report | Whether a Markdown review report exists on the VM. |
 | Text preview | Number of extracted characters stored for quick inspection in the portal. |
 | Storage | Whether the original file has an OCI Object Storage path recorded. |
+| Parallel jobs | Number of background worker threads allowed to process documents at the same time. |
 
 Confidence, extracted fields, recommendations, missing information, and risk notes are AI-assisted signals. A human reviewer must still verify the document and make the final approval or rejection decision.
 
@@ -108,6 +119,12 @@ Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and i
         v
 +----------------------+
 | Python Web Portal    |
++-------+--------------+
+        |
+        v
++----------------------+
+| Background Worker    |
+| Queue                |
 +-------+--------------+
         |
         v
@@ -168,9 +185,10 @@ Document Understanding calls are bounded by runtime settings:
 DOCUMENT_AI_TIMEOUT_SECONDS=30
 DOCUMENT_AI_RETRY_ATTEMPTS=1
 STALE_PROCESSING_MINUTES=3
+MAX_PARALLEL_JOBS=2
 ```
 
-If a browser session is interrupted or a processing run stays in `PROCESSING` beyond the stale window, the portal marks it as `FAILED` with a retry message instead of leaving it stuck.
+Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run stays in `PROCESSING` beyond the stale window, the portal marks it as `FAILED` with a retry message instead of leaving it stuck.
 
 ## Cost Estimate
 
@@ -248,6 +266,7 @@ The app supports:
 - Object Storage upload
 - Document Understanding extraction
 - GenAI JSON analysis
+- Background worker queue with parallel processing
 - Post-processing next-action prompt
 - Markdown report generation
 - Local JSON metadata
