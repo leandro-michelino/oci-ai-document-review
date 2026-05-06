@@ -66,7 +66,7 @@
             -name '*.key' -o \
             -name 'id_rsa*' -o \
             -name 'oci_api_key*' \
-          \) -delete
+          \) -print0 | xargs -0 --no-run-if-empty rm -f
       args:
         executable: /bin/bash
       changed_when: false
