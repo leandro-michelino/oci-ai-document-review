@@ -71,12 +71,22 @@ PY
 source "$OCI_RUNTIME_META"
 
 tar \
+  --exclude='./.env' \
+  --exclude='./.env.*' \
   --exclude='./.deploy' \
   --exclude='./.venv' \
+  --exclude='./.oci' \
   --exclude='./.pytest_cache' \
   --exclude='./.ruff_cache' \
   --exclude='./terraform/.terraform' \
   --exclude='./terraform/terraform.tfstate*' \
+  --exclude='./terraform/terraform.tfvars' \
+  --exclude='./terraform/*.tfvars' \
+  --exclude='./terraform/*.tfvars.json' \
+  --exclude='./*.pem' \
+  --exclude='./*.key' \
+  --exclude='./id_rsa*' \
+  --exclude='./oci_api_key*' \
   --exclude='./data/metadata/*.json' \
   --exclude='./data/reports/*.md' \
   --exclude='./data/uploads/*' \

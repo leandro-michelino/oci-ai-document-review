@@ -49,6 +49,27 @@
         group: "{{ app_user }}"
         mode: "0755"
 
+    - name: Remove local-only files from unpacked release
+      ansible.builtin.shell: |
+        set -euo pipefail
+        find {{ app_dir | quote }} \
+          -path {{ (app_dir + '/.venv') | quote }} -prune -o \
+          -type f \( \
+            -name '.env' -o \
+            -name 'terraform.tfvars' -o \
+            -name '*.tfvars' -o \
+            -name '*.tfvars.json' -o \
+            -name 'terraform.tfstate' -o \
+            -name 'terraform.tfstate.backup' -o \
+            -name '*.pem' -o \
+            -name '*.key' -o \
+            -name 'id_rsa*' -o \
+            -name 'oci_api_key*' \
+          \) -delete
+      args:
+        executable: /bin/bash
+      changed_when: false
+
     - name: Write runtime environment
       ansible.builtin.copy:
         dest: "{{ app_dir }}/.env"
