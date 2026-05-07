@@ -28,6 +28,30 @@ def safe_document_name(document_name: str) -> str:
     return cleaned or "document"
 
 
+def detected_document_type(document_class: str | None) -> DocumentType:
+    if not document_class:
+        return DocumentType.GENERAL
+    normalized = re.sub(r"[^A-Za-z0-9]+", "_", document_class.upper()).strip("_")
+    aliases = {
+        "TECHNICAL": DocumentType.TECHNICAL_REPORT,
+        "TECHNICAL_REPORT": DocumentType.TECHNICAL_REPORT,
+        "REPORT": DocumentType.TECHNICAL_REPORT,
+        "RECEIPT": DocumentType.INVOICE,
+        "PURCHASE_ORDER": DocumentType.INVOICE,
+        "PO": DocumentType.INVOICE,
+        "UNKNOWN": DocumentType.GENERAL,
+    }
+    if normalized in aliases:
+        return aliases[normalized]
+    try:
+        detected = DocumentType(normalized)
+    except ValueError:
+        return DocumentType.GENERAL
+    if detected == DocumentType.AUTO_DETECT:
+        return DocumentType.GENERAL
+    return detected
+
+
 def root_exception(exc: Exception) -> Exception:
     last_attempt = getattr(exc, "last_attempt", None)
     if last_attempt:
@@ -122,6 +146,8 @@ class DocumentProcessor:
                 table_count=len(extraction.tables),
             )
             analysis = self.genai.analyze_document(prompt)
+            if record.document_type == DocumentType.AUTO_DETECT:
+                record.document_type = detected_document_type(analysis.document_class)
             record.status = ProcessingStatus.AI_ANALYZED
             record.analysis = analysis
             self.store.save(record)

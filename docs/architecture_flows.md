@@ -40,7 +40,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
         v
 +-----------------------+
 | OCI Generative AI     |
-| Summary, Risks, JSON  |
+| Type, Summary, Risks  |
 +-------+---------------+
         |
         v
@@ -52,7 +52,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
         v
 +-----------------------+
 | Document Review       |
-| Approve / Reject      |
+| Correct Type, Decide  |
 +-------+---------------+
         |
         v
@@ -141,6 +141,12 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
            | strict JSON analysis
            v
 +----------------------------+
+| Type Label                 |
+| Auto-detect -> Real Type   |
++----------+-----------------+
+           |
+           v
++----------------------------+
 | Metadata + Report          |
 | JSON + Markdown            |
 +----------+-----------------+
@@ -154,7 +160,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
            v
 +----------------------------+
 | Document Review            |
-| Human Approve / Reject     |
+| Correct Type / Approve     |
 +----------------------------+
 ```
 

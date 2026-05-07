@@ -107,11 +107,13 @@ The app records progress only after each service step completes. If Document Und
 Document Understanding calls use a bounded timeout and retry configuration:
 
 ```text
-DOCUMENT_AI_TIMEOUT_SECONDS=30
-DOCUMENT_AI_RETRY_ATTEMPTS=1
-STALE_PROCESSING_MINUTES=3
+DOCUMENT_AI_TIMEOUT_SECONDS=180
+DOCUMENT_AI_RETRY_ATTEMPTS=2
+STALE_PROCESSING_MINUTES=12
 MAX_PARALLEL_JOBS=2
 ```
+
+Scanned PDFs and PDFs that contain page images use OCR. They need more time than text-based PDFs and can fail if the scan is low quality, rotated, password-protected, too large, or above the upload limit.
 
 Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run remains in `PROCESSING` beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
 
@@ -142,11 +144,13 @@ Then on the portal:
 ```text
 1. Run OCI Preflight in Settings.
 2. Upload a small PDF or image.
-3. Confirm Dashboard shows the record as Ready.
-4. Open the record from Dashboard.
-5. Confirm the Document page shows AI summary, key points, and recommendations.
-6. Confirm JSON and Markdown downloads are available.
-7. Confirm approve or reject updates the review state.
+3. Choose Auto-detect once and confirm the record receives a concrete document type.
+4. Confirm Dashboard shows the record as Ready.
+5. Open the record from Dashboard.
+6. Confirm the Document page shows AI summary, key points, and recommendations.
+7. Confirm the reviewer can correct the document type if needed.
+8. Confirm JSON and Markdown downloads are available.
+9. Confirm approve or reject updates the review state.
 ```
 
 ## Local App Run

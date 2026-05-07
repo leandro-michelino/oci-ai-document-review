@@ -2,10 +2,11 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DocumentType(str, Enum):
+    AUTO_DETECT = "AUTO_DETECT"
     CONTRACT = "CONTRACT"
     INVOICE = "INVOICE"
     COMPLIANCE = "COMPLIANCE"
@@ -45,6 +46,11 @@ class ExtractedFields(BaseModel):
     currency: str | None = None
     payment_terms: str | None = None
 
+    @field_validator("parties", mode="before")
+    @classmethod
+    def none_to_empty_list(cls, value):
+        return [] if value is None else value
+
 
 class DocumentAnalysis(BaseModel):
     document_class: str
@@ -56,6 +62,22 @@ class DocumentAnalysis(BaseModel):
     missing_information: list[str] = Field(default_factory=list)
     confidence_score: float = Field(ge=0.0, le=1.0)
     human_review_required: bool = True
+
+    @field_validator(
+        "key_points",
+        "risk_notes",
+        "recommendations",
+        "missing_information",
+        mode="before",
+    )
+    @classmethod
+    def none_to_empty_list(cls, value):
+        return [] if value is None else value
+
+    @field_validator("extracted_fields", mode="before")
+    @classmethod
+    def none_to_empty_fields(cls, value):
+        return {} if value is None else value
 
 
 class ExtractionResult(BaseModel):

@@ -89,9 +89,9 @@
           GENAI_MODEL_ID={{ genai_model_id }}
           GENAI_TEMPERATURE={{ genai_temperature | default('0.2') }}
           GENAI_MAX_TOKENS={{ genai_max_tokens | default('3000') }}
-          DOCUMENT_AI_TIMEOUT_SECONDS={{ document_ai_timeout_seconds | default('30') }}
-          DOCUMENT_AI_RETRY_ATTEMPTS={{ document_ai_retry_attempts | default('1') }}
-          STALE_PROCESSING_MINUTES={{ stale_processing_minutes | default('3') }}
+          DOCUMENT_AI_TIMEOUT_SECONDS={{ document_ai_timeout_seconds | default('180') }}
+          DOCUMENT_AI_RETRY_ATTEMPTS={{ document_ai_retry_attempts | default('2') }}
+          STALE_PROCESSING_MINUTES={{ stale_processing_minutes | default('12') }}
           MAX_PARALLEL_JOBS={{ max_parallel_jobs | default('2') }}
           MAX_DOCUMENT_CHARS={{ max_document_chars | default('50000') }}
           MAX_UPLOAD_MB={{ max_upload_mb | default('10') }}

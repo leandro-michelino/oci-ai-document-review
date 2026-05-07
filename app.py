@@ -13,6 +13,7 @@ from src.job_queue import submit_document_processing, submitted_document_ids
 from src.metadata_store import MetadataStore
 from src.models import DocumentRecord, DocumentType, ProcessingStatus
 from src.processor import create_document_id
+from src.report_generator import generate_markdown_report
 
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
@@ -52,7 +53,7 @@ FIELD_HELP = {
     "Business reference": "Optional user-provided reference, such as invoice number, case ID, or contract ID.",
     "Confidence": "AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness.",
     "Document ID": "Internal portal identifier created for this processing run.",
-    "Document type": "Review category chosen during upload. It guides the GenAI prompt.",
+    "Document type": "Review category chosen during upload or detected by GenAI. Reviewers can correct it before approval.",
     "Extension": "File extension from the uploaded file name.",
     "File name": "Original uploaded file name.",
     "File size": "Original upload size captured by the portal for new uploads.",
@@ -84,6 +85,22 @@ def normalize_page(page: str | None) -> str | None:
     if page is None:
         return None
     return LEGACY_PAGE_NAMES.get(page, page)
+
+
+def document_type_label(document_type: DocumentType | str) -> str:
+    value = document_type.value if isinstance(document_type, DocumentType) else document_type
+    labels = {
+        DocumentType.AUTO_DETECT.value: "Auto-detect",
+        DocumentType.TECHNICAL_REPORT.value: "Technical report",
+    }
+    return labels.get(value, value.replace("_", " ").title())
+
+
+def review_document_type_options(current: DocumentType) -> list[DocumentType]:
+    options = [item for item in DocumentType if item != DocumentType.AUTO_DETECT]
+    if current == DocumentType.AUTO_DETECT:
+        return [DocumentType.AUTO_DETECT, *options]
+    return options
 
 
 def apply_theme() -> None:
@@ -476,7 +493,7 @@ def render_review_snapshot(record) -> None:
 def render_file_information(record, compact: bool = False) -> None:
     core_info = [
         ("File name", record.document_name),
-        ("Document type", record.document_type.value),
+        ("Document type", document_type_label(record.document_type)),
         ("File size", file_size_label(record.source_file_size_bytes)),
         ("Uploaded", record.uploaded_at.strftime("%Y-%m-%d %H:%M")),
         ("Status", record.status.value),
@@ -756,6 +773,32 @@ def apply_review_action(store, document_id: str, approved: bool, comments: str |
     return True
 
 
+def render_document_type_editor(config, store, record, key_prefix: str) -> None:
+    options = review_document_type_options(record.document_type)
+    selected_type = st.selectbox(
+        "Document type",
+        options,
+        index=options.index(record.document_type) if record.document_type in options else 0,
+        format_func=document_type_label,
+        help=FIELD_HELP["Document type"],
+        key=f"{key_prefix}_document_type_{record.document_id}",
+    )
+    if st.button(
+        "Save Type",
+        key=f"{key_prefix}_save_type_{record.document_id}",
+        disabled=selected_type == record.document_type,
+        width="stretch",
+    ):
+        updated = store.update(record.document_id, document_type=selected_type)
+        if updated.analysis and updated.report_path:
+            Path(updated.report_path).write_text(
+                generate_markdown_report(updated, config.genai_model_id),
+                encoding="utf-8",
+            )
+        st.success(f"Document type updated to {document_type_label(selected_type)}.")
+        st.rerun()
+
+
 def render_review_action_panel(store, record, key_prefix: str) -> None:
     if record.status.value == "FAILED":
         st.error("This document failed processing. Upload a corrected file or check service logs.")
@@ -874,7 +917,12 @@ def upload_page(config, store):
     )
 
     with st.container(border=True):
-        document_type = st.selectbox("Document type", [item.value for item in DocumentType])
+        document_type = st.selectbox(
+            "Document type",
+            [item.value for item in DocumentType],
+            format_func=document_type_label,
+            help=FIELD_HELP["Document type"],
+        )
         business_reference = st.text_input("Reference", placeholder="Optional")
         uploaded = st.file_uploader(
             "File",
@@ -1137,6 +1185,7 @@ def detail_page(config, store):
     with decision_col:
         with st.container(border=True):
             st.subheader("Decision")
+            render_document_type_editor(config, store, record, "detail")
             render_review_action_panel(store, record, "detail")
             if record.review_comments:
                 st.markdown("### Comments")

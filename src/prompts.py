@@ -34,6 +34,7 @@ Analyze the extracted document text below and return a strict JSON object.
 
 Rules:
 - Do not invent information.
+- Classify document_class as CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, GENERAL, or UNKNOWN.
 - If a field is not present, return null.
 - Use concise business language.
 - Identify risks only when supported by the document text.

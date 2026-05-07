@@ -230,7 +230,7 @@ Recommended processing flow:
 1. Open the portal.
 2. Go to Upload.
 3. Choose document type:
-   CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, or GENERAL.
+   Auto-detect, CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, or GENERAL.
 4. Upload a PDF, PNG, JPG, or JPEG.
 5. Click Queue Document.
 6. The portal saves the local working copy and queues the document.
@@ -241,18 +241,21 @@ Recommended processing flow:
 9. Use Dashboard to filter by Ready, Processing, Failed, Reviewed, or All.
 10. Select a document and click Open.
 11. Use the Document page to review the executive summary, key points, risks, recommendations, and supporting details.
-12. Approve or reject the review from the Decision panel. Rejections require comments.
-13. Download Markdown or JSON results from the Downloads section.
+12. Correct the document type from the Decision panel if the detected label needs adjustment.
+13. Approve or reject the review from the Decision panel. Rejections require comments.
+14. Download Markdown or JSON results from the Downloads section.
 ```
 
 Processing fails clearly if a required live service step fails. For example, if Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
 
+Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Password-protected, very large, low-resolution, or heavily compressed image PDFs may still return little text or fail.
+
 Document Understanding calls are bounded by runtime settings:
 
 ```text
-DOCUMENT_AI_TIMEOUT_SECONDS=30
-DOCUMENT_AI_RETRY_ATTEMPTS=1
-STALE_PROCESSING_MINUTES=3
+DOCUMENT_AI_TIMEOUT_SECONDS=180
+DOCUMENT_AI_RETRY_ATTEMPTS=2
+STALE_PROCESSING_MINUTES=12
 MAX_PARALLEL_JOBS=2
 ```
 

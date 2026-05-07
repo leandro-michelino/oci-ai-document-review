@@ -17,10 +17,11 @@ Users upload a document in the web portal. The platform then:
 4. Extracts text, tables, and key values with OCI Document Understanding.
 5. Converts Document Understanding output into JSON-safe plain data.
 6. Sends the extracted content to OCI Generative AI for structured review.
-7. Creates a JSON metadata record and a Markdown report.
-8. Shows the document in a clean Dashboard queue.
-9. Opens the Document page for AI review, human decision, lifecycle details, and downloads.
-10. Lets a reviewer approve or reject the document.
+7. Auto-detects the document type when `Auto-detect` was selected during upload.
+8. Creates a JSON metadata record and a Markdown report.
+9. Shows the document in a clean Dashboard queue.
+10. Opens the Document page for AI review, human decision, lifecycle details, and downloads.
+11. Lets a reviewer correct the document type, then approve or reject the document.
 ```
 
 The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
@@ -55,6 +56,9 @@ OCI Document Understanding extracts text
 OCI Generative AI creates structured review
   |
   v
+Auto-detected document type is applied when requested
+  |
+  v
 Metadata and Markdown report are saved
   |
   v
@@ -67,7 +71,7 @@ Reviewer opens the Document page
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally simple. It shows queue metrics, a `Show` filter, search, the document table, and an `Open` action. The Document page is where review happens. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`.
+The Dashboard is intentionally simple. It shows queue metrics, a `Show` filter, search, the document table, and an `Open` action. The Document page is where review happens. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Field Reference
 
@@ -81,7 +85,7 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | Risk | Highest severity found in AI risk notes. `NONE` means no risk note was returned. |
 | Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
 | Action | The next human or operational step for the selected document. |
-| Document type | Review category chosen during upload. It guides the GenAI prompt. |
+| Document type | Review category chosen during upload or detected by GenAI. Reviewers can correct it before approval. |
 | File name | Original uploaded file name. |
 | Extension | File extension from the uploaded file name. |
 | File size | Original upload size captured by the portal for new uploads. |
@@ -183,6 +187,7 @@ Uploaded file
   -> OCI Document Understanding using ObjectStorageDocumentDetails
   -> JSON-safe extraction result conversion
   -> OCI Generative AI Cohere chat model
+  -> automatic document type label when Auto-detect was selected
   -> local metadata JSON
   -> Markdown report
   -> Dashboard queue
@@ -191,12 +196,14 @@ Uploaded file
 
 If Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
 
+PDFs that contain scanned pages or embedded images are handled through OCI Document Understanding OCR. They can take much longer than PDFs with selectable text because OCI must read the pixels on each page. Very large, low-quality, rotated, password-protected, or image-heavy PDFs may still fail or return little text. For best results, use clear scans, normal page orientation, and files below the configured upload limit.
+
 Document Understanding calls are bounded by runtime settings:
 
 ```text
-DOCUMENT_AI_TIMEOUT_SECONDS=30
-DOCUMENT_AI_RETRY_ATTEMPTS=1
-STALE_PROCESSING_MINUTES=3
+DOCUMENT_AI_TIMEOUT_SECONDS=180
+DOCUMENT_AI_RETRY_ATTEMPTS=2
+STALE_PROCESSING_MINUTES=12
 MAX_PARALLEL_JOBS=2
 ```
 

@@ -188,6 +188,18 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
         app = app.run()
         assert app.session_state["page"] == "Document"
 
+        for selectbox in app.selectbox:
+            if selectbox.label == "Document type":
+                app = selectbox.set_value(DocumentType.INVOICE).run()
+                break
+        for button in app.button:
+            if button.label == "Save Type":
+                app = button.click().run()
+                break
+        updated = MetadataStore(config).load("test-doc")
+        assert updated.document_type == DocumentType.INVOICE
+        assert "- Document Type: INVOICE" in report_path.read_text(encoding="utf-8")
+
         for button in app.sidebar.button:
             if button.label == "Upload":
                 app = button.click().run()
