@@ -8,7 +8,8 @@ Current project version: `v0.3.0`
 2. Why selective Document Understanding plus GenAI is useful
 3. Architecture overview
    - Use `docs/assets/oci-ai-document-review-architecture.png` as the LinkedIn post image.
-   - The editable source is `docs/assets/oci-ai-document-review-architecture.svg`.
+   - The editable source is `docs/assets/oci-ai-document-review-architecture.excalidraw`.
+   - The SVG source is `docs/assets/oci-ai-document-review-architecture.svg`.
 4. MVP versioning and what `v0.3.0` includes
 5. Dynamic GenAI region discovery
 6. Environment setup

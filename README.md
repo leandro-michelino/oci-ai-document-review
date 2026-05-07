@@ -4,6 +4,8 @@
 
 The portal is a lightweight OCI-hosted document review workflow. It stores uploaded files in private Object Storage, extracts usable text with the lowest-cost path available, analyzes the content with OCI Generative AI, and routes the result to a human review queue with audit, retry, and approval actions.
 
+![OCI AI Document Review architecture](Architecture.png)
+
 ```text
 +---------------+
 | Business User |

@@ -13,6 +13,7 @@ Rendered share-ready diagram:
 Editable source:
 
 ```text
+docs/assets/oci-ai-document-review-architecture.excalidraw
 docs/assets/oci-ai-document-review-architecture.svg
 ```
 
