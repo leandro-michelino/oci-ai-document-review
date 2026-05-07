@@ -16,7 +16,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
         |
         v
 +-----------------------+
-| Upload PDF / Image    |
+| Upload Document       |
 +-------+---------------+
         |
         v
@@ -33,8 +33,8 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
         |
         v
 +----------------------------+
-| OCI Document Understanding |
-| Text, Tables, Fields       |
+| Local Text or OCI Document |
+| Understanding Extraction   |
 +-------+--------------------+
         |
         v
@@ -46,12 +46,12 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
         v
 +-----------------------+
 | Dashboard Queue       |
-| Search, Stage, Open   |
+| Split Tables, Open    |
 +-------+---------------+
         |
         v
 +-----------------------+
-| Document Review       |
+| Actions Review        |
 | Correct Type, Decide  |
 +-------+---------------+
         |
@@ -75,20 +75,19 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 | Streamlit + Worker Pool |
 +-----------+-------------+
             |
-            | OCI SDK
-            v
-+-------------------------+
-| Existing OCI API Key    |
-| Existing IAM Policies   |
-+-----------+-------------+
+            +--> Local Text Extract
+            |    Text files / PDFs with selectable text
             |
-            +--------------------+--------------------+
-            |                    |                    |
-            v                    v                    v
-+-------------------+  +---------------------+  +-------------------+
-| Object Storage    |  | Document             |  | Generative AI     |
-| Uploaded Files    |  | Understanding        |  | Selected Region   |
-+-------------------+  +---------------------+  +-------------------+
+            +--> OCI SDK using API key and IAM policies
+                 |
+                 +--> Object Storage
+                 |    Uploaded originals
+                 |
+                 +--> Document Understanding OCR
+                 |    Images / image-only PDFs
+                 |
+                 +--> Generative AI
+                      Structured review
 ```
 
 ## Processing Sequence
@@ -111,7 +110,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 | MAX_PARALLEL_JOBS    |
 +----------+-----------+
            |
-           | each active worker runs the live OCI path
+           | each active worker runs the extraction and GenAI path
            v
 +----------------------+
 | Active Worker        |
@@ -124,15 +123,19 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 | Private Bucket       |
 +----------+-----------+
            |
-           | ObjectStorageDocumentDetails
-           v
-+----------------------------+
-| Document Understanding     |
-| Text, Tables, Key Values   |
-+----------+-----------------+
-           |
-           | extracted content
-           v
+           +-----------------------------+
+           |                             |
+           | text-native / text PDFs     | images / image-only PDFs
+           v                             v
++----------------------+     +----------------------------+
+| Local Text Extract   |     | Document Understanding     |
+| TXT / CSV / PDF text |     | Text, Tables, Key Values   |
++----------+-----------+     +----------+-----------------+
+           |                             |
+           +-------------+---------------+
+                         |
+                         | extracted content
+                         v
 +----------------------------+
 | Generative AI              |
 | CohereChatRequest          |
@@ -159,7 +162,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
            |
            v
 +----------------------------+
-| Document Review            |
+| Actions Review             |
 | Correct Type / Approve     |
 +----------------------------+
 ```

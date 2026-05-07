@@ -14,13 +14,13 @@ Users upload a document in the web portal. The platform then:
 1. Saves the upload locally and creates an UPLOADED metadata record.
 2. Queues the document in a background worker pool so the browser does not wait on OCI processing.
 3. Stores the original file in a private OCI Object Storage bucket.
-4. Extracts text, tables, and key values with OCI Document Understanding.
-5. Converts Document Understanding output into JSON-safe plain data.
+4. Extracts text locally for text-native files or with OCI Document Understanding for images and image-only PDFs.
+5. Normalizes extraction output into text and JSON-safe plain data.
 6. Sends the extracted content to OCI Generative AI for structured review.
 7. Auto-detects the document type when `Auto-detect` was selected during upload.
 8. Creates a JSON metadata record and a Markdown report.
 9. Shows the document in a clean Dashboard queue.
-10. Opens the Document page for AI review, human decision, lifecycle details, and downloads.
+10. Opens the Actions page for AI review, human decision, lifecycle details, and downloads.
 11. Lets a reviewer correct the document type, then approve or reject the document.
 ```
 
@@ -50,7 +50,7 @@ Background worker pool accepts the job
 Original file uploaded to OCI Object Storage
   |
   v
-OCI Document Understanding extracts text
+Text is extracted locally or with OCI Document Understanding
   |
   v
 OCI Generative AI creates structured review
@@ -65,13 +65,13 @@ Metadata and Markdown report are saved
 Dashboard shows the document as Ready
   |
   v
-Reviewer opens the Document page
+Reviewer opens the Actions page
   |
   v
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally simple. It shows queue metrics, a `Show` filter, search, the document table, and an `Open` action. The Document page is where review happens. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+The Dashboard is intentionally simple. It shows queue metrics, global search, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, or a failed-processing fix. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Field Reference
 
@@ -101,7 +101,7 @@ Confidence, extracted fields, recommendations, missing information, and risk not
 
 ## Description
 
-This project implements an end-to-end AI document review portal on Oracle Cloud Infrastructure. Users upload PDFs or images through a Streamlit web interface, the app stores the originals in a private Object Storage bucket, extracts text and fields with OCI Document Understanding, analyzes the content with OCI Generative AI, and presents a queue dashboard plus a focused Document review page with summaries, risks, recommendations, approval actions, and downloadable Markdown or JSON reports.
+This project implements an end-to-end AI document review portal on Oracle Cloud Infrastructure. Users upload PDFs, images, or text-native files through a Streamlit web interface, the app stores the originals in a private Object Storage bucket, extracts text locally or with OCI Document Understanding, analyzes the content with OCI Generative AI, and presents a queue dashboard plus a focused Actions page with summaries, risks, recommendations, approval actions, and downloadable Markdown or JSON reports.
 
 The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, and Functions.
 
@@ -140,26 +140,31 @@ Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and i
 | OCI Object Storage   |
 +-------+--------------+
         |
-        v
-+----------------------+
-| Document             |
-| Understanding        |
-+-------+--------------+
-        |
-        v
-+----------------------+
-| OCI Generative AI    |
-+-------+--------------+
-        |
-        v
-+----------------------+
-| Dashboard Queue      |
-+-------+--------------+
-        |
-        v
-+----------------------+
-| Document Review      |
-+----------------------+
+        +----------------------+----------------------+
+        |                                             |
+        | text files / PDFs with text                 | images / image-only PDFs
+        v                                             v
++----------------------+                 +----------------------------+
+| Local Text Extract   |                 | OCI Document Understanding |
+| Direct to GenAI      |                 | OCR, Tables, Key Values    |
++----------+-----------+                 +----------+-----------------+
+           |                                        |
+           +--------------------+-------------------+
+                                |
+                                v
+              +-----------------------------+
+              | OCI Generative AI           |
+              +-------------+---------------+
+                            |
+                            v
+              +-----------------------------+
+              | Dashboard Queue             |
+              +-------------+---------------+
+                            |
+                            v
+              +-----------------------------+
+              | Actions Review              |
+              +-----------------------------+
 ```
 
 More ASCII flows are in `docs/architecture_flows.md`.
@@ -184,17 +189,17 @@ The processing path is:
 Uploaded file
   -> background worker queue
   -> private Object Storage bucket
-  -> OCI Document Understanding using ObjectStorageDocumentDetails
-  -> JSON-safe extraction result conversion
+  -> local text extraction OR OCI Document Understanding using ObjectStorageDocumentDetails
+  -> JSON-safe extraction result conversion when Document Understanding is used
   -> OCI Generative AI Cohere chat model
   -> automatic document type label when Auto-detect was selected
   -> local metadata JSON
   -> Markdown report
   -> Dashboard queue
-  -> Document review page
+  -> Actions page
 ```
 
-If Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
+If local extraction or Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
 
 PDFs that contain scanned pages or embedded images are handled through OCI Document Understanding OCR. They can take much longer than PDFs with selectable text because OCI must read the pixels on each page. Very large, low-quality, rotated, password-protected, or image-heavy PDFs may still fail or return little text. For best results, use clear scans, normal page orientation, and files below the configured upload limit.
 
@@ -207,7 +212,7 @@ STALE_PROCESSING_MINUTES=12
 MAX_PARALLEL_JOBS=2
 ```
 
-Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run stays in `PROCESSING` beyond the stale window, the portal marks it as `FAILED` with a retry message instead of leaving it stuck.
+Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run stays in an active stage beyond the stale window, the portal marks it as `FAILED` with a retry message instead of leaving it stuck.
 
 ## Cost Estimate
 
@@ -289,8 +294,8 @@ The app supports:
 - Markdown report generation
 - Local JSON metadata
 - Approve and reject review actions
-- Dashboard queue view with metrics, search, stage filter, and Open action
-- Simplified Document page for AI summary, key points, recommendations, review action, lifecycle, extracted text, and downloads
+- Dashboard queue view with metrics, search, split queue tables, and per-row Open actions
+- Actions page for prioritized approvals, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document
 - Field guide with `?` explanations for review and file metadata fields
 - OCI Preflight checks in Settings

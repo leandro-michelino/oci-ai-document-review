@@ -22,7 +22,9 @@ def _fields_table(analysis: DocumentAnalysis) -> str:
             rendered = ", ".join(value) if value else "None found"
         else:
             rendered = value or "Not found"
-        lines.append(f"| {key.replace('_', ' ').title()} | {_normalize_markdown(rendered)} |")
+        lines.append(
+            f"| {key.replace('_', ' ').title()} | {_normalize_markdown(rendered)} |"
+        )
     return "\n".join(lines)
 
 

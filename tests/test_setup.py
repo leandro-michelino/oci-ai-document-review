@@ -13,4 +13,6 @@ def test_choose_model_rejects_unsupported_chat_models():
     region = GenAIRegion(name="example-region", models=["meta.llama-3.1"])
 
     with pytest.raises(SystemExit):
-        choose_model(region, preferred="cohere.command-r-plus-08-2024", non_interactive=True)
+        choose_model(
+            region, preferred="cohere.command-r-plus-08-2024", non_interactive=True
+        )

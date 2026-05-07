@@ -11,7 +11,6 @@ from src.metadata_store import MetadataStore
 from src.models import DocumentType, ProcessingStatus
 from src.processor import DocumentProcessor, error_message
 
-
 logger = get_logger(__name__)
 _executors: dict[int, ThreadPoolExecutor] = {}
 _submitted: set[str] = set()
@@ -117,4 +116,6 @@ def _mark_failed(config: AppConfig, document_id: str, exc: Exception) -> None:
             processed_at=datetime.now(timezone.utc),
         )
     except Exception:
-        logger.exception("Could not mark background processing failed for %s", document_id)
+        logger.exception(
+            "Could not mark background processing failed for %s", document_id
+        )

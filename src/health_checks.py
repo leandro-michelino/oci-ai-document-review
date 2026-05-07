@@ -31,7 +31,9 @@ def check_object_storage(config: AppConfig) -> HealthCheckResult:
         client.upload_file(tmp_path, object_name)
         content = client.get_object_text(object_name)
         if content != "oci-ai-document-review-preflight":
-            return HealthCheckResult("Object Storage", False, "Readback content did not match.")
+            return HealthCheckResult(
+                "Object Storage", False, "Readback content did not match."
+            )
         client.delete_object(object_name)
         deleted = True
         return HealthCheckResult(
@@ -67,7 +69,9 @@ def check_genai(config: AppConfig) -> HealthCheckResult:
     try:
         response = GenAIClient(config).ping()
         if "OCI_GENAI_OK" not in response:
-            return HealthCheckResult("Generative AI", False, f"Unexpected response: {response}")
+            return HealthCheckResult(
+                "Generative AI", False, f"Unexpected response: {response}"
+            )
         return HealthCheckResult(
             "Generative AI",
             True,

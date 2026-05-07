@@ -48,7 +48,9 @@ class GenAIClient:
         )
         details = models.ChatDetails(
             compartment_id=self.config.oci_compartment_id,
-            serving_mode=models.OnDemandServingMode(model_id=self.config.genai_model_id),
+            serving_mode=models.OnDemandServingMode(
+                model_id=self.config.genai_model_id
+            ),
             chat_request=request,
         )
         response = self.client.chat(chat_details=details)

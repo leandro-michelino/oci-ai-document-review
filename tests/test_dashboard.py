@@ -10,7 +10,10 @@ from app import (
     filter_queue_rows,
     next_action,
     processing_stage_rows,
+    queue_view_frames,
     record_to_row,
+    reviewer_action_count,
+    sort_action_records,
 )
 from src.models import (
     DocumentAnalysis,
@@ -81,12 +84,13 @@ def test_processing_stage_rows_show_backend_lifecycle():
     assert [row["Stage"] for row in rows] == [
         "Upload",
         "Object Storage",
-        "Document Understanding",
+        "Extraction",
         "GenAI analysis",
         "Review report",
         "Human decision",
     ]
     assert rows[1]["State"] == "Complete"
+    assert rows[2]["Evidence"] == "Extraction source not recorded; text preview saved"
     assert rows[-1]["Evidence"] == "Approve or reject"
 
 
@@ -99,8 +103,12 @@ def test_file_size_label_formats_known_and_missing_sizes():
 
 def test_filter_dashboard_rows_searches_and_filters():
     records = [
-        make_record("doc-1", "contract.pdf", risks=[RiskNote(risk="Risk", severity="HIGH")]),
-        make_record("doc-2", "invoice.pdf", status=ProcessingStatus.APPROVED, confidence=0.5),
+        make_record(
+            "doc-1", "contract.pdf", risks=[RiskNote(risk="Risk", severity="HIGH")]
+        ),
+        make_record(
+            "doc-2", "invoice.pdf", status=ProcessingStatus.APPROVED, confidence=0.5
+        ),
     ]
     df = pd.DataFrame([record_to_row(record) for record in records])
 
@@ -120,17 +128,71 @@ def test_filter_dashboard_rows_searches_and_filters():
 
 def test_filter_queue_rows_uses_simple_review_views():
     ready = make_record("doc-1", "ready.pdf")
-    processing = make_record("doc-2", "processing.pdf", status=ProcessingStatus.PROCESSING)
+    processing = make_record(
+        "doc-2", "processing.pdf", status=ProcessingStatus.PROCESSING
+    )
     failed = make_record("doc-3", "failed.pdf", status=ProcessingStatus.FAILED)
     approved = make_record("doc-4", "approved.pdf", status=ProcessingStatus.APPROVED)
     approved.review_status = ReviewStatus.APPROVED
-    df = pd.DataFrame([record_to_row(record) for record in [ready, processing, failed, approved]])
+    df = pd.DataFrame(
+        [record_to_row(record) for record in [ready, processing, failed, approved]]
+    )
 
-    assert filter_queue_rows(df, view="Ready", query="")["Document ID"].tolist() == ["doc-1"]
-    assert filter_queue_rows(df, view="Processing", query="")["Document ID"].tolist() == ["doc-2"]
-    assert filter_queue_rows(df, view="Failed", query="")["Document ID"].tolist() == ["doc-3"]
-    assert filter_queue_rows(df, view="Reviewed", query="")["Document ID"].tolist() == ["doc-4"]
-    assert filter_queue_rows(df, view="All", query="approved")["Document ID"].tolist() == ["doc-4"]
+    assert filter_queue_rows(df, view="Ready", query="")["Document ID"].tolist() == [
+        "doc-1"
+    ]
+    assert filter_queue_rows(df, view="Processing", query="")[
+        "Document ID"
+    ].tolist() == ["doc-2"]
+    assert filter_queue_rows(df, view="Failed", query="")["Document ID"].tolist() == [
+        "doc-3"
+    ]
+    assert filter_queue_rows(df, view="Reviewed", query="")["Document ID"].tolist() == [
+        "doc-4"
+    ]
+    assert filter_queue_rows(df, view="All", query="approved")[
+        "Document ID"
+    ].tolist() == ["doc-4"]
+
+
+def test_queue_view_frames_splits_dashboard_sections():
+    ready = make_record("doc-1", "ready.pdf")
+    processing = make_record(
+        "doc-2", "processing.pdf", status=ProcessingStatus.PROCESSING
+    )
+    failed = make_record("doc-3", "failed.pdf", status=ProcessingStatus.FAILED)
+    approved = make_record("doc-4", "approved.pdf", status=ProcessingStatus.APPROVED)
+    approved.review_status = ReviewStatus.APPROVED
+    df = pd.DataFrame(
+        [record_to_row(record) for record in [ready, processing, failed, approved]]
+    )
+
+    sections = queue_view_frames(df, query="")
+
+    assert sections["Processing"]["Document ID"].tolist() == ["doc-2"]
+    assert sections["Ready"]["Document ID"].tolist() == ["doc-1"]
+    assert sections["Failed"]["Document ID"].tolist() == ["doc-3"]
+    assert sections["Reviewed"]["Document ID"].tolist() == ["doc-4"]
+
+
+def test_actions_prioritize_user_work():
+    ready = make_record("doc-1", "ready.pdf")
+    failed = make_record("doc-2", "failed.pdf", status=ProcessingStatus.FAILED)
+    processing = make_record(
+        "doc-3", "processing.pdf", status=ProcessingStatus.PROCESSING
+    )
+    approved = make_record("doc-4", "approved.pdf", status=ProcessingStatus.APPROVED)
+    approved.review_status = ReviewStatus.APPROVED
+
+    ordered = sort_action_records([approved, processing, failed, ready])
+
+    assert [record.document_id for record in ordered] == [
+        "doc-1",
+        "doc-2",
+        "doc-3",
+        "doc-4",
+    ]
+    assert reviewer_action_count([ready, failed, processing, approved]) == 2
 
 
 def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
@@ -183,10 +245,10 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
             if button.label == "Open":
                 app = button.click().run()
                 break
-        assert app.session_state["page"] == "Document"
+        assert app.session_state["page"] == "Actions"
         assert app.session_state["selected_document_id"] == "test-doc"
         app = app.run()
-        assert app.session_state["page"] == "Document"
+        assert app.session_state["page"] == "Actions"
 
         for selectbox in app.selectbox:
             if selectbox.label == "Document type":

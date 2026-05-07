@@ -9,11 +9,11 @@ from src.document_understanding_client import DocumentUnderstandingClient
 from src.genai_client import GenAIClient
 from src.logger import get_logger
 from src.metadata_store import MetadataStore
-from src.models import DocumentRecord, DocumentType, ProcessingStatus
+from src.models import DocumentRecord, DocumentType, ExtractionResult, ProcessingStatus
 from src.object_storage_client import ObjectStorageClient
 from src.prompts import build_prompt
 from src.report_generator import generate_markdown_report
-
+from src.text_extraction import extract_text_locally
 
 logger = get_logger(__name__)
 
@@ -78,8 +78,14 @@ class DocumentProcessor:
         self.config = config
         self.store = MetadataStore(config)
         self.object_storage = ObjectStorageClient(config)
-        self.document_ai = DocumentUnderstandingClient(config)
+        self._document_ai = None
         self.genai = GenAIClient(config)
+
+    @property
+    def document_ai(self) -> DocumentUnderstandingClient:
+        if self._document_ai is None:
+            self._document_ai = DocumentUnderstandingClient(self.config)
+        return self._document_ai
 
     def process(
         self,
@@ -122,21 +128,27 @@ class DocumentProcessor:
             self.store.save(record)
             progress("Uploaded original file to OCI Object Storage")
 
-            progress(
-                "Starting OCI Document Understanding extraction "
-                f"(timeout {self.config.document_ai_timeout_seconds}s, "
-                f"attempts {self.config.document_ai_retry_attempts})"
-            )
-            extraction = self.document_ai.extract_document(object_name)
+            local_extraction = extract_text_locally(local_path, document_name)
+            if local_extraction:
+                extraction = ExtractionResult(text=local_extraction.text)
+                record.extraction_source = local_extraction.source
+                progress(f"Extracted text locally from {local_extraction.source}")
+            else:
+                progress(
+                    "Starting OCI Document Understanding extraction "
+                    f"(timeout {self.config.document_ai_timeout_seconds}s, "
+                    f"attempts {self.config.document_ai_retry_attempts})"
+                )
+                extraction = self.document_ai.extract_document(object_name)
+                record.extraction_source = "OCI Document Understanding"
             if not extraction.text.strip():
                 raise ValueError(
-                    "OCI Document Understanding returned no extractable text. "
-                    "Try a clearer PDF or image."
+                    "No extractable text was found. Try a text-based file or a clearer PDF/image."
                 )
             record.status = ProcessingStatus.EXTRACTED
             record.extracted_text_preview = extraction.text[:2000]
             self.store.save(record)
-            progress("Extracted text with OCI Document Understanding")
+            progress("Prepared extracted text for OCI Generative AI")
 
             prompt = build_prompt(
                 document_type=document_type,

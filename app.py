@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src.config import get_config
 from src.health_checks import run_preflight
@@ -15,20 +16,21 @@ from src.models import DocumentRecord, DocumentType, ProcessingStatus
 from src.processor import create_document_id
 from src.report_generator import generate_markdown_report
 
-
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
 READY_FOR_DECISION = {"REVIEW_REQUIRED"}
 ACTIVE_STATUSES = {"UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"}
+QUEUE_SECTION_VIEWS = ["Processing", "Ready", "Failed", "Reviewed"]
 CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
 CONTACT_MESSAGE = "In case of any question, get in touch."
 PAGE_UPLOAD = "Upload"
 PAGE_DASHBOARD = "Dashboard"
-PAGE_DETAIL = "Document"
+PAGE_DETAIL = "Actions"
 PAGE_SETTINGS = "Settings"
 LEGACY_PAGE_NAMES = {
     "Upload Document": PAGE_UPLOAD,
     "Review Dashboard": PAGE_DASHBOARD,
     "Document Details": PAGE_DETAIL,
+    "Document": PAGE_DETAIL,
 }
 RISK_TONE = {
     "HIGH": "risk-high",
@@ -64,6 +66,7 @@ FIELD_HELP = {
     "Status": "Processing state for the document lifecycle, from upload through approval or failure.",
     "Stage": "Simple queue state: Queued, Processing, Ready, Reviewed, or Failed.",
     "Storage": "Whether the original file has an OCI Object Storage path recorded.",
+    "Text source": "How text was extracted before GenAI analysis: local text/PDF extraction or OCI Document Understanding OCR.",
     "Text preview": "Number of extracted characters stored for quick inspection in the portal.",
 }
 FIELD_GUIDE_ROWS = [
@@ -88,7 +91,11 @@ def normalize_page(page: str | None) -> str | None:
 
 
 def document_type_label(document_type: DocumentType | str) -> str:
-    value = document_type.value if isinstance(document_type, DocumentType) else document_type
+    value = (
+        document_type.value
+        if isinstance(document_type, DocumentType)
+        else document_type
+    )
     labels = {
         DocumentType.AUTO_DETECT.value: "Auto-detect",
         DocumentType.TECHNICAL_REPORT.value: "Technical report",
@@ -130,7 +137,9 @@ def apply_theme() -> None:
         .block-container {
             padding-top: 1rem;
             padding-bottom: 2.5rem;
-            max-width: 1180px;
+            padding-left: clamp(1rem, 2vw, 2rem);
+            padding-right: clamp(1rem, 2vw, 2rem);
+            max-width: min(96vw, 1480px);
         }
         h1, h2, h3 {
             letter-spacing: 0;
@@ -407,7 +416,9 @@ def risk_tone(value: str) -> str:
 def render_status_strip(record) -> None:
     risk = highest_risk_level(record)
     confidence = confidence_percent(record)
-    confidence_label = "Confidence N/A" if confidence is None else f"Confidence {confidence}%"
+    confidence_label = (
+        "Confidence N/A" if confidence is None else f"Confidence {confidence}%"
+    )
     chips = [
         badge(record.status.value, state_tone(record.status.value)),
         badge(record.review_status.value, state_tone(record.review_status.value)),
@@ -415,7 +426,9 @@ def render_status_strip(record) -> None:
         badge(confidence_label, "state-info"),
         badge(next_action(record), state_tone(record.status.value)),
     ]
-    st.markdown(f'<div class="status-strip">{"".join(chips)}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="status-strip">{"".join(chips)}</div>', unsafe_allow_html=True
+    )
 
 
 def render_summary_panel(title: str, body: str, label: str | None = None) -> None:
@@ -439,7 +452,9 @@ def render_field_guide() -> None:
             width="stretch",
             hide_index=True,
         )
-        st.caption("Confidence and risk are AI-assisted signals. The human reviewer owns the final decision.")
+        st.caption(
+            "Confidence and risk are AI-assisted signals. The human reviewer owns the final decision."
+        )
 
 
 def file_size_label(size_bytes: int | None) -> str:
@@ -478,15 +493,12 @@ def render_review_snapshot(record) -> None:
         ("Confidence", "N/A" if confidence is None else f"{confidence}%"),
         ("Next action", next_action(record)),
     ]
-    cells = "\n".join(
-        f"""
+    cells = "\n".join(f"""
         <div class="snapshot-cell">
           <div class="snapshot-label">{escape(label)}{help_dot(label)}</div>
           <div class="snapshot-value">{escape(value)}</div>
         </div>
-        """
-        for label, value in values
-    )
+        """ for label, value in values)
     st.markdown(f'<div class="review-snapshot">{cells}</div>', unsafe_allow_html=True)
 
 
@@ -505,23 +517,28 @@ def render_file_information(record, compact: bool = False) -> None:
         ("Business reference", record.business_reference or "Not provided"),
         (
             "Processed",
-            record.processed_at.strftime("%Y-%m-%d %H:%M") if record.processed_at else "Not processed",
+            (
+                record.processed_at.strftime("%Y-%m-%d %H:%M")
+                if record.processed_at
+                else "Not processed"
+            ),
         ),
         ("Document ID", record.document_id),
         ("Report", report_state(record)),
         ("Text preview", extracted_text_label(record)),
-        ("Storage", "Uploaded to OCI" if record.object_storage_path else "Not uploaded"),
+        ("Text source", record.extraction_source or "Not extracted"),
+        (
+            "Storage",
+            "Uploaded to OCI" if record.object_storage_path else "Not uploaded",
+        ),
     ]
     info = core_info if compact else core_info + extra_info
-    items = "\n".join(
-        f"""
+    items = "\n".join(f"""
         <div class="info-item">
           <div class="info-label">{escape(label)}{help_dot(label)}</div>
           <div class="info-value">{escape(value)}</div>
         </div>
-        """
-        for label, value in info
-    )
+        """ for label, value in info)
     st.markdown(f'<div class="info-grid">{items}</div>', unsafe_allow_html=True)
 
 
@@ -541,7 +558,10 @@ def confidence_percent(record) -> int | None:
 
 
 def requires_human_action(record) -> bool:
-    return record.status.value in READY_FOR_DECISION and record.review_status.value == "PENDING"
+    return (
+        record.status.value in READY_FOR_DECISION
+        and record.review_status.value == "PENDING"
+    )
 
 
 def next_action(record) -> str:
@@ -568,9 +588,37 @@ def queue_stage(record) -> str:
     return record.status.value.replace("_", " ").title()
 
 
+def action_priority(record) -> int:
+    if requires_human_action(record):
+        return 0
+    if record.status.value == "FAILED":
+        return 1
+    if record.status.value in ACTIVE_STATUSES:
+        return 2
+    if record.review_status.value in {"APPROVED", "REJECTED"}:
+        return 4
+    return 3
+
+
+def sort_action_records(records: list[DocumentRecord]) -> list[DocumentRecord]:
+    return sorted(
+        records,
+        key=lambda record: (action_priority(record), -record.uploaded_at.timestamp()),
+    )
+
+
+def reviewer_action_count(records: list[DocumentRecord]) -> int:
+    return sum(
+        1
+        for record in records
+        if requires_human_action(record) or record.status.value == "FAILED"
+    )
+
+
 def processing_stage_rows(record) -> list[dict[str, str]]:
     has_extraction = bool(record.extracted_text_preview)
     has_report = bool(record.report_path and Path(record.report_path).exists())
+    extraction_source = record.extraction_source or "Extraction source not recorded"
     return [
         {
             "Stage": "Upload",
@@ -583,9 +631,13 @@ def processing_stage_rows(record) -> list[dict[str, str]]:
             "Evidence": record.object_storage_path or "No object recorded",
         },
         {
-            "Stage": "Document Understanding",
+            "Stage": "Extraction",
             "State": "Complete" if has_extraction else "Not complete",
-            "Evidence": "Extracted text preview saved" if has_extraction else "No extracted text",
+            "Evidence": (
+                f"{extraction_source}; text preview saved"
+                if has_extraction
+                else "No extracted text"
+            ),
         },
         {
             "Stage": "GenAI analysis",
@@ -697,7 +749,9 @@ def filter_dashboard_rows(
         ]
     terms = [term for term in query.lower().split() if term]
     for term in terms:
-        filtered = filtered[filtered["Search Text"].str.contains(term, regex=False, na=False)]
+        filtered = filtered[
+            filtered["Search Text"].str.contains(term, regex=False, na=False)
+        ]
     return filtered.sort_values("Uploaded Sort", ascending=False)
 
 
@@ -714,12 +768,67 @@ def filter_queue_rows(df: pd.DataFrame, view: str, query: str) -> pd.DataFrame:
 
     terms = [term for term in query.lower().split() if term]
     for term in terms:
-        filtered = filtered[filtered["Search Text"].str.contains(term, regex=False, na=False)]
+        filtered = filtered[
+            filtered["Search Text"].str.contains(term, regex=False, na=False)
+        ]
     return filtered.sort_values("Uploaded Sort", ascending=False)
 
 
-def selected_record_label(row: pd.Series) -> str:
-    return f"{row['Name']} - {row['Stage']} - {row['Uploaded']}"
+def queue_view_frames(df: pd.DataFrame, query: str) -> dict[str, pd.DataFrame]:
+    return {
+        view: filter_queue_rows(df=df, view=view, query=query)
+        for view in QUEUE_SECTION_VIEWS
+    }
+
+
+def render_queue_section(view: str, rows: pd.DataFrame) -> None:
+    st.markdown(f"### {view}")
+    st.caption(f"{len(rows)} document{'s' if len(rows) != 1 else ''}")
+    if rows.empty:
+        st.info(f"No {view.lower()} documents.")
+        return
+
+    widths = [0.45, 1.65, 0.62, 0.65, 0.55, 0.62, 1.05]
+    header_cols = st.columns(widths, vertical_alignment="center")
+    for col, label in zip(
+        header_cols,
+        ["", "Name", "Uploaded", "Type", "Risk", "Confidence", "Action"],
+    ):
+        col.markdown(f"**{label}**")
+
+    for _, row in rows.iterrows():
+        row_cols = st.columns(widths, vertical_alignment="center")
+        document_id = row["Document ID"]
+        row_cols[0].button(
+            "Open",
+            key=f"queue_open_{view}_{document_id}",
+            on_click=open_page,
+            args=(PAGE_DETAIL, document_id),
+            width="stretch",
+        )
+        row_cols[1].write(row["Name"])
+        row_cols[2].write(row["Uploaded"])
+        row_cols[3].write(row["Type"])
+        row_cols[4].write(row["Risk Level"])
+        confidence = row["Confidence"]
+        row_cols[5].write("N/A" if pd.isna(confidence) else f"{int(confidence)}%")
+        row_cols[6].write(row["Action"])
+
+
+def schedule_dashboard_refresh(active_count: int, seconds: int = 10) -> None:
+    if active_count <= 0:
+        return
+    st.caption(
+        f"Auto-refreshing every {seconds} seconds while documents are processing."
+    )
+    components.html(
+        f"""
+        <script>
+        setTimeout(() => window.parent.location.reload(), {seconds * 1000});
+        </script>
+        """,
+        height=0,
+    )
 
 
 def open_page(page: str, document_id: str | None = None) -> None:
@@ -734,7 +843,9 @@ def open_page(page: str, document_id: str | None = None) -> None:
 
 
 def open_fresh_upload() -> None:
-    st.session_state["upload_widget_version"] = st.session_state.get("upload_widget_version", 0) + 1
+    st.session_state["upload_widget_version"] = (
+        st.session_state.get("upload_widget_version", 0) + 1
+    )
     open_page(PAGE_UPLOAD)
 
 
@@ -742,7 +853,9 @@ def render_queued_actions(record) -> None:
     with st.container(border=True):
         st.subheader("Queued")
         render_status_strip(record)
-        st.write("The file is in the background queue. You can follow it from the dashboard.")
+        st.write(
+            "The file is in the background queue. You can follow it from the dashboard."
+        )
         cols = st.columns([1, 1, 1])
         cols[0].button(
             "View Dashboard",
@@ -752,7 +865,7 @@ def render_queued_actions(record) -> None:
             args=(PAGE_DASHBOARD, record.document_id),
         )
         cols[1].button(
-            "Open Document",
+            "Open Actions",
             key=f"queued_open_{record.document_id}",
             on_click=open_page,
             args=(PAGE_DETAIL, record.document_id),
@@ -764,7 +877,9 @@ def render_queued_actions(record) -> None:
         )
 
 
-def apply_review_action(store, document_id: str, approved: bool, comments: str | None) -> bool:
+def apply_review_action(
+    store, document_id: str, approved: bool, comments: str | None
+) -> bool:
     if not approved and not (comments or "").strip():
         st.error("Add review comments before rejecting.")
         return False
@@ -778,7 +893,11 @@ def render_document_type_editor(config, store, record, key_prefix: str) -> None:
     selected_type = st.selectbox(
         "Document type",
         options,
-        index=options.index(record.document_type) if record.document_type in options else 0,
+        index=(
+            options.index(record.document_type)
+            if record.document_type in options
+            else 0
+        ),
         format_func=document_type_label,
         help=FIELD_HELP["Document type"],
         key=f"{key_prefix}_document_type_{record.document_id}",
@@ -801,7 +920,9 @@ def render_document_type_editor(config, store, record, key_prefix: str) -> None:
 
 def render_review_action_panel(store, record, key_prefix: str) -> None:
     if record.status.value == "FAILED":
-        st.error("This document failed processing. Upload a corrected file or check service logs.")
+        st.error(
+            "This document failed processing. Upload a corrected file or check service logs."
+        )
         return
     if not record.analysis:
         st.info("This document is not ready for review yet.")
@@ -818,11 +939,17 @@ def render_review_action_panel(store, record, key_prefix: str) -> None:
         key=f"{key_prefix}_comments_{record.document_id}",
     )
     cols = st.columns(2)
-    if cols[0].button("Approve", type="primary", key=f"{key_prefix}_approve_{record.document_id}"):
-        if apply_review_action(store, record.document_id, approved=True, comments=comments):
+    if cols[0].button(
+        "Approve", type="primary", key=f"{key_prefix}_approve_{record.document_id}"
+    ):
+        if apply_review_action(
+            store, record.document_id, approved=True, comments=comments
+        ):
             st.rerun()
     if cols[1].button("Reject", key=f"{key_prefix}_reject_{record.document_id}"):
-        if apply_review_action(store, record.document_id, approved=False, comments=comments):
+        if apply_review_action(
+            store, record.document_id, approved=False, comments=comments
+        ):
             st.rerun()
 
 
@@ -926,7 +1053,22 @@ def upload_page(config, store):
         business_reference = st.text_input("Reference", placeholder="Optional")
         uploaded = st.file_uploader(
             "File",
-            type=["pdf", "png", "jpg", "jpeg"],
+            type=[
+                "pdf",
+                "png",
+                "jpg",
+                "jpeg",
+                "txt",
+                "md",
+                "csv",
+                "json",
+                "xml",
+                "html",
+                "htm",
+                "log",
+                "yaml",
+                "yml",
+            ],
             key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
             help=f"Maximum file size enforced by the app: {config.max_upload_mb} MB.",
         )
@@ -937,7 +1079,9 @@ def upload_page(config, store):
             size_mb = uploaded.size / (1024 * 1024)
             st.caption(f"Selected: {uploaded.name} - {size_mb:.2f} MB")
             if size_mb > config.max_upload_mb:
-                st.error(f"File exceeds the configured {config.max_upload_mb} MB limit.")
+                st.error(
+                    f"File exceeds the configured {config.max_upload_mb} MB limit."
+                )
                 uploaded_ok = False
         process_clicked = st.button(
             "Queue Document",
@@ -1027,116 +1171,36 @@ def dashboard_page(config, store):
         )
         if st.button("Refresh Status"):
             st.rerun()
+        schedule_dashboard_refresh(len(active_runs))
 
-    views = ["Ready", "Processing", "Failed", "Reviewed", "All"]
-    default_view = "All"
-    if ready_count:
-        default_view = "Ready"
-    elif len(active_runs):
-        default_view = "Processing"
-    elif failed_count:
-        default_view = "Failed"
-
-    control_cols = st.columns([0.7, 1.3])
-    view = control_cols[0].selectbox(
-        "Show",
-        views,
-        index=views.index(default_view),
-    )
-    search = control_cols[1].text_input(
+    search = st.text_input(
         "Search",
         placeholder="Search documents",
     )
 
-    filtered = filter_queue_rows(df=df, view=view, query=search)
+    sections = queue_view_frames(df=df, query=search)
+    filtered = filter_queue_rows(df=df, view="All", query=search)
 
-    st.caption(f"Showing {len(filtered)} of {len(df)} documents")
-    display_columns = [
-        "Name",
-        "Stage",
-        "Uploaded",
-        "Type",
-        "Risk Level",
-        "Confidence",
-        "Action",
-    ]
-    st.dataframe(
-        filtered[display_columns],
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Name": st.column_config.TextColumn("Name", width="medium"),
-            "Stage": st.column_config.TextColumn(
-                "Stage",
-                help=FIELD_HELP["Stage"],
-                width="small",
-            ),
-            "Uploaded": st.column_config.TextColumn(
-                "Uploaded",
-                width="small",
-            ),
-            "Type": st.column_config.TextColumn(
-                "Type",
-                help=FIELD_HELP["Document type"],
-                width="small",
-            ),
-            "Risk Level": st.column_config.TextColumn(
-                "Risk",
-                help=FIELD_HELP["Risk"],
-                width="small",
-            ),
-            "Action": st.column_config.TextColumn(
-                "Action",
-                help=FIELD_HELP["Action"],
-                width="medium",
-            ),
-            "Confidence": st.column_config.ProgressColumn(
-                "Confidence",
-                help=FIELD_HELP["Confidence"],
-                min_value=0,
-                max_value=100,
-                format="%d%%",
-                width="small",
-            ),
-        },
-    )
+    st.caption(f"Showing {len(filtered)} of {len(df)} documents across queue sections")
+    for start in range(0, len(QUEUE_SECTION_VIEWS), 2):
+        section_cols = st.columns(2, gap="large")
+        for col, view_name in zip(section_cols, QUEUE_SECTION_VIEWS[start : start + 2]):
+            with col:
+                render_queue_section(view_name, sections[view_name])
+
     if filtered.empty:
-        st.info("No documents in this view.")
-        return
-
-    label_by_id = {
-        row["Document ID"]: selected_record_label(row)
-        for _, row in filtered.iterrows()
-    }
-    filtered_ids = filtered["Document ID"].tolist()
-    previous_selection = st.session_state.get("dashboard_selected_document")
-    selected_index = filtered_ids.index(previous_selection) if previous_selection in filtered_ids else 0
-    open_cols = st.columns([1.5, 0.5])
-    selected = open_cols[0].selectbox(
-        "Open document",
-        filtered_ids,
-        index=selected_index,
-        format_func=lambda document_id: label_by_id.get(document_id, document_id),
-        key="dashboard_selected_document",
-    )
-    open_cols[1].button(
-        "Open",
-        type="primary",
-        width="stretch",
-        key=f"dashboard_open_{selected}",
-        on_click=open_page,
-        args=(PAGE_DETAIL, selected),
-    )
+        st.info("No documents match this search.")
 
 
 def detail_page(config, store):
     page_header(
         "Review",
-        "Document",
-        "Review the AI result, make a decision, and open supporting details only when needed.",
+        "Actions",
+        "Work through documents that need approval, rejection, retry, or review follow-up.",
     )
     records = store.list_records()
-    ids = [record.document_id for record in records]
+    ordered_records = sort_action_records(records)
+    ids = [record.document_id for record in ordered_records]
     if not ids:
         with st.container(border=True):
             st.info("No documents processed yet.")
@@ -1149,6 +1213,22 @@ def detail_page(config, store):
             )
         return
 
+    ready_actions = sum(1 for record in records if requires_human_action(record))
+    failed_actions = sum(1 for record in records if record.status.value == "FAILED")
+    active_actions = sum(
+        1 for record in records if record.status.value in ACTIVE_STATUSES
+    )
+    reviewed_actions = sum(
+        1
+        for record in records
+        if record.review_status.value in {"APPROVED", "REJECTED"}
+    )
+    action_cols = st.columns(4)
+    action_cols[0].metric("Needs decision", ready_actions)
+    action_cols[1].metric("Needs fix", failed_actions)
+    action_cols[2].metric("Processing", active_actions)
+    action_cols[3].metric("Reviewed", reviewed_actions)
+
     default_id = st.session_state.get("selected_document_id", ids[0])
     index = ids.index(default_id) if default_id in ids else 0
     labels = {
@@ -1158,7 +1238,7 @@ def detail_page(config, store):
     }
     picker_cols = st.columns([1.4, 0.3, 0.3])
     document_id = picker_cols[0].selectbox(
-        "Document",
+        "Action item",
         ids,
         index=index,
         format_func=lambda item: labels.get(item, item),
@@ -1209,7 +1289,8 @@ def detail_page(config, store):
     with st.expander("Extracted text"):
         st.text_area(
             "Preview",
-            value=record.extracted_text_preview or "No extracted text preview available.",
+            value=record.extracted_text_preview
+            or "No extracted text preview available.",
             height=220,
             disabled=True,
             label_visibility="collapsed",
@@ -1238,7 +1319,9 @@ def settings_page(config):
             st.write(f"Bucket: `{config.oci_bucket_name}`")
             st.write(f"Max parallel jobs: `{config.max_parallel_jobs}`")
             st.write(f"Document AI timeout: `{config.document_ai_timeout_seconds}s`")
-            st.info("Run `python scripts/setup.py` to refresh GenAI region availability.")
+            st.info(
+                "Run `python scripts/setup.py` to refresh GenAI region availability."
+            )
 
     with health_col:
         with st.container(border=True):
@@ -1248,7 +1331,9 @@ def settings_page(config):
                 "calls with the same runtime credentials used by document processing."
             )
             if st.button("Run OCI Preflight", type="primary", width="stretch"):
-                with st.spinner("Checking Object Storage, Document Understanding, and GenAI"):
+                with st.spinner(
+                    "Checking Object Storage, Document Understanding, and GenAI"
+                ):
                     results = run_preflight(config)
                 for result in results:
                     if result.ok:
@@ -1258,7 +1343,9 @@ def settings_page(config):
                 if all(result.ok for result in results):
                     st.success("All OCI runtime checks passed.")
                 else:
-                    st.warning("Fix the failed checks before processing customer documents.")
+                    st.warning(
+                        "Fix the failed checks before processing customer documents."
+                    )
 
     st.divider()
     st.caption(f"{CONTACT_TEXT}. {CONTACT_MESSAGE}")
@@ -1277,9 +1364,13 @@ def main():
         st.warning(f"{stale_count} stale processing run was marked as failed.")
 
     pages = [PAGE_UPLOAD, PAGE_DASHBOARD, PAGE_DETAIL, PAGE_SETTINGS]
+    nav_records = store.list_records()
+    action_count = reviewer_action_count(nav_records)
     st.sidebar.title(config.app_title)
     st.sidebar.caption("AI document review on OCI")
-    current_page = normalize_page(st.session_state.get("page", PAGE_UPLOAD)) or PAGE_UPLOAD
+    current_page = (
+        normalize_page(st.session_state.get("page", PAGE_UPLOAD)) or PAGE_UPLOAD
+    )
     requested_page = normalize_page(st.session_state.get("requested_page"))
     if requested_page in pages:
         current_page = requested_page
@@ -1289,12 +1380,20 @@ def main():
     action_navigation = bool(st.session_state.pop("action_navigation", False))
     st.sidebar.markdown("Navigation")
     for nav_page in pages:
-        if st.sidebar.button(
-            nav_page,
-            key=f"nav_{nav_page}",
-            type="primary" if current_page == nav_page else "secondary",
-            width="stretch",
-        ) and not action_navigation:
+        nav_label = (
+            f"{PAGE_DETAIL} ({action_count})"
+            if nav_page == PAGE_DETAIL and action_count
+            else nav_page
+        )
+        if (
+            st.sidebar.button(
+                nav_label,
+                key=f"nav_{nav_page}",
+                type="primary" if current_page == nav_page else "secondary",
+                width="stretch",
+            )
+            and not action_navigation
+        ):
             st.session_state["page"] = nav_page
             st.session_state.pop("requested_page", None)
     page = st.session_state["page"]

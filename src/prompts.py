@@ -1,6 +1,5 @@
 from src.models import DocumentType
 
-
 GENERAL_SCHEMA = """{
   "document_class": "CONTRACT | INVOICE | COMPLIANCE | TECHNICAL_REPORT | GENERAL | UNKNOWN",
   "executive_summary": "string",
@@ -95,7 +94,9 @@ def build_extraction_context(
     sections = [f"Text:\n{extracted_text}"]
     if key_values:
         rendered = "\n".join(f"- {key}: {value}" for key, value in key_values.items())
-        sections.append(f"Key values detected by OCI Document Understanding:\n{rendered}")
+        sections.append(
+            f"Key values detected by OCI Document Understanding:\n{rendered}"
+        )
     if table_count:
         sections.append(f"Tables detected by OCI Document Understanding: {table_count}")
     return "\n\n".join(sections)

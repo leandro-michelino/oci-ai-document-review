@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 load_dotenv()
 
 
@@ -25,15 +24,25 @@ class AppConfig(BaseSettings):
     genai_temperature: float = Field(default=0.2, alias="GENAI_TEMPERATURE")
     genai_max_tokens: int = Field(default=3000, alias="GENAI_MAX_TOKENS")
 
-    document_ai_timeout_seconds: int = Field(default=180, alias="DOCUMENT_AI_TIMEOUT_SECONDS")
-    document_ai_retry_attempts: int = Field(default=2, alias="DOCUMENT_AI_RETRY_ATTEMPTS")
+    document_ai_timeout_seconds: int = Field(
+        default=180, alias="DOCUMENT_AI_TIMEOUT_SECONDS"
+    )
+    document_ai_retry_attempts: int = Field(
+        default=2, alias="DOCUMENT_AI_RETRY_ATTEMPTS"
+    )
     stale_processing_minutes: int = Field(default=12, alias="STALE_PROCESSING_MINUTES")
     max_parallel_jobs: int = Field(default=2, alias="MAX_PARALLEL_JOBS")
     max_document_chars: int = Field(default=50000, alias="MAX_DOCUMENT_CHARS")
     max_upload_mb: int = Field(default=10, alias="MAX_UPLOAD_MB")
-    local_metadata_dir: Path = Field(default=Path("data/metadata"), alias="LOCAL_METADATA_DIR")
-    local_reports_dir: Path = Field(default=Path("data/reports"), alias="LOCAL_REPORTS_DIR")
-    local_uploads_dir: Path = Field(default=Path("data/uploads"), alias="LOCAL_UPLOADS_DIR")
+    local_metadata_dir: Path = Field(
+        default=Path("data/metadata"), alias="LOCAL_METADATA_DIR"
+    )
+    local_reports_dir: Path = Field(
+        default=Path("data/reports"), alias="LOCAL_REPORTS_DIR"
+    )
+    local_uploads_dir: Path = Field(
+        default=Path("data/uploads"), alias="LOCAL_UPLOADS_DIR"
+    )
     app_title: str = Field(default="OCI AI Document Review Portal", alias="APP_TITLE")
 
     @property

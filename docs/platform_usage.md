@@ -231,22 +231,22 @@ Recommended processing flow:
 2. Go to Upload.
 3. Choose document type:
    Auto-detect, CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, or GENERAL.
-4. Upload a PDF, PNG, JPG, or JPEG.
+4. Upload a PDF, image, or text-native file such as TXT, Markdown, CSV, JSON, XML, HTML, LOG, YAML, or YML.
 5. Click Queue Document.
 6. The portal saves the local working copy and queues the document.
 7. Choose the next action shown by the app:
-   View Dashboard, Open Document, or Upload Another.
-8. Use Dashboard to watch the queue while the worker pool runs the live OCI steps:
-   Object Storage upload, Document Understanding extraction, GenAI analysis, metadata/report save.
-9. Use Dashboard to filter by Ready, Processing, Failed, Reviewed, or All.
-10. Select a document and click Open.
-11. Use the Document page to review the executive summary, key points, risks, recommendations, and supporting details.
+   View Dashboard, Open Actions, or Upload Another.
+8. Use Dashboard to watch the queue while the worker pool runs the live steps:
+   Object Storage upload, local text extraction for text-native files, Document Understanding only for images or image-only PDFs, GenAI analysis, metadata/report save.
+9. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables.
+10. Click Open next to a document.
+11. Use the Actions page to review the executive summary, key points, risks, recommendations, and supporting details.
 12. Correct the document type from the Decision panel if the detected label needs adjustment.
 13. Approve or reject the review from the Decision panel. Rejections require comments.
 14. Download Markdown or JSON results from the Downloads section.
 ```
 
-Processing fails clearly if a required live service step fails. For example, if Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
+Processing fails clearly if a required live service step fails. For example, if local extraction or Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
 
 Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Password-protected, very large, low-resolution, or heavily compressed image PDFs may still return little text or fail.
 
@@ -259,7 +259,7 @@ STALE_PROCESSING_MINUTES=12
 MAX_PARALLEL_JOBS=2
 ```
 
-Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a processing run remains in `PROCESSING` beyond the stale window, the app marks it as `FAILED` with a retry message.
+Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a processing run remains in an active stage beyond the stale window, the app marks it as `FAILED` with a retry message.
 
 ## Review Workflow
 
@@ -270,17 +270,16 @@ Upload
   - Saves the upload and creates the initial metadata record.
   - Queues the document in the background worker pool.
   - Asks for the next action:
-    View Dashboard, Open Document, or Upload Another.
+    View Dashboard, Open Actions, or Upload Another.
 
 Dashboard
   - Shows Total, Ready, Processing, and Failed metrics.
-  - Provides a simple Show filter:
-    Ready, Processing, Failed, Reviewed, or All.
   - Provides search across document name, reference, status, action, and summary.
-  - Shows a compact queue table with Stage, uploaded time, type, risk, confidence, and action.
-  - Opens the selected document for review.
+  - Shows split queue tables for Processing, Ready, Failed, and Reviewed documents.
+  - Opens each document in Actions from the Open button at the start of its row.
 
-Document
+Actions
+  - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
   - Shows a focused AI review summary with key points and recommendations.
   - Shows the Decision panel for approve or reject.
   - Keeps analysis details, file and processing details, extracted text, and downloads in expanders.
@@ -367,7 +366,7 @@ Use this checklist after any wiring or deployment change:
 9. Confirm object_storage_path is populated.
 10. Confirm analysis is populated.
 11. Confirm the Markdown report exists.
-12. Confirm Dashboard opens the selected record in Document.
+12. Confirm Dashboard opens the selected record in Actions.
 13. Confirm approve or reject updates the review state.
 ```
 
@@ -462,9 +461,9 @@ OCI policies allow the configured user to use Object Storage, Document Understan
 Selected GenAI region has active supported Cohere chat models.
 Uploaded file is supported and below MAX_UPLOAD_MB.
 Settings -> OCI Preflight passes.
-Document Understanding extracted text from the file.
-Document Understanding extraction results are JSON-safe before metadata is saved.
-Generative AI receives extracted content only after Document Understanding succeeds.
+Text-native files and PDFs with selectable text extract locally.
+Images and image-only PDFs extract text with Document Understanding.
+Generative AI receives extracted content only after extraction succeeds.
 ```
 
 ### Recreate Infrastructure

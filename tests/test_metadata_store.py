@@ -35,24 +35,50 @@ def test_fail_stale_processing_marks_old_processing_records_failed(tmp_path):
     assert store.fail_stale_processing(max_age_minutes=10) == 1
     updated = store.load("doc-2")
     assert updated.status == ProcessingStatus.FAILED
-    assert "Retry the upload" in updated.error_message
+    assert "timeout window" in updated.error_message
 
 
-def test_fail_stale_processing_skips_live_queued_records(tmp_path):
+def test_fail_stale_processing_marks_submitted_records_failed_after_timeout(tmp_path):
     config = SimpleNamespace(local_metadata_dir=tmp_path)
     store = MetadataStore(config)
     record = DocumentRecord(
         document_id="doc-3",
         document_name="queued.pdf",
         document_type=DocumentType.GENERAL,
-        status=ProcessingStatus.UPLOADED,
+        status=ProcessingStatus.EXTRACTED,
         uploaded_at=datetime.now(timezone.utc) - timedelta(minutes=20),
     )
     store.save(record)
 
-    assert store.fail_stale_processing(
-        max_age_minutes=10,
-        protected_document_ids={"doc-3"},
-    ) == 0
+    assert (
+        store.fail_stale_processing(
+            max_age_minutes=10,
+            protected_document_ids={"doc-3"},
+        )
+        == 1
+    )
     updated = store.load("doc-3")
+    assert updated.status == ProcessingStatus.FAILED
+
+
+def test_fail_stale_processing_keeps_recent_submitted_records_active(tmp_path):
+    config = SimpleNamespace(local_metadata_dir=tmp_path)
+    store = MetadataStore(config)
+    record = DocumentRecord(
+        document_id="doc-4",
+        document_name="queued.pdf",
+        document_type=DocumentType.GENERAL,
+        status=ProcessingStatus.UPLOADED,
+        uploaded_at=datetime.now(timezone.utc) - timedelta(minutes=2),
+    )
+    store.save(record)
+
+    assert (
+        store.fail_stale_processing(
+            max_age_minutes=10,
+            protected_document_ids={"doc-4"},
+        )
+        == 0
+    )
+    updated = store.load("doc-4")
     assert updated.status == ProcessingStatus.UPLOADED

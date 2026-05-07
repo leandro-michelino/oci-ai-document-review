@@ -6,8 +6,13 @@ from src.config import AppConfig
 from src.logger import get_logger
 from src.models import DocumentRecord, ProcessingStatus, ReviewStatus
 
-
 logger = get_logger(__name__)
+ACTIVE_PROCESSING_STATUSES = {
+    ProcessingStatus.UPLOADED,
+    ProcessingStatus.PROCESSING,
+    ProcessingStatus.EXTRACTED,
+    ProcessingStatus.AI_ANALYZED,
+}
 
 
 class MetadataStore:
@@ -32,7 +37,9 @@ class MetadataStore:
         records = []
         for path in sorted(self.root.glob("*.json"), reverse=True):
             try:
-                records.append(DocumentRecord.model_validate_json(path.read_text(encoding="utf-8")))
+                records.append(
+                    DocumentRecord.model_validate_json(path.read_text(encoding="utf-8"))
+                )
             except Exception as exc:
                 logger.warning("Skipping invalid metadata file %s: %s", path, exc)
         return records
@@ -45,7 +52,9 @@ class MetadataStore:
         self.save(updated)
         return updated
 
-    def set_review(self, document_id: str, approved: bool, comments: str | None) -> DocumentRecord:
+    def set_review(
+        self, document_id: str, approved: bool, comments: str | None
+    ) -> DocumentRecord:
         status = ProcessingStatus.APPROVED if approved else ProcessingStatus.REJECTED
         review_status = ReviewStatus.APPROVED if approved else ReviewStatus.REJECTED
         return self.update(
@@ -65,17 +74,22 @@ class MetadataStore:
         now = datetime.now(timezone.utc)
         failed_count = 0
         for record in self.list_records():
-            if record.status not in {ProcessingStatus.UPLOADED, ProcessingStatus.PROCESSING}:
-                continue
-            if record.document_id in protected_document_ids:
+            if record.status not in ACTIVE_PROCESSING_STATUSES:
                 continue
             age_seconds = (now - record.uploaded_at).total_seconds()
             if age_seconds < max_age_minutes * 60:
                 continue
+            if record.document_id in protected_document_ids:
+                logger.warning(
+                    "Marking submitted document %s as stale after %.1f minutes in %s",
+                    record.document_id,
+                    age_seconds / 60,
+                    record.status.value,
+                )
             record.status = ProcessingStatus.FAILED
             record.error_message = (
                 "Processing did not complete before the configured timeout window. "
-                "Retry the upload or check OCI Document Understanding service health."
+                "Retry the upload or check the service logs for the extraction or GenAI step."
             )
             record.processed_at = now
             self.save(record)

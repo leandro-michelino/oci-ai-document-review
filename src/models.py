@@ -102,5 +102,6 @@ class DocumentRecord(BaseModel):
     notes: str | None = None
     analysis: DocumentAnalysis | None = None
     extracted_text_preview: str | None = None
+    extraction_source: str | None = None
     report_path: str | None = None
     error_message: str | None = None
