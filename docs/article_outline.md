@@ -27,7 +27,7 @@ Current project version: `v0.3.0`
     - Show that matches route documents to `Compliance review` in Actions.
 16. Using the Dashboard queue to find Ready, Processing, Failed, and Reviewed documents
     - Mention URL-backed Dashboard state and component refresh with Streamlit fragments.
-    - Mention green/yellow/red risk badges.
+    - Mention severity-labeled risk badges.
 17. Tracking workflow assignment, SLA, comments, audit trail, and retry history
 18. Reviewing and approving output in the Actions page
     - Mention next-in-line routing after approval or rejection.

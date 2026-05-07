@@ -18,7 +18,9 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - DU text-only OCR fallback is used when rich table/key-value extraction fails.
 - Curated compliance knowledge-base matching flags public-sector expense risks and routes them to Actions as `Compliance review`.
 - The compliance KB is read from `compliance/public_sector_entities.csv` in Object Storage, seeded from `data/compliance/public_sector_entities.csv` when missing.
-- Dashboard and Actions risk badges use green/yellow/red risk colors.
+- Dashboard and Actions risk display uses a green signal for no-risk documents and severity labels for actionable risks: `Risk Small`, `Risk Medium`, and `Risk High`.
+- Actions now shows a reviewer-friendly Risk review panel with summarized compliance evidence instead of raw catalog details.
+- Dashboard Ready work is presented as a horizontal middle band, while Failed and Reviewed stay in the paired queue layout.
 - README architecture design appears near the beginning of the document.
 - Documentation, ASCII architecture flows, and the rendered architecture image reflect the current v0.3.0 runtime path.
 

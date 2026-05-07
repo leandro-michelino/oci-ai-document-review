@@ -6,8 +6,11 @@ from streamlit.testing.v1 import AppTest
 
 from app import (
     backfill_compliance_attention,
+    dashboard_metrics_html,
+    display_error_message,
     file_size_label,
     filter_queue_rows,
+    format_compliance_evidence,
     next_action,
     next_action_document_id,
     processing_stage_rows,
@@ -58,6 +61,18 @@ def make_record(
     )
 
 
+def configure_streamlit_test_env(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("OCI_REGION", "uk-london-1")
+    monkeypatch.setenv("GENAI_REGION", "uk-london-1")
+    monkeypatch.setenv("OCI_COMPARTMENT_ID", "ocid1.compartment.oc1..exampleproject")
+    monkeypatch.setenv("OCI_NAMESPACE", "example")
+    monkeypatch.setenv("OCI_BUCKET_NAME", "example")
+    monkeypatch.setenv("GENAI_MODEL_ID", "cohere.command-r-plus-08-2024")
+    monkeypatch.setenv("LOCAL_METADATA_DIR", str(tmp_path / "metadata"))
+    monkeypatch.setenv("LOCAL_REPORTS_DIR", str(tmp_path / "reports"))
+    monkeypatch.setenv("LOCAL_UPLOADS_DIR", str(tmp_path / "uploads"))
+
+
 def test_record_to_row_adds_dashboard_fields():
     record = make_record(
         "doc-1",
@@ -70,7 +85,7 @@ def test_record_to_row_adds_dashboard_fields():
 
     assert row["Risk Level"] == "HIGH"
     assert row["Risks"] == 1
-    assert row["Risk Detail"] == "1 risk note: 1 high."
+    assert row["Risk Detail"] == "1 risk note: 1 High."
     assert row["Stage"] == "Ready"
     assert row["Workflow"] == "New"
     assert row["Assignee"] == "Unassigned"
@@ -101,7 +116,50 @@ def test_risk_detail_label_explains_missing_and_multiple_risks():
 
     assert risk_detail_label(no_analysis) == "Risk not analyzed yet."
     assert risk_detail_label(no_risks) == "No AI risk notes returned."
-    assert risk_detail_label(mixed) == "3 risk notes: 1 high, 1 medium, 1 low."
+    assert risk_detail_label(mixed) == "3 risk notes: 1 High, 1 Medium, 1 Small."
+
+
+def test_format_compliance_evidence_summarizes_catalog_details():
+    evidence = (
+        "Curated compliance knowledge base matched a public-sector entity or cue "
+        "in an expense context. knowledge-base: Object Storage: "
+        "compliance/public_sector_entities.csv; public-sector match: "
+        "entity: Government keyword; matched term: gov; type: keyword; "
+        "country: global; source: curated; source date: 2026-05-07 | "
+        "entity: Ministry keyword; matched term: department of; type: keyword; "
+        "country: global; source: curated; source date: 2026-05-07; "
+        "expense cue: receipt, expense, reimbursement."
+    )
+
+    summary = format_compliance_evidence(evidence)
+
+    assert summary == (
+        'Public-sector cue matched: Government keyword (term "gov", keyword); '
+        'Ministry keyword (term "department of", keyword). '
+        "Expense context found: receipt, expense, reimbursement. "
+        "Evidence source: Object Storage: compliance/public_sector_entities.csv."
+    )
+
+
+def test_dashboard_metrics_html_stays_in_one_html_block():
+    html = dashboard_metrics_html(
+        [
+            ("Needs <action>", 13, "Ready & waiting", "warning"),
+            ("Compliance", 3, "Knowledge-base matches", "danger"),
+        ]
+    )
+
+    assert "\n" not in html
+    assert html.count('class="dashboard-card') == 2
+    assert "&lt;action&gt;" in html
+    assert "Ready &amp; waiting" in html
+
+
+def test_display_error_message_hides_raw_genai_safety_json():
+    raw = '{ "code" : "InvalidParameter", "message" : "Inappropriate content detected!!!" }'
+
+    assert "Inappropriate content detected" not in display_error_message(raw)
+    assert "content safety filter" in display_error_message(raw)
 
 
 def test_compliance_backfill_updates_existing_metadata(tmp_path):
@@ -309,15 +367,7 @@ def test_next_action_document_id_skips_current_and_reviewed_records():
 
 
 def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
-    monkeypatch.setenv("OCI_REGION", "uk-london-1")
-    monkeypatch.setenv("GENAI_REGION", "uk-london-1")
-    monkeypatch.setenv("OCI_COMPARTMENT_ID", "ocid1.compartment.oc1..exampleproject")
-    monkeypatch.setenv("OCI_NAMESPACE", "example")
-    monkeypatch.setenv("OCI_BUCKET_NAME", "example")
-    monkeypatch.setenv("GENAI_MODEL_ID", "cohere.command-r-plus-08-2024")
-    monkeypatch.setenv("LOCAL_METADATA_DIR", str(tmp_path / "metadata"))
-    monkeypatch.setenv("LOCAL_REPORTS_DIR", str(tmp_path / "reports"))
-    monkeypatch.setenv("LOCAL_UPLOADS_DIR", str(tmp_path / "uploads"))
+    configure_streamlit_test_env(monkeypatch, tmp_path)
 
     from src.config import get_config
     from src.metadata_store import MetadataStore
@@ -356,7 +406,7 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
         assert app.session_state["page"] == "Dashboard"
 
         for button in app.button:
-            if button.label == "↗":
+            if button.label in {"↗", "Open"}:
                 app = button.click().run()
                 break
         assert app.session_state["page"] == "Actions"
@@ -365,20 +415,26 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
             "Calling st.rerun() within a callback" not in warning.value
             for warning in app.warning
         )
-        app = app.run()
-        assert app.session_state["page"] == "Actions"
+    finally:
+        get_config.cache_clear()
 
-        for selectbox in app.selectbox:
-            if selectbox.label == "Document type":
-                app = selectbox.set_value(DocumentType.INVOICE).run()
-                break
-        for button in app.button:
-            if button.label == "Save Type":
+
+def test_sidebar_upload_settings_and_query_navigation(monkeypatch, tmp_path):
+    configure_streamlit_test_env(monkeypatch, tmp_path)
+
+    from src.config import get_config
+
+    get_config.cache_clear()
+    try:
+        app = AppTest.from_file("app.py", default_timeout=5).run()
+        assert app.session_state["page"] == "Upload"
+
+        for button in app.sidebar.button:
+            if button.label == "Dashboard":
                 app = button.click().run()
                 break
-        updated = MetadataStore(config).load("test-doc")
-        assert updated.document_type == DocumentType.INVOICE
-        assert "- Document Type: INVOICE" in report_path.read_text(encoding="utf-8")
+        assert app.session_state["page"] == "Dashboard"
+        assert query_value(app.query_params, "page") == "Dashboard"
 
         for button in app.sidebar.button:
             if button.label == "Upload":
@@ -397,5 +453,52 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
         refreshed.query_params["page"] = "Dashboard"
         refreshed = refreshed.run()
         assert refreshed.session_state["page"] == "Dashboard"
+    finally:
+        get_config.cache_clear()
+
+
+def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):
+    configure_streamlit_test_env(monkeypatch, tmp_path)
+
+    from src.config import get_config
+    from src.metadata_store import MetadataStore
+
+    get_config.cache_clear()
+    try:
+        config = get_config()
+        report_path = Path(config.local_reports_dir) / "test-doc.md"
+        report_path.write_text("report", encoding="utf-8")
+        MetadataStore(config).save(
+            DocumentRecord(
+                document_id="test-doc",
+                document_name="test-contract.png",
+                document_type=DocumentType.CONTRACT,
+                status=ProcessingStatus.REVIEW_REQUIRED,
+                uploaded_at=datetime(2026, 5, 6, tzinfo=timezone.utc),
+                analysis=DocumentAnalysis(
+                    document_class="CONTRACT",
+                    executive_summary="Synthetic test summary.",
+                    confidence_score=0.8,
+                ),
+                report_path=str(report_path),
+            )
+        )
+
+        app = AppTest.from_file("app.py", default_timeout=5)
+        app.query_params["page"] = "Actions"
+        app = app.run()
+        assert app.session_state["page"] == "Actions"
+
+        for selectbox in app.selectbox:
+            if selectbox.label == "Document type":
+                app = selectbox.set_value(DocumentType.INVOICE).run()
+                break
+        for button in app.button:
+            if button.label == "Save Type":
+                app = button.click().run()
+                break
+        updated = MetadataStore(config).load("test-doc")
+        assert updated.document_type == DocumentType.INVOICE
+        assert "- Document Type: INVOICE" in report_path.read_text(encoding="utf-8")
     finally:
         get_config.cache_clear()

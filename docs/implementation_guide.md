@@ -147,7 +147,7 @@ The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh sta
 
 After GenAI returns structured analysis, the app applies a deterministic compliance overlay. It checks extracted text, file name, business reference, notes, and selected AI fields against the curated entity catalog configured by `COMPLIANCE_ENTITIES_OBJECT_NAME`, defaulting to `compliance/public_sector_entities.csv` in Object Storage. If the object is missing, the app seeds it from the bundled `data/compliance/public_sector_entities.csv` file and falls back locally if Object Storage cannot be reached.
 
-Expense-like documents that match public-sector entries such as `gov`, ministries, municipalities, state agencies, public officials, or named entities such as ZIMSEC are flagged with a `Public-sector expense compliance review` note. The evidence records the knowledge-base source, matched term, entity type, country, source, and source date. These documents show as `Compliance review` in the Actions queue with red/yellow/green risk badges. This is a reviewer-routing control for the MVP, not a final compliance determination.
+Expense-like documents that match public-sector entries such as `gov`, ministries, municipalities, state agencies, public officials, or named entities such as ZIMSEC are flagged with a `Public-sector expense compliance review` note. The evidence records the knowledge-base source, matched term, entity type, country, source, and source date. These documents show as `Compliance review` in the Actions queue with severity-labeled risk badges such as `Risk Small`, `Risk Medium`, and `Risk High`. This is a reviewer-routing control for the MVP, not a final compliance determination.
 
 ## Compliance Knowledge Base
 

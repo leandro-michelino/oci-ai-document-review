@@ -182,7 +182,7 @@ Reviewer assigns owner, SLA, workflow status, or comments
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Documents that match the curated compliance knowledge base show `Compliance review` and a red `HIGH` risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, a Processing queue, a horizontal Ready band for approval work, paired Failed and Reviewed queues, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Compliance Knowledge Base
 
@@ -200,6 +200,8 @@ data/compliance/public_sector_entities.csv
 
 During processing and backfill, the app checks extracted text, file name, business reference, notes, and selected AI fields against the catalog. Matching expense-like documents receive a `Public-sector expense compliance review` risk note with auditable evidence that includes the source object, matched term, entity type, country, source, and source date. Those documents stay in the Ready queue and appear in Actions as `Compliance review`.
 
+If OCI Generative AI blocks a prompt with the service content safety filter, the app no longer exposes the raw provider JSON to the reviewer. It creates a manual-review analysis with `Risk High`, explains that automatic AI analysis was blocked, and keeps the extracted text preview available for review.
+
 ## Field Reference
 
 The portal shows a `?` marker beside the main review and file fields. Hover over it in the app to see the same definitions below.
@@ -209,7 +211,7 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | Status | Processing state for the document lifecycle, from upload through approval or failure. |
 | Stage | Simplified queue state shown in the Dashboard: `Queued`, `Processing`, `Ready`, `Reviewed`, or `Failed`. |
 | Review | Human review decision state: `PENDING`, `APPROVED`, or `REJECTED`. |
-| Risk | Highest AI or compliance risk-note severity for the document, with note counts and supporting evidence shown in the Dashboard and Analysis details. Green means none/low, yellow means medium, and red means high. Public-sector expense matches from the curated knowledge base are raised as compliance attention. |
+| Risk | Highest AI or compliance risk-note severity for the document, with note counts and supporting evidence shown in the Dashboard and Analysis details. Documents with no risk show only a small green signal; actionable risks use severity badges labeled `Risk Small`, `Risk Medium`, and `Risk High`, plus a reviewer-friendly Risk review panel that summarizes compliance matches and expense cues. Public-sector expense matches from the curated knowledge base are raised as compliance attention. |
 | Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
 | Action | The next human or operational step for the selected document. |
 | Workflow | Human workflow state for assignment, SLA tracking, escalation, retry planning, and closure. |

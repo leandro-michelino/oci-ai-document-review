@@ -17,6 +17,7 @@ from src.logger import get_logger
 from src.metadata_store import MetadataStore
 from src.models import (
     DocumentRecord,
+    DocumentAnalysis,
     DocumentType,
     ExtractionResult,
     ProcessingStatus,
@@ -49,6 +50,12 @@ EXPENSE_TERMS = (
     "food",
 )
 PUBLIC_SECTOR_EXPENSE_RISK = "Public-sector expense compliance review"
+GENAI_SAFETY_REVIEW_RISK = "Automatic AI analysis blocked by content safety filter"
+GENAI_SAFETY_REVIEW_MESSAGE = (
+    "OCI Generative AI blocked automatic analysis with the service content safety "
+    "filter. The document was routed for manual review instead of showing the raw "
+    "provider error."
+)
 
 
 def create_document_id() -> str:
@@ -102,8 +109,46 @@ def root_exception(exc: Exception) -> Exception:
 
 def error_message(exc: Exception) -> str:
     root = root_exception(exc)
+    if is_genai_content_filter_error(root):
+        return GENAI_SAFETY_REVIEW_MESSAGE
     message = str(root).strip()
     return message or root.__class__.__name__
+
+
+def is_genai_content_filter_error(exc: Exception) -> bool:
+    code = str(getattr(exc, "code", "") or "")
+    message = str(getattr(exc, "message", "") or exc)
+    combined = f"{code} {message}".lower()
+    return (
+        "invalidparameter" in combined and "inappropriate content" in combined
+    ) or "inappropriate content detected" in combined
+
+
+def fallback_safety_analysis(extraction: ExtractionResult) -> DocumentAnalysis:
+    preview = re.sub(r"\s+", " ", extraction.text).strip()[:240]
+    summary = (
+        "Automatic AI analysis was blocked by the OCI Generative AI content safety "
+        "filter. Manual review is required."
+    )
+    if preview:
+        summary = f"{summary} Extracted text preview: {preview}"
+    return DocumentAnalysis(
+        document_class="GENERAL",
+        executive_summary=summary,
+        risk_notes=[
+            RiskNote(
+                risk=GENAI_SAFETY_REVIEW_RISK,
+                severity="HIGH",
+                evidence=GENAI_SAFETY_REVIEW_MESSAGE,
+            )
+        ],
+        recommendations=[
+            "Review the extracted text manually and retry processing only if the "
+            "source document is appropriate for automated AI analysis."
+        ],
+        confidence_score=0.0,
+        human_review_required=True,
+    )
 
 
 def matched_terms(text: str, terms: tuple[str, ...]) -> list[str]:
@@ -287,7 +332,17 @@ class DocumentProcessor:
                 key_values=extraction.key_values,
                 table_count=len(extraction.tables),
             )
-            analysis = self.genai.analyze_document(prompt)
+            try:
+                analysis = self.genai.analyze_document(prompt)
+            except Exception as exc:
+                if not is_genai_content_filter_error(root_exception(exc)):
+                    raise
+                logger.warning(
+                    "OCI Generative AI content safety filter blocked %s; "
+                    "routing to manual review",
+                    document_id,
+                )
+                analysis = fallback_safety_analysis(extraction)
             if record.document_type == DocumentType.AUTO_DETECT:
                 record.document_type = detected_document_type(analysis.document_class)
             record.analysis = analysis

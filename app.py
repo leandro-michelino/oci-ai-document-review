@@ -20,6 +20,7 @@ from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowS
 from src.compliance import load_compliance_catalog, load_local_compliance_catalog
 from src.object_storage_client import ObjectStorageClient
 from src.processor import (
+    GENAI_SAFETY_REVIEW_MESSAGE,
     PUBLIC_SECTOR_EXPENSE_RISK,
     apply_compliance_attention,
     create_document_id,
@@ -29,6 +30,17 @@ from src.report_generator import generate_markdown_report
 from src.version import VERSION_LABEL
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
+RISK_LABELS = {
+    "NONE": "Risk None",
+    "LOW": "Risk Small",
+    "MEDIUM": "Risk Medium",
+    "HIGH": "Risk High",
+}
+RISK_SEVERITY_LABELS = {
+    "LOW": "Small",
+    "MEDIUM": "Medium",
+    "HIGH": "High",
+}
 READY_FOR_DECISION = {"REVIEW_REQUIRED"}
 ACTIVE_STATUSES = {"UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"}
 QUEUE_SECTION_VIEWS = ["Processing", "Ready", "Failed", "Reviewed"]
@@ -261,6 +273,15 @@ def apply_theme() -> None:
             line-height: 1.2;
             white-space: nowrap;
         }
+        .risk-signal {
+            width: 0.85rem;
+            height: 0.85rem;
+            min-width: 0.85rem;
+            padding: 0;
+            border-radius: 999px;
+            font-size: 0;
+            color: transparent;
+        }
         .state-good, .risk-low, .risk-none {
             color: var(--good-text);
             background: var(--good-bg);
@@ -287,6 +308,186 @@ def apply_theme() -> None:
             border-radius: 8px;
             padding: 1rem;
             box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
+        }
+        .risk-summary {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-left-width: 5px;
+            border-radius: 8px;
+            padding: 0.95rem 1rem;
+            margin: 0.9rem 0 1rem;
+            box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
+        }
+        .risk-panel-high {
+            border-left-color: #c74634;
+            background: #fff8f6;
+        }
+        .risk-panel-medium {
+            border-left-color: #c47a00;
+            background: #fffaf0;
+        }
+        .risk-panel-low,
+        .risk-panel-none {
+            border-left-color: #4b8f5a;
+            background: #f7fbf7;
+        }
+        .risk-summary-head {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.55rem;
+        }
+        .risk-summary-title {
+            color: var(--text-strong);
+            font-size: 0.95rem;
+            font-weight: 800;
+        }
+        .risk-summary-text {
+            color: var(--text-soft);
+            line-height: 1.45;
+            margin: 0.35rem 0 0.65rem;
+        }
+        .risk-note {
+            border-top: 1px solid var(--panel-border);
+            padding-top: 0.65rem;
+            margin-top: 0.65rem;
+        }
+        .risk-note-title {
+            color: var(--text-strong);
+            font-weight: 800;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .risk-evidence {
+            color: var(--text-soft);
+            font-size: 0.88rem;
+            line-height: 1.45;
+            margin-top: 0.3rem;
+            overflow-wrap: anywhere;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.65rem;
+            margin: 0.4rem 0 0.95rem;
+        }
+        .dashboard-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.8rem 0.9rem;
+            min-width: 0;
+            box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
+        }
+        .dashboard-card strong {
+            display: block;
+            color: var(--text-strong);
+            font-size: 1.45rem;
+            line-height: 1.15;
+            margin-top: 0.12rem;
+        }
+        .dashboard-card span {
+            color: var(--text-soft);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .dashboard-card p {
+            color: var(--text-soft);
+            font-size: 0.78rem;
+            line-height: 1.35;
+            margin: 0.35rem 0 0;
+        }
+        .dashboard-card.danger {
+            border-color: #e4afa8;
+            background: #fff7f5;
+        }
+        .dashboard-card.warning {
+            border-color: #edcf91;
+            background: #fffaf0;
+        }
+        .dashboard-card.good {
+            border-color: #b7dbc2;
+            background: #f5fbf6;
+        }
+        .dashboard-card.info {
+            border-color: #bdd1df;
+            background: #f5f9fc;
+        }
+        .dashboard-workbench {
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+            gap: 0.85rem;
+            align-items: stretch;
+            margin: 0.45rem 0 0.95rem;
+        }
+        .dashboard-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.95rem;
+            min-height: 168px;
+            box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
+        }
+        .dashboard-panel h3 {
+            font-size: 1.02rem;
+            margin: 0 0 0.45rem;
+        }
+        .dashboard-panel .document-title {
+            color: var(--text-strong);
+            font-size: 1rem;
+            font-weight: 800;
+            line-height: 1.35;
+            margin: 0.4rem 0 0.25rem;
+            overflow-wrap: anywhere;
+        }
+        .dashboard-panel .panel-note {
+            color: var(--text-soft);
+            font-size: 0.86rem;
+            line-height: 1.45;
+            margin: 0.35rem 0 0;
+        }
+        .queue-card {
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            background: #fffefb;
+            padding: 0.55rem 0.6rem;
+            margin: 0.45rem 0;
+        }
+        .queue-title {
+            color: var(--text-strong);
+            font-weight: 800;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+        .queue-meta, .queue-action {
+            color: var(--text-soft);
+            font-size: 0.78rem;
+            line-height: 1.35;
+        }
+        .ready-band {
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            background: #fffdf7;
+            padding: 0.75rem;
+            margin: 0.75rem 0 1rem;
+        }
+        .ready-card-title {
+            color: var(--text-strong);
+            font-weight: 800;
+            line-height: 1.25;
+            min-height: 2.5rem;
+            overflow-wrap: anywhere;
+        }
+        .ready-card-meta {
+            color: var(--text-soft);
+            font-size: 0.78rem;
+            line-height: 1.35;
+            min-height: 2.1rem;
+            margin: 0.35rem 0;
         }
         .muted-label {
             color: var(--text-soft);
@@ -392,6 +593,10 @@ def apply_theme() -> None:
             vertical-align: text-top;
         }
         @media (max-width: 980px) {
+            .dashboard-grid,
+            .dashboard-workbench {
+                grid-template-columns: 1fr;
+            }
             .review-snapshot,
             .info-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -463,14 +668,17 @@ def risk_tone(value: str) -> str:
     return RISK_TONE.get(value.upper(), "risk-none")
 
 
+def risk_severity_label(value: str) -> str:
+    return RISK_SEVERITY_LABELS.get(value.upper(), value.title())
+
+
 def risk_badge(value: str) -> str:
-    labels = {
-        "NONE": "GREEN: NONE",
-        "LOW": "GREEN: LOW",
-        "MEDIUM": "YELLOW: MEDIUM",
-        "HIGH": "RED: HIGH",
-    }
-    return badge(labels.get(value.upper(), value), risk_tone(value))
+    if value.upper() == "NONE":
+        return (
+            '<span class="badge risk-none risk-signal" '
+            'title="Risk None" aria-label="Risk None"></span>'
+        )
+    return badge(RISK_LABELS.get(value.upper(), value), risk_tone(value))
 
 
 def render_status_strip(record) -> None:
@@ -638,7 +846,7 @@ def risk_detail_label(record) -> str:
         return "No AI risk notes returned."
     counts = risk_counts(record)
     parts = [
-        f"{counts[severity]} {severity.lower()}"
+        f"{counts[severity]} {risk_severity_label(severity)}"
         for severity in ("HIGH", "MEDIUM", "LOW")
         if counts[severity]
     ]
@@ -647,14 +855,140 @@ def risk_detail_label(record) -> str:
     return f"{note_count} risk {note_word}: {', '.join(parts)}."
 
 
-def highest_risk_evidence(record) -> str | None:
-    if not record.analysis or not record.analysis.risk_notes:
+def clean_sentence(value: str) -> str:
+    cleaned = re.sub(r"\s+", " ", value).strip(" ;.")
+    return f"{cleaned}." if cleaned else cleaned
+
+
+def parse_key_value_segments(value: str) -> dict[str, str]:
+    parsed = {}
+    for segment in value.split(";"):
+        if ":" not in segment:
+            continue
+        key, raw_value = segment.split(":", 1)
+        parsed[key.strip().lower()] = raw_value.strip()
+    return parsed
+
+
+def format_compliance_evidence(evidence: str) -> str | None:
+    if "public-sector match:" not in evidence:
         return None
-    highest = highest_risk_level(record)
-    for risk in record.analysis.risk_notes:
-        if risk.severity == highest:
-            return risk.evidence or risk.risk
+
+    source = None
+    source_match = re.search(
+        r"knowledge-base:\s*(.*?)(?:;\s*public-sector match:|$)",
+        evidence,
+        flags=re.IGNORECASE,
+    )
+    if source_match:
+        source = source_match.group(1).strip(" ;.")
+
+    match_text = evidence.split("public-sector match:", 1)[1]
+    expense_cues = None
+    expense_match = re.search(
+        r";\s*expense cue:\s*(.*?)(?:\.|$)",
+        match_text,
+        flags=re.IGNORECASE,
+    )
+    if expense_match:
+        expense_cues = expense_match.group(1).strip(" ;.")
+        match_text = match_text[: expense_match.start()]
+
+    matches = []
+    for raw_match in match_text.split("|"):
+        fields = parse_key_value_segments(raw_match)
+        entity = fields.get("entity")
+        term = fields.get("matched term")
+        entity_type = fields.get("type")
+        country = fields.get("country")
+        if not entity and not term:
+            continue
+        qualifiers = []
+        if term:
+            qualifiers.append(f'term "{term}"')
+        if entity_type:
+            qualifiers.append(entity_type)
+        if country and country.lower() != "global":
+            qualifiers.append(country)
+        detail = entity or term or ""
+        if qualifiers:
+            detail = f"{detail} ({', '.join(qualifiers)})"
+        matches.append(detail)
+
+    summary_parts = []
+    if matches:
+        summary_parts.append(
+            "Public-sector cue matched: " + "; ".join(matches[:3]) + "."
+        )
+    if expense_cues:
+        summary_parts.append(f"Expense context found: {expense_cues}.")
+    if source:
+        summary_parts.append(f"Evidence source: {source}.")
+    if summary_parts:
+        return " ".join(summary_parts)
     return None
+
+
+def format_risk_evidence(risk) -> str:
+    if not risk.evidence:
+        return "No supporting evidence returned by the analysis."
+    compliance_summary = format_compliance_evidence(risk.evidence)
+    if compliance_summary:
+        return compliance_summary
+    return clean_sentence(risk.evidence)
+
+
+def risk_notes_by_priority(record):
+    if not record.analysis:
+        return []
+    return sorted(
+        record.analysis.risk_notes,
+        key=lambda risk: RISK_ORDER.get(risk.severity.upper(), 0),
+        reverse=True,
+    )
+
+
+def highest_risk_evidence(record) -> str | None:
+    for risk in risk_notes_by_priority(record):
+        return format_risk_evidence(risk)
+    return None
+
+
+def render_risk_review_panel(record) -> None:
+    risk_level = highest_risk_level(record)
+    notes = risk_notes_by_priority(record)
+    if not notes:
+        return
+
+    panel_tone = risk_level.lower()
+    note_html = []
+    for risk in notes[:3]:
+        note_html.append(
+            '<div class="risk-note">'
+            f'<div class="status-strip">{risk_badge(risk.severity)}</div>'
+            f'<div class="risk-note-title">{escape(risk.risk)}</div>'
+            f'<div class="risk-evidence">{escape(format_risk_evidence(risk))}</div>'
+            "</div>"
+        )
+    extra_count = len(notes) - len(note_html)
+    extra_html = (
+        f'<p class="risk-summary-text">{extra_count} additional risk note'
+        f'{"s" if extra_count != 1 else ""} available in the Risk Notes table.</p>'
+        if extra_count > 0
+        else ""
+    )
+    panel_html = (
+        f'<div class="risk-summary risk-panel-{panel_tone}">'
+        '<div class="risk-summary-head">'
+        '<div class="risk-summary-title">Risk review</div>'
+        f"{risk_badge(risk_level)}"
+        "</div>"
+        f'<p class="risk-summary-text">{escape(risk_detail_label(record))}</p>'
+        f'{"".join(note_html)}'
+        f"{extra_html}"
+        "</div>"
+    )
+    st.markdown(panel_html, unsafe_allow_html=True)
 
 
 def has_compliance_risk(record) -> bool:
@@ -817,17 +1151,28 @@ def render_lifecycle(record) -> None:
         hide_index=True,
     )
     if record.status.value == "FAILED":
-        st.error(record.error_message or "Processing failed before completion.")
+        st.error(display_error_message(record.error_message))
 
 
 def record_summary(record) -> str:
     if record.analysis:
         return record.analysis.executive_summary
     if record.error_message:
-        return record.error_message
+        return display_error_message(record.error_message)
     if record.extracted_text_preview:
         return record.extracted_text_preview
     return "No analysis available yet."
+
+
+def display_error_message(message: str | None) -> str:
+    if not message:
+        return "Processing failed before completion."
+    normalized = message.lower()
+    if "inappropriate content detected" in normalized or (
+        "invalidparameter" in normalized and "inappropriate content" in normalized
+    ):
+        return GENAI_SAFETY_REVIEW_MESSAGE
+    return message
 
 
 def record_to_row(record):
@@ -904,7 +1249,7 @@ def queue_section_hint(view: str, count: int) -> str:
     noun = "document" if count == 1 else "documents"
     hints = {
         "Processing": "being handled by the worker pool",
-        "Ready": "waiting for approval or rejection",
+        "Ready": "waiting for reviewer action",
         "Failed": "needing upload or service follow-up",
         "Reviewed": "already approved or rejected",
     }
@@ -922,6 +1267,64 @@ def dashboard_focus_record(records: list[DocumentRecord]) -> DocumentRecord | No
     )
 
 
+def dashboard_metrics_html(
+    metric_cards: list[tuple[str, int, str, str]],
+) -> str:
+    cards = "".join(
+        (
+            f'<div class="dashboard-card {escape(tone, quote=True)}">'
+            f"<span>{escape(label)}</span>"
+            f"<strong>{escape(str(value))}</strong>"
+            f"<p>{escape(detail)}</p>"
+            "</div>"
+        )
+        for label, value, detail, tone in metric_cards
+    )
+    return f'<div class="dashboard-grid">{cards}</div>'
+
+
+def render_dashboard_metrics(df: pd.DataFrame, active_runs: pd.DataFrame) -> None:
+    total = len(df)
+    ready_count = int((df["Stage"] == "Ready").sum())
+    compliance_count = int((df["Action"] == "Compliance review").sum())
+    failed_count = int((df["Status"] == "FAILED").sum())
+    reviewed_count = int(df["Review"].isin(["APPROVED", "REJECTED"]).sum())
+    active_count = len(active_runs)
+    metric_cards = [
+        (
+            "Needs action",
+            ready_count,
+            "Ready for a reviewer decision",
+            "warning" if ready_count else "good",
+        ),
+        (
+            "Compliance",
+            compliance_count,
+            "Knowledge-base matches",
+            "danger" if compliance_count else "good",
+        ),
+        (
+            "Processing",
+            active_count,
+            "Currently in the worker pool",
+            "info" if active_count else "good",
+        ),
+        (
+            "Failed",
+            failed_count,
+            "Needs retry or service follow-up",
+            "danger" if failed_count else "good",
+        ),
+        (
+            "Total",
+            total,
+            f"{reviewed_count} already reviewed",
+            "info",
+        ),
+    ]
+    st.markdown(dashboard_metrics_html(metric_cards), unsafe_allow_html=True)
+
+
 def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
     focus = dashboard_focus_record(records)
     active_count = sum(
@@ -933,14 +1336,46 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
         if record.review_status.value in {"APPROVED", "REJECTED"}
     )
 
-    with st.container(border=True):
+    with st.container():
         if focus:
-            st.subheader("Next action")
-            render_status_strip(focus)
-            st.write(focus.document_name)
-            cols = st.columns([0.75, 0.75, 1.5])
+            risk = highest_risk_level(focus)
+            evidence = highest_risk_evidence(focus)
+            confidence = confidence_percent(focus)
+            confidence_label = (
+                "Confidence N/A" if confidence is None else f"Confidence {confidence}%"
+            )
+            context = [
+                f"{workflow_status_label(focus.workflow_status)} workflow",
+                sla_label(focus),
+            ]
+            if focus.assignee:
+                context.append(f"Owner: {focus.assignee}")
+            panel_html = f"""
+            <div class="dashboard-workbench">
+              <div class="dashboard-panel">
+                <div class="muted-label">Priority work</div>
+                <h3>{escape(next_action(focus))}</h3>
+                <div class="document-title">{escape(focus.document_name)}</div>
+                <div class="status-strip">
+                  {badge(focus.status.value, state_tone(focus.status.value))}
+                  {risk_badge(risk)}
+                  {badge(confidence_label, "state-info")}
+                </div>
+                <p class="panel-note">{escape(" | ".join(context))}</p>
+                <p class="panel-note">{escape(evidence or record_summary(focus))}</p>
+              </div>
+              <div class="dashboard-panel">
+                <div class="muted-label">Queue health</div>
+                <h3>{active_count} processing | {reviewed_count} reviewed</h3>
+                <p class="panel-note">The worker pool can run {config.max_parallel_jobs} document{'s' if config.max_parallel_jobs != 1 else ''} at a time.</p>
+                <p class="panel-note">Ready and compliance items are prioritized before failed, active, and reviewed work.</p>
+              </div>
+            </div>
+            """
+            st.markdown(panel_html, unsafe_allow_html=True)
+            cols = st.columns([0.45, 0.35, 1.2])
             if cols[0].button(
-                "Open in Actions",
+                "Review",
                 type="primary",
                 key=f"dashboard_focus_open_{focus.document_id}",
                 width="stretch",
@@ -952,24 +1387,46 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
                 width="stretch",
             ):
                 open_page_from_dashboard(PAGE_UPLOAD)
-            cols[2].caption(
-                "Ready items are shown before failed items, then active and reviewed work."
-            )
             return
 
-        st.subheader("Queue status")
         if active_count:
-            st.write(
-                f"{active_count} document{'s are' if active_count != 1 else ' is'} processing. "
-                f"The worker pool can run {config.max_parallel_jobs} at a time."
+            st.markdown(
+                f"""
+                <div class="dashboard-workbench">
+                  <div class="dashboard-panel">
+                    <div class="muted-label">Queue status</div>
+                    <h3>{active_count} document{'s are' if active_count != 1 else ' is'} processing</h3>
+                    <p class="panel-note">The worker pool can run {config.max_parallel_jobs} at a time.</p>
+                  </div>
+                  <div class="dashboard-panel">
+                    <div class="muted-label">Reviewed</div>
+                    <h3>{reviewed_count} complete</h3>
+                    <p class="panel-note">Refresh the status if a processing document looks stale.</p>
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
             if st.button("Refresh Status", key="dashboard_focus_refresh"):
                 rerun_dashboard_fragment()
             return
 
-        st.write(
-            f"No documents need action. {reviewed_count} document"
-            f"{'s have' if reviewed_count != 1 else ' has'} already been reviewed."
+        st.markdown(
+            f"""
+            <div class="dashboard-workbench">
+              <div class="dashboard-panel">
+                <div class="muted-label">Queue status</div>
+                <h3>No documents need action</h3>
+                <p class="panel-note">{reviewed_count} document{'s have' if reviewed_count != 1 else ' has'} already been reviewed.</p>
+              </div>
+              <div class="dashboard-panel">
+                <div class="muted-label">Next step</div>
+                <h3>Upload a document</h3>
+                <p class="panel-note">New uploads will appear here as processing, ready, failed, or reviewed.</p>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
         if st.button(
             "Upload",
@@ -992,37 +1449,87 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
         st.info(empty_messages.get(view, f"No {view.lower()} documents."))
         return
 
-    widths = [0.24, 2.25, 0.78, 0.58, 1.28]
-    header_cols = st.columns(widths, vertical_alignment="center")
-    for col, label in zip(
-        header_cols,
-        ["", "Document", "Risk", "Conf.", "Action"],
-    ):
-        col.markdown(f"**{label}**")
-
     for _, row in rows.iterrows():
-        row_cols = st.columns(widths, vertical_alignment="center")
-        document_id = row["Document ID"]
-        if row_cols[0].button(
-            "↗",
-            key=f"queue_open_{view}_{document_id}",
-            help=f"Open {row['Name']} in Actions",
-            width="content",
-        ):
-            open_page_from_dashboard(PAGE_DETAIL, document_id)
-        row_cols[1].write(row["Name"])
-        details = [f"{row['Uploaded']} · {row['Type']}"]
-        if row["Reference"]:
-            details.append(f"Ref: {row['Reference']}")
-        if row["Assignee"] != "Unassigned":
-            details.append(f"Owner: {row['Assignee']}")
-        row_cols[1].caption(" | ".join(details))
-        row_cols[2].markdown(risk_badge(row["Risk Level"]), unsafe_allow_html=True)
-        row_cols[2].caption(row["Risk Detail"])
-        confidence = row["Confidence"]
-        row_cols[3].write("N/A" if pd.isna(confidence) else f"{int(confidence)}%")
-        row_cols[4].write(row["Action"])
-        row_cols[4].caption(f"{row['Workflow']} | {row['SLA']}")
+        with st.container(border=True):
+            row_cols = st.columns([0.22, 1.65, 0.72, 0.92], vertical_alignment="center")
+            document_id = row["Document ID"]
+            if row_cols[0].button(
+                "↗",
+                key=f"queue_open_{view}_{document_id}",
+                help=f"Open {row['Name']} in Actions",
+                width="content",
+            ):
+                open_page_from_dashboard(PAGE_DETAIL, document_id)
+            details = [f"{row['Uploaded']} · {row['Type']}"]
+            if row["Reference"]:
+                details.append(f"Ref: {row['Reference']}")
+            if row["Assignee"] != "Unassigned":
+                details.append(f"Owner: {row['Assignee']}")
+            row_cols[1].markdown(
+                f"""
+                <div class="queue-title">{escape(row["Name"])}</div>
+                <div class="queue-meta">{escape(" | ".join(details))}</div>
+                """,
+                unsafe_allow_html=True,
+            )
+            row_cols[2].markdown(risk_badge(row["Risk Level"]), unsafe_allow_html=True)
+            confidence = row["Confidence"]
+            confidence_text = "N/A" if pd.isna(confidence) else f"{int(confidence)}%"
+            row_cols[2].caption(f"{confidence_text} confidence")
+            row_cols[3].markdown(
+                f"""
+                <div class="queue-title">{escape(row["Action"])}</div>
+                <div class="queue-action">{escape(row["Workflow"])} | {escape(row["SLA"])}</div>
+                """,
+                unsafe_allow_html=True,
+            )
+            if row["Risk Level"] != "NONE":
+                st.caption(row["Risk Detail"])
+
+
+def render_ready_queue_band(rows: pd.DataFrame) -> None:
+    st.markdown("### Ready")
+    st.caption(queue_section_hint("Ready", len(rows)))
+    if rows.empty:
+        st.info("No documents are waiting for a decision.")
+        return
+
+    with st.container(border=True):
+        row_items = list(rows.iterrows())
+        for start in range(0, len(row_items), 3):
+            cols = st.columns(3, gap="medium")
+            for col, (_, row) in zip(cols, row_items[start : start + 3]):
+                document_id = row["Document ID"]
+                details = [f"{row['Uploaded']} | {row['Type']}"]
+                if row["Reference"]:
+                    details.append(f"Ref: {row['Reference']}")
+                confidence = row["Confidence"]
+                confidence_text = (
+                    "N/A" if pd.isna(confidence) else f"{int(confidence)}%"
+                )
+                with col.container(border=True):
+                    st.markdown(
+                        f"""
+                        <div class="ready-card-title">{escape(row["Name"])}</div>
+                        <div class="ready-card-meta">{escape(" | ".join(details))}</div>
+                        <div class="status-strip">
+                          {risk_badge(row["Risk Level"])}
+                          {badge(f"Confidence {confidence_text}", "state-info")}
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    if row["Risk Level"] != "NONE":
+                        st.caption(row["Risk Detail"])
+                    action_cols = st.columns([0.44, 0.56])
+                    if action_cols[0].button(
+                        "Open",
+                        key=f"ready_open_{document_id}",
+                        help=f"Open {row['Name']} in Actions",
+                        width="stretch",
+                    ):
+                        open_page_from_dashboard(PAGE_DETAIL, document_id)
+                    action_cols[1].caption(f"{row['Action']} | {row['SLA']}")
 
 
 def rerun_dashboard_fragment() -> None:
@@ -1323,7 +1830,7 @@ def render_audit_trail(record) -> None:
             "Created": item.created_at.strftime("%Y-%m-%d %H:%M"),
             "Actor": item.actor,
             "Action": item.action.replace("_", " ").title(),
-            "Detail": item.detail or "",
+            "Detail": display_error_message(item.detail) if item.detail else "",
         }
         for item in sorted(record.audit_events, key=lambda item: item.created_at)
     ]
@@ -1415,7 +1922,7 @@ def render_workflow_panel(config, store, record, key_prefix: str) -> None:
 def render_analysis_overview(record) -> None:
     if not record.analysis:
         if record.error_message:
-            st.error(record.error_message)
+            st.error(display_error_message(record.error_message))
         else:
             st.info("Analysis is not available yet.")
         return
@@ -1426,13 +1933,7 @@ def render_analysis_overview(record) -> None:
         f"Document class: {analysis.document_class} | "
         f"Confidence: {confidence_percent(record)}% | Risk: {highest_risk_level(record)}"
     )
-    risk_evidence = highest_risk_evidence(record)
-    if risk_evidence:
-        st.warning(
-            f"Risk detail: {risk_detail_label(record)} Highest-risk evidence: {risk_evidence}"
-        )
-    else:
-        st.info(f"Risk detail: {risk_detail_label(record)}")
+    render_risk_review_panel(record)
 
     col_left, col_right = st.columns(2, gap="large")
     with col_left:
@@ -1492,6 +1993,7 @@ def render_downloads(record, document_id: str) -> None:
         "Download JSON Result",
         metadata_json,
         f"{document_id}.json",
+        key=f"download_json_{document_id}",
         width="stretch",
     )
     if record.report_path and Path(record.report_path).exists():
@@ -1500,6 +2002,7 @@ def render_downloads(record, document_id: str) -> None:
             "Download Markdown Report",
             report,
             f"{document_id}.md",
+            key=f"download_report_{document_id}",
             width="stretch",
         )
     else:
@@ -1523,8 +2026,11 @@ def upload_page(config, store):
             [item.value for item in DocumentType],
             format_func=document_type_label,
             help=FIELD_HELP["Document type"],
+            key="upload_document_type",
         )
-        business_reference = st.text_input("Reference", placeholder="Optional")
+        business_reference = st.text_input(
+            "Reference", placeholder="Optional", key="upload_business_reference"
+        )
         uploaded = st.file_uploader(
             "File",
             type=[
@@ -1546,7 +2052,12 @@ def upload_page(config, store):
             key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
             help=f"Maximum file size enforced by the app: {config.max_upload_mb} MB.",
         )
-        notes = st.text_area("Notes", height=90, placeholder="Optional review context")
+        notes = st.text_area(
+            "Notes",
+            height=90,
+            placeholder="Optional review context",
+            key="upload_notes",
+        )
 
         uploaded_ok = uploaded is not None
         if uploaded:
@@ -1632,13 +2143,8 @@ def render_dashboard_live_content(config, store) -> None:
     rows = [record_to_row(record) for record in records]
     df = pd.DataFrame(rows)
     active_runs = df[df["Status"].isin(ACTIVE_STATUSES)]
-    ready_count = (df["Stage"] == "Ready").sum()
-    failed_count = (df["Status"] == "FAILED").sum()
-    cols = st.columns(4)
-    cols[0].metric("Total", len(records))
-    cols[1].metric("Ready", ready_count)
-    cols[2].metric("Processing", len(active_runs))
-    cols[3].metric("Failed", failed_count)
+    st.markdown("### At a glance")
+    render_dashboard_metrics(df, active_runs)
 
     render_dashboard_focus(config, records)
 
@@ -1651,15 +2157,17 @@ def render_dashboard_live_content(config, store) -> None:
         st.info(
             f"{len(active_runs)} document{suffix} processing. Worker pool size: {config.max_parallel_jobs}."
         )
-        if st.button("Refresh Status"):
+        if st.button("Refresh Status", key="dashboard_active_refresh"):
             rerun_dashboard_fragment()
         render_dashboard_refresh_note(len(active_runs))
 
+    st.markdown("### Work queues")
     search_cols = st.columns([1.25, 0.35, 0.35], vertical_alignment="bottom")
     search = search_cols[0].text_input(
         "Search documents",
         placeholder="Name, reference, status, action, or summary",
         help="Search applies to every queue section below.",
+        key="dashboard_search",
     )
     if search_cols[1].button(
         "Upload",
@@ -1678,11 +2186,12 @@ def render_dashboard_live_content(config, store) -> None:
     filtered = filter_queue_rows(df=df, view="All", query=search)
 
     st.caption(f"Showing {len(filtered)} of {len(df)} documents")
-    for start in range(0, len(QUEUE_SECTION_VIEWS), 2):
-        section_cols = st.columns(2, gap="large")
-        for col, view_name in zip(section_cols, QUEUE_SECTION_VIEWS[start : start + 2]):
-            with col:
-                render_queue_section(view_name, sections[view_name])
+    render_queue_section("Processing", sections["Processing"])
+    render_ready_queue_band(sections["Ready"])
+    section_cols = st.columns(2, gap="large")
+    for col, view_name in zip(section_cols, ["Failed", "Reviewed"]):
+        with col:
+            render_queue_section(view_name, sections[view_name])
 
     if filtered.empty:
         st.info("No documents match this search.")
@@ -1747,6 +2256,7 @@ def detail_page(config, store):
         ids,
         index=index,
         format_func=lambda item: labels.get(item, item),
+        key="detail_action_item",
     )
     picker_cols[1].button(
         "Dashboard",
@@ -1801,6 +2311,7 @@ def detail_page(config, store):
             height=220,
             disabled=True,
             label_visibility="collapsed",
+            key=f"extracted_preview_{document_id}",
         )
 
     with st.expander("Downloads"):

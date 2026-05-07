@@ -8,8 +8,11 @@ from src.models import (
 )
 from src.processor import (
     DocumentProcessor,
+    GENAI_SAFETY_REVIEW_MESSAGE,
+    GENAI_SAFETY_REVIEW_RISK,
     detected_document_type,
     error_message,
+    fallback_safety_analysis,
     safe_document_name,
 )
 
@@ -32,6 +35,27 @@ def test_error_message_unwraps_retry_error_like_exception():
         last_attempt = Attempt()
 
     assert error_message(RetryLikeError("wrapped")) == "missing signer"
+
+
+def test_error_message_hides_oci_genai_content_filter_json():
+    class ServiceError(Exception):
+        code = "InvalidParameter"
+        message = "Inappropriate content detected!!!"
+
+        def __str__(self):
+            return '{ "code" : "InvalidParameter", "message" : "Inappropriate content detected!!!" }'
+
+    assert error_message(ServiceError()) == GENAI_SAFETY_REVIEW_MESSAGE
+
+
+def test_fallback_safety_analysis_routes_to_manual_review():
+    analysis = fallback_safety_analysis(ExtractionResult(text="Sensitive trip text"))
+
+    assert analysis.human_review_required is True
+    assert analysis.confidence_score == 0.0
+    assert analysis.risk_notes[0].risk == GENAI_SAFETY_REVIEW_RISK
+    assert analysis.risk_notes[0].severity == "HIGH"
+    assert "Sensitive trip text" in analysis.executive_summary
 
 
 def test_processor_preserves_supplied_document_id(tmp_path, monkeypatch):
