@@ -27,6 +27,8 @@ The wizard writes both `.env` and `terraform/terraform.tfvars`. It does not crea
 
 Before showing region choices, it reads your OCI subscriptions and probes OCI Generative AI for active supported chat models. The app currently uses OCI SDK `CohereChatRequest`, so setup writes a Cohere chat model id.
 
+The wizard also writes a narrow `allowed_ingress_cidr`. If automatic public IP discovery fails, setup stops and asks for an explicit `--allowed-ingress-cidr` instead of falling back to open ingress.
+
 ## Review And Deploy
 
 Review local files:
@@ -54,14 +56,21 @@ The deploy script runs Terraform, packages the app, runs Ansible, starts the sys
 
 ## Release Package Hygiene
 
-The deployment package is built locally by `scripts/deploy.sh`. It excludes local-only files before Ansible copies the archive to the VM:
+The deployment package is built locally by `scripts/deploy.sh`. It excludes local-only and runtime-unneeded files before Ansible copies the archive to the VM:
 
 ```text
+.git/
 .env
 .env.*
 .oci/
 .deploy/
 .venv/
+.pytest_cache/
+.ruff_cache/
+*/__pycache__/
+*.pyc
+.DS_Store
+._*
 terraform/terraform.tfvars
 terraform/*.tfvars
 terraform/*.tfvars.json

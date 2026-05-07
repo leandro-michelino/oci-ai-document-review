@@ -14,6 +14,8 @@ Do not commit:
 - OCI config files
 - API keys or private keys
 
+Commit `terraform/.terraform.lock.hcl`. It pins provider checksums and keeps Terraform provider resolution consistent across machines.
+
 Prepared resources:
 
 - Private Object Storage bucket for uploads

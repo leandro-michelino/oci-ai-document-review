@@ -71,7 +71,7 @@ Reviewer opens the Actions page
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally simple. It shows queue metrics, global search, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, or a failed-processing fix. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, or a failed-processing fix. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Field Reference
 
@@ -245,12 +245,13 @@ The wizard does four important things before showing region choices:
 - Probes each subscribed region for active OCI Generative AI chat models.
 - Shows only supported GenAI regions and writes the selected region to `.env`.
 - Writes a Cohere chat model id that matches the app runtime.
+- Writes `allowed_ingress_cidr` from your current public IP, or stops and asks you to pass `--allowed-ingress-cidr` explicitly if IP discovery fails.
 
 ## Prepared Infrastructure
 
 Terraform files are ready under `terraform/`.
 
-This repository is designed for local laptop deployment. It does not include GitHub Actions or any Git-based deployment automation. Your local OCI config, API keys, `.env`, Terraform state, and real `terraform.tfvars` are ignored and must not be committed.
+This repository is designed for local laptop deployment. It does not include GitHub Actions or any Git-based deployment automation. Your local OCI config, API keys, `.env`, Terraform state, and real `terraform.tfvars` are ignored and must not be committed. The Terraform provider lock file is tracked so provider resolution stays consistent across machines.
 
 Create local variables from the sample:
 
@@ -276,7 +277,7 @@ Deploy end to end:
 
 The deployed VM uses the existing OCI API key and policies from your local OCI profile.
 
-The release package excludes local-only files such as `.env`, `.oci/`, `terraform.tfvars`, Terraform state, API keys, private keys, and local metadata. Ansible also scrubs those file patterns after unpacking before writing the intended runtime `.env` and OCI SDK config.
+The release package excludes local-only files and runtime-unneeded artifacts such as `.git/`, `.env`, `.oci/`, `.venv/`, Python caches, `terraform.tfvars`, Terraform state, API keys, private keys, and local metadata. Ansible also scrubs sensitive file patterns after unpacking before writing the intended runtime `.env` and OCI SDK config.
 
 ## Run Locally
 
@@ -294,7 +295,7 @@ The app supports:
 - Markdown report generation
 - Local JSON metadata
 - Approve and reject review actions
-- Dashboard queue view with metrics, search, split queue tables, and per-row Open actions
+- Dashboard queue view with metrics, next-action guidance, search, split queue tables, shortcuts, and per-row Open actions
 - Actions page for prioritized approvals, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document
 - Field guide with `?` explanations for review and file metadata fields

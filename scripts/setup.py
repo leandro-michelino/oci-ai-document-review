@@ -6,6 +6,7 @@ import concurrent.futures
 import os
 import urllib.request
 from dataclasses import dataclass
+from ipaddress import ip_address
 from pathlib import Path
 
 try:
@@ -307,9 +308,14 @@ def discover_current_ip_cidr() -> str:
     try:
         with urllib.request.urlopen("https://ifconfig.me", timeout=5) as response:
             ip = response.read().decode("utf-8").strip()
+        ip_address(ip)
         return f"{ip}/32"
-    except Exception:
-        return "0.0.0.0/0"
+    except Exception as exc:
+        raise SystemExit(
+            "Could not discover the current public IP address. Re-run setup with "
+            "--allowed-ingress-cidr set to your trusted CIDR, for example "
+            "--allowed-ingress-cidr 203.0.113.10/32."
+        ) from exc
 
 
 def main() -> None:

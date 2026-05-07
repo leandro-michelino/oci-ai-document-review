@@ -47,7 +47,6 @@
         dest: "{{ app_dir }}"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
-        mode: "0755"
 
     - name: Remove local-only files from unpacked release
       ansible.builtin.shell: |
@@ -55,8 +54,20 @@
         find {{ app_dir | quote }} \
           -path {{ (app_dir + '/.venv') | quote }} -prune -o \
           -path {{ (app_dir + '/.oci') | quote }} -prune -o \
+          -type d \( \
+            -name '.git' -o \
+            -name '__pycache__' -o \
+            -name '.pytest_cache' -o \
+            -name '.ruff_cache' \
+          \) -prune -exec rm -rf {} +
+        find {{ app_dir | quote }} \
+          -path {{ (app_dir + '/.venv') | quote }} -prune -o \
+          -path {{ (app_dir + '/.oci') | quote }} -prune -o \
           -type f \( \
             -name '.env' -o \
+            -name '.DS_Store' -o \
+            -name '._*' -o \
+            -name '*.pyc' -o \
             -name 'terraform.tfvars' -o \
             -name '*.tfvars' -o \
             -name '*.tfvars.json' -o \
@@ -140,7 +151,7 @@
         state: directory
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
-        mode: "0755"
+        mode: "0750"
       loop:
         - data/metadata
         - data/reports

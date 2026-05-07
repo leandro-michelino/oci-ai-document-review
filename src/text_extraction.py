@@ -16,7 +16,6 @@ TEXT_EXTENSIONS = {
     ".yaml",
     ".yml",
 }
-IMAGE_EXTENSIONS = {".jpeg", ".jpg", ".png"}
 PDF_EXTENSION = ".pdf"
 MIN_PDF_TEXT_CHARS = 40
 

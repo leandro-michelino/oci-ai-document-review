@@ -6,7 +6,6 @@ from streamlit.testing.v1 import AppTest
 
 from app import (
     file_size_label,
-    filter_dashboard_rows,
     filter_queue_rows,
     next_action,
     processing_stage_rows,
@@ -99,31 +98,6 @@ def test_file_size_label_formats_known_and_missing_sizes():
     assert file_size_label(512) == "512 B"
     assert file_size_label(2048) == "2.0 KB"
     assert file_size_label(2 * 1024 * 1024) == "2.00 MB"
-
-
-def test_filter_dashboard_rows_searches_and_filters():
-    records = [
-        make_record(
-            "doc-1", "contract.pdf", risks=[RiskNote(risk="Risk", severity="HIGH")]
-        ),
-        make_record(
-            "doc-2", "invoice.pdf", status=ProcessingStatus.APPROVED, confidence=0.5
-        ),
-    ]
-    df = pd.DataFrame([record_to_row(record) for record in records])
-
-    filtered = filter_dashboard_rows(
-        df=df,
-        query="contract REF-001",
-        statuses=["REVIEW_REQUIRED"],
-        document_types=["CONTRACT"],
-        review_states=["PENDING"],
-        risk_levels=["HIGH"],
-        minimum_confidence=75,
-        needs_attention_only=True,
-    )
-
-    assert filtered["Document ID"].tolist() == ["doc-1"]
 
 
 def test_filter_queue_rows_uses_simple_review_views():

@@ -80,6 +80,7 @@ FIELD_GUIDE_ROWS = [
     ("MIME type", FIELD_HELP["MIME type"]),
     ("Report", FIELD_HELP["Report"]),
     ("Text preview", FIELD_HELP["Text preview"]),
+    ("Text source", FIELD_HELP["Text source"]),
     ("Storage", FIELD_HELP["Storage"]),
 ]
 
@@ -485,23 +486,6 @@ def extracted_text_label(record) -> str:
     return f"{len(record.extracted_text_preview):,} preview chars"
 
 
-def render_review_snapshot(record) -> None:
-    confidence = confidence_percent(record)
-    values = [
-        ("Status", record.status.value),
-        ("Risk", highest_risk_level(record)),
-        ("Confidence", "N/A" if confidence is None else f"{confidence}%"),
-        ("Next action", next_action(record)),
-    ]
-    cells = "\n".join(f"""
-        <div class="snapshot-cell">
-          <div class="snapshot-label">{escape(label)}{help_dot(label)}</div>
-          <div class="snapshot-value">{escape(value)}</div>
-        </div>
-        """ for label, value in values)
-    st.markdown(f'<div class="review-snapshot">{cells}</div>', unsafe_allow_html=True)
-
-
 def render_file_information(record, compact: bool = False) -> None:
     core_info = [
         ("File name", record.document_name),
@@ -718,43 +702,6 @@ def record_to_row(record):
     }
 
 
-def filter_dashboard_rows(
-    df: pd.DataFrame,
-    query: str,
-    statuses: list[str],
-    document_types: list[str],
-    review_states: list[str],
-    risk_levels: list[str],
-    minimum_confidence: int,
-    needs_attention_only: bool,
-) -> pd.DataFrame:
-    filtered = df.copy()
-    if statuses:
-        filtered = filtered[filtered["Status"].isin(statuses)]
-    if document_types:
-        filtered = filtered[filtered["Type"].isin(document_types)]
-    if review_states:
-        filtered = filtered[filtered["Review"].isin(review_states)]
-    if risk_levels:
-        filtered = filtered[filtered["Risk Level"].isin(risk_levels)]
-    if minimum_confidence:
-        confidence = filtered["Confidence"].fillna(-1)
-        filtered = filtered[confidence >= minimum_confidence]
-    if needs_attention_only:
-        risk_score = filtered["Risk Level"].map(RISK_ORDER).fillna(0)
-        filtered = filtered[
-            (filtered["Status"].isin(["FAILED", "REVIEW_REQUIRED"]))
-            | (filtered["Review"] == "PENDING")
-            | (risk_score >= RISK_ORDER["HIGH"])
-        ]
-    terms = [term for term in query.lower().split() if term]
-    for term in terms:
-        filtered = filtered[
-            filtered["Search Text"].str.contains(term, regex=False, na=False)
-        ]
-    return filtered.sort_values("Uploaded Sort", ascending=False)
-
-
 def filter_queue_rows(df: pd.DataFrame, view: str, query: str) -> pd.DataFrame:
     filtered = df.copy()
     if view == "Ready":
@@ -781,14 +728,102 @@ def queue_view_frames(df: pd.DataFrame, query: str) -> dict[str, pd.DataFrame]:
     }
 
 
+def queue_section_hint(view: str, count: int) -> str:
+    noun = "document" if count == 1 else "documents"
+    hints = {
+        "Processing": "being handled by the worker pool",
+        "Ready": "waiting for approval or rejection",
+        "Failed": "needing upload or service follow-up",
+        "Reviewed": "already approved or rejected",
+    }
+    return f"{count} {noun} {hints.get(view, '').strip()}".strip()
+
+
+def dashboard_focus_record(records: list[DocumentRecord]) -> DocumentRecord | None:
+    return next(
+        (
+            record
+            for record in sort_action_records(records)
+            if requires_human_action(record) or record.status.value == "FAILED"
+        ),
+        None,
+    )
+
+
+def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
+    focus = dashboard_focus_record(records)
+    active_count = sum(
+        1 for record in records if record.status.value in ACTIVE_STATUSES
+    )
+    reviewed_count = sum(
+        1
+        for record in records
+        if record.review_status.value in {"APPROVED", "REJECTED"}
+    )
+
+    with st.container(border=True):
+        if focus:
+            st.subheader("Next action")
+            render_status_strip(focus)
+            st.write(focus.document_name)
+            cols = st.columns([0.75, 0.75, 1.5])
+            cols[0].button(
+                "Open in Actions",
+                type="primary",
+                key=f"dashboard_focus_open_{focus.document_id}",
+                on_click=open_page,
+                args=(PAGE_DETAIL, focus.document_id),
+                width="stretch",
+            )
+            cols[1].button(
+                "Upload",
+                key="dashboard_focus_upload",
+                on_click=open_page,
+                args=(PAGE_UPLOAD,),
+                width="stretch",
+            )
+            cols[2].caption(
+                "Ready items are shown before failed items, then active and reviewed work."
+            )
+            return
+
+        st.subheader("Queue status")
+        if active_count:
+            st.write(
+                f"{active_count} document{'s are' if active_count != 1 else ' is'} processing. "
+                f"The worker pool can run {config.max_parallel_jobs} at a time."
+            )
+            if st.button("Refresh Status", key="dashboard_focus_refresh"):
+                st.rerun()
+            return
+
+        st.write(
+            f"No documents need action. {reviewed_count} document"
+            f"{'s have' if reviewed_count != 1 else ' has'} already been reviewed."
+        )
+        st.button(
+            "Upload",
+            type="primary",
+            key="dashboard_focus_upload_clear",
+            on_click=open_page,
+            args=(PAGE_UPLOAD,),
+        )
+
+
 def render_queue_section(view: str, rows: pd.DataFrame) -> None:
     st.markdown(f"### {view}")
-    st.caption(f"{len(rows)} document{'s' if len(rows) != 1 else ''}")
+    st.caption(queue_section_hint(view, len(rows)))
     if rows.empty:
-        st.info(f"No {view.lower()} documents.")
+        empty_messages = {
+            "Processing": "No documents are currently processing.",
+            "Ready": "No documents are waiting for a decision.",
+            "Failed": "No failed documents need follow-up.",
+            "Reviewed": "No approved or rejected documents yet.",
+        }
+        st.info(empty_messages.get(view, f"No {view.lower()} documents."))
         return
 
-    widths = [0.45, 1.65, 0.62, 0.65, 0.55, 0.62, 1.05]
+    widths = [0.48, 1.75, 0.68, 0.68, 0.56, 0.68, 1.15]
     header_cols = st.columns(widths, vertical_alignment="center")
     for col, label in zip(
         header_cols,
@@ -807,6 +842,8 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
             width="stretch",
         )
         row_cols[1].write(row["Name"])
+        if row["Reference"]:
+            row_cols[1].caption(f"Ref: {row['Reference']}")
         row_cols[2].write(row["Uploaded"])
         row_cols[3].write(row["Type"])
         row_cols[4].write(row["Risk Level"])
@@ -1134,18 +1171,30 @@ def dashboard_page(config, store):
     page_header(
         "Review",
         "Dashboard",
-        "Track processing, find documents, and approve or reject completed reviews.",
+        "See what needs attention, monitor processing, and open documents for review.",
     )
     records = store.list_records()
     if not records:
         with st.container(border=True):
             st.info("No documents processed yet.")
-            st.button(
+            empty_cols = st.columns([0.5, 0.5, 1.5])
+            empty_cols[0].button(
                 "Upload",
                 type="primary",
                 key="dashboard_empty_upload",
                 on_click=open_page,
                 args=(PAGE_UPLOAD,),
+                width="stretch",
+            )
+            empty_cols[1].button(
+                "Settings",
+                key="dashboard_empty_settings",
+                on_click=open_page,
+                args=(PAGE_SETTINGS,),
+                width="stretch",
+            )
+            empty_cols[2].caption(
+                "Run OCI Preflight in Settings before processing customer documents."
             )
         return
 
@@ -1160,6 +1209,8 @@ def dashboard_page(config, store):
     cols[2].metric("Processing", len(active_runs))
     cols[3].metric("Failed", failed_count)
 
+    render_dashboard_focus(config, records)
+
     failures = df[df["Status"] == "FAILED"]
     if not failures.empty:
         noun = "document is" if len(failures) == 1 else "documents are"
@@ -1173,15 +1224,31 @@ def dashboard_page(config, store):
             st.rerun()
         schedule_dashboard_refresh(len(active_runs))
 
-    search = st.text_input(
-        "Search",
-        placeholder="Search documents",
+    search_cols = st.columns([1.25, 0.35, 0.35], vertical_alignment="bottom")
+    search = search_cols[0].text_input(
+        "Search documents",
+        placeholder="Name, reference, status, action, or summary",
+        help="Search applies to every queue section below.",
+    )
+    search_cols[1].button(
+        "Upload",
+        key="dashboard_upload_action",
+        on_click=open_page,
+        args=(PAGE_UPLOAD,),
+        width="stretch",
+    )
+    search_cols[2].button(
+        "Actions",
+        key="dashboard_actions_action",
+        on_click=open_page,
+        args=(PAGE_DETAIL,),
+        width="stretch",
     )
 
     sections = queue_view_frames(df=df, query=search)
     filtered = filter_queue_rows(df=df, view="All", query=search)
 
-    st.caption(f"Showing {len(filtered)} of {len(df)} documents across queue sections")
+    st.caption(f"Showing {len(filtered)} of {len(df)} documents")
     for start in range(0, len(QUEUE_SECTION_VIEWS), 2):
         section_cols = st.columns(2, gap="large")
         for col, view_name in zip(section_cols, QUEUE_SECTION_VIEWS[start : start + 2]):

@@ -81,7 +81,8 @@ PY
 # shellcheck disable=SC1090
 source "$OCI_RUNTIME_META"
 
-tar \
+COPYFILE_DISABLE=1 tar \
+  --exclude='./.git' \
   --exclude='./.env' \
   --exclude='./.env.*' \
   --exclude='./.deploy' \
@@ -89,6 +90,10 @@ tar \
   --exclude='./.oci' \
   --exclude='./.pytest_cache' \
   --exclude='./.ruff_cache' \
+  --exclude='*/__pycache__' \
+  --exclude='*.pyc' \
+  --exclude='.DS_Store' \
+  --exclude='._*' \
   --exclude='./terraform/.terraform' \
   --exclude='./terraform/terraform.tfstate*' \
   --exclude='./terraform/terraform.tfvars' \

@@ -55,21 +55,29 @@ terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 ```
 
-The repository includes safe examples:
+The repository includes safe examples and safe tracked configuration:
 
 ```text
 .env.example
+terraform/.terraform.lock.hcl
 terraform/terraform.tfvars.example
 ```
 
 The deploy archive excludes local-only files and directories:
 
 ```text
+.git/
 .env
 .env.*
 .oci/
 .deploy/
 .venv/
+.pytest_cache/
+.ruff_cache/
+*/__pycache__/
+*.pyc
+.DS_Store
+._*
 terraform/terraform.tfvars
 terraform/*.tfvars
 terraform/*.tfvars.json
@@ -115,6 +123,8 @@ The setup wizard:
 6. Writes local .env and terraform/terraform.tfvars.
 ```
 
+If setup cannot discover your current public IP, it stops instead of writing an open ingress CIDR. Re-run it with `--allowed-ingress-cidr` set to a trusted CIDR such as your current public IP with `/32`.
+
 ## Deploy From Laptop
 
 Run:
@@ -127,7 +137,7 @@ The deploy script:
 
 ```text
 1. Packages the app.
-2. Excludes local-only secrets, tfvars, state, metadata, and upload files.
+2. Excludes source-control metadata, local-only secrets, caches, tfvars, state, metadata, and upload files.
 3. Runs terraform init.
 4. Runs terraform apply.
 5. Writes a temporary local Ansible inventory in .deploy/.
@@ -274,7 +284,9 @@ Upload
 
 Dashboard
   - Shows Total, Ready, Processing, and Failed metrics.
+  - Shows the next document that needs a human or operational action.
   - Provides search across document name, reference, status, action, and summary.
+  - Provides Upload and Actions shortcuts for common navigation.
   - Shows split queue tables for Processing, Ready, Failed, and Reviewed documents.
   - Opens each document in Actions from the Open button at the start of its row.
 

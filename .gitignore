@@ -19,7 +19,6 @@ data/metadata/*.json
 data/reports/*.md
 data/uploads/*
 terraform/.terraform/
-terraform/.terraform.lock.hcl
 terraform/terraform.tfstate*
 terraform/terraform.tfvars
 terraform/*.tfvars

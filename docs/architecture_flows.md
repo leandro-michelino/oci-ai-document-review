@@ -46,7 +46,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
         v
 +-----------------------+
 | Dashboard Queue       |
-| Split Tables, Open    |
+| Next Action + Tables  |
 +-------+---------------+
         |
         v
@@ -191,6 +191,42 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
                      +----------------------+
 ```
 
+## Extraction Decision Flow
+
+```text
++----------------------+
+| Uploaded File        |
++----------+-----------+
+           |
+           v
++----------------------+
+| File Extension       |
+| and PDF Text Probe   |
++----------+-----------+
+           |
+           +------------------------------+------------------------------+
+           |                              |                              |
+           v                              v                              v
++----------------------+      +----------------------+      +----------------------+
+| Text-Native File     |      | PDF With Text        |      | Image / Image PDF    |
+| TXT, CSV, JSON, ...  |      | Selectable Content   |      | PNG, JPG, Scan       |
++----------+-----------+      +----------+-----------+      +----------+-----------+
+           |                             |                             |
+           v                             v                             v
++----------------------+      +----------------------+      +----------------------+
+| Local Text Read      |      | Local PDF Text Read  |      | OCI Document         |
+| No DU Call           |      | No DU Call           |      | Understanding OCR    |
++----------+-----------+      +----------+-----------+      +----------+-----------+
+           |                             |                             |
+           +-------------+---------------+---------------+-------------+
+                         |
+                         v
+              +----------------------+
+              | OCI Generative AI    |
+              | Structured Review    |
+              +----------------------+
+```
+
 ## OCI Network Flow
 
 ```text
@@ -272,7 +308,8 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 | Local Repository    |
 +----------+----------+
            |
-           | tar excludes local-only files
+           | tar excludes .git, caches,
+           | secrets, state, and data
            v
 +---------------------+
 | Release Archive     |
@@ -292,6 +329,28 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 | Expected Runtime    |
 | .env + .oci/config  |
 +---------------------+
+```
+
+## Configuration Boundary Flow
+
+```text
++----------------------------+
+| Tracked Repository         |
+| code, docs, lock files     |
++-------------+--------------+
+              |
+              | deploy script reads local runtime values
+              v
++----------------------------+       +----------------------------+
+| Local-Only Files           |       | OCI VM Runtime             |
+| .env, tfvars, state, keys  | ----> | .env, .oci/config, key     |
++----------------------------+       +-------------+--------------+
+                                                   |
+                                                   v
+                                      +----------------------------+
+                                      | Streamlit + Worker Pool    |
+                                      | Object Storage / DU / GenAI|
+                                      +----------------------------+
 ```
 
 ## Phase 2 Enterprise Flow

@@ -7,6 +7,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 - Keep Object Storage buckets private.
 - Do not commit `.env`, `terraform.tfvars`, Terraform state, `.deploy/`, OCI config files, API keys, private keys, or downloaded reports.
 - Use a narrow `allowed_ingress_cidr`, ideally your current public IP with `/32`.
+- Pass `--allowed-ingress-cidr` explicitly if setup cannot discover your current public IP. The setup script must not fall back to open ingress.
 - Keep the Streamlit VM behind security lists only. No NSGs are created in this version.
 - Use existing least-privilege OCI policies for Object Storage, Document Understanding, and Generative AI.
 - Avoid logging full document text.
@@ -26,7 +27,7 @@ Expected runtime credential files on the VM:
 
 These files are created by Ansible during deployment. They are not committed to Git.
 
-The app release package excludes local `.env`, `.oci`, Terraform tfvars, Terraform state, private keys, metadata, reports, and uploaded documents. The Ansible playbook also removes those file patterns after unpacking the app release, before writing the intended runtime files.
+The app release package excludes local `.git`, `.env`, `.oci`, `.venv`, Python caches, macOS metadata files, Terraform tfvars, Terraform state, private keys, metadata, reports, and uploaded documents. The Ansible playbook also removes sensitive and runtime-unneeded file patterns after unpacking the app release, before writing the intended runtime files.
 
 Do not keep these local-only files in the deployed app tree:
 
