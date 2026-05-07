@@ -1,0 +1,10 @@
+entity_name,aliases,country,type,risk_level,source,source_date,notes
+Government keyword,gov|govt|government|governmental,global,keyword,HIGH,curated,2026-05-07,Generic government cue for MVP compliance screening
+Public sector keyword,public sector|public body|public institution|public authority,global,keyword,HIGH,curated,2026-05-07,Generic public-sector cue for MVP compliance screening
+Ministry keyword,ministry|department of,global,keyword,HIGH,curated,2026-05-07,Generic ministry or department cue
+Municipality keyword,municipality|municipal|council,global,keyword,HIGH,curated,2026-05-07,Generic local-government cue
+State-owned entity keyword,state-owned|state owned|state agency,global,keyword,HIGH,curated,2026-05-07,Generic state-owned or state-agency cue
+Public official keyword,public official|civil servant,global,keyword,HIGH,curated,2026-05-07,Generic public-official cue
+Embassy keyword,embassy,global,keyword,HIGH,curated,2026-05-07,Generic embassy cue
+Security forces keyword,police|military|army,global,keyword,HIGH,curated,2026-05-07,Generic security-force cue
+Zimbabwe Schools Examination Council,ZIMSEC|Zimbabwe Schools Examination Council,Zimbabwe,education authority,HIGH,curated,2026-05-07,Public-sector education/examination body used for MVP compliance screening

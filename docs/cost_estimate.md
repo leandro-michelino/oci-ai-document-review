@@ -44,6 +44,7 @@ Compute
 
 Object Storage
   - Uploaded original documents in Standard Object Storage
+  - Curated compliance knowledge-base object at compliance/public_sector_entities.csv
   - PUT, GET, DELETE, list, and metadata requests
   - Temporary preflight object write/read/delete
   - Optional retention/lifecycle policy if added later
@@ -66,9 +67,12 @@ Networking
 
 Operations and validation
   - OCI Preflight checks Object Storage, Document Understanding, and GenAI
+  - Compliance KB seeding and reads use the same private Object Storage bucket
   - Smoke tests and manual retries call live services
   - Repeated demo uploads create more Object Storage, DU, and GenAI usage
 ```
+
+The curated compliance knowledge base is expected to be very small in this MVP. Its storage cost should be negligible compared with uploaded documents, AI processing, NAT Gateway, and compute. Future scheduled refresh jobs may add a small number of Object Storage GET/PUT requests and optional archived snapshots.
 
 ## Pricing References To Check
 

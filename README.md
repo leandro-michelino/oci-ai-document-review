@@ -63,8 +63,8 @@ The portal is a lightweight OCI-hosted document review workflow. It stores uploa
                                          v
                          +-------------------------------+
                          | Compliance Risk Overlay       |
-                         | public-sector expense flag    |
-                         | and human-review enforcement  |
+                         | Object Storage KB match,      |
+                         | risk flag, human review route |
                          +---------------+---------------+
                                          |
                                          v
@@ -116,7 +116,7 @@ Users upload a document in the web portal. The platform then:
 5. Uses OCI Document Understanding only for images, scanned PDFs, or image-only PDFs.
 6. Falls back to DU text-only OCR when rich table/key-value extraction fails.
 7. Sends the extracted content to OCI Generative AI for structured review.
-8. Applies deterministic compliance attention for public-sector expense signals.
+8. Checks the extracted content and user metadata against a curated compliance knowledge base in Object Storage.
 9. Auto-detects the document type when `Auto-detect` was selected during upload.
 10. Creates a JSON metadata record and a Markdown report.
 11. Shows the document in a clean Dashboard queue.
@@ -182,7 +182,23 @@ Reviewer assigns owner, SLA, workflow status, or comments
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, escalation, waiting-for-information follow-up, or a failed-processing fix. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense cues are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Documents that match the curated compliance knowledge base show `Compliance review` and a red `HIGH` risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+
+## Compliance Knowledge Base
+
+The compliance router uses a curated CSV/JSON knowledge base instead of asking GenAI to search the internet. The default Object Storage object is:
+
+```text
+compliance/public_sector_entities.csv
+```
+
+If that object is missing, the app seeds it from:
+
+```text
+data/compliance/public_sector_entities.csv
+```
+
+During processing and backfill, the app checks extracted text, file name, business reference, notes, and selected AI fields against the catalog. Matching expense-like documents receive a `Public-sector expense compliance review` risk note with auditable evidence that includes the source object, matched term, entity type, country, source, and source date. Those documents stay in the Ready queue and appear in Actions as `Compliance review`.
 
 ## Field Reference
 
@@ -193,7 +209,7 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | Status | Processing state for the document lifecycle, from upload through approval or failure. |
 | Stage | Simplified queue state shown in the Dashboard: `Queued`, `Processing`, `Ready`, `Reviewed`, or `Failed`. |
 | Review | Human review decision state: `PENDING`, `APPROVED`, or `REJECTED`. |
-| Risk | Highest AI or compliance risk-note severity for the document, with note counts and supporting evidence shown in the Dashboard and Analysis details. `NONE` means no risk note was returned. Public-sector expense cues are raised as compliance attention. |
+| Risk | Highest AI or compliance risk-note severity for the document, with note counts and supporting evidence shown in the Dashboard and Analysis details. Green means none/low, yellow means medium, and red means high. Public-sector expense matches from the curated knowledge base are raised as compliance attention. |
 | Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
 | Action | The next human or operational step for the selected document. |
 | Workflow | Human workflow state for assignment, SLA tracking, escalation, retry planning, and closure. |
@@ -256,7 +272,8 @@ Uploaded file
   -> DU text-only OCR fallback when rich table/key-value extraction fails
   -> JSON-safe extraction result conversion when Document Understanding is used
   -> OCI Generative AI Cohere chat model
-  -> compliance risk overlay for public-sector expense signals
+  -> compliance knowledge-base match from Object Storage
+  -> compliance risk overlay and Actions routing
   -> automatic document type label when Auto-detect was selected
   -> local metadata JSON
   -> Markdown report

@@ -49,6 +49,7 @@ STALE_PROCESSING_MINUTES="$(env_value STALE_PROCESSING_MINUTES)"
 MAX_PARALLEL_JOBS="$(env_value MAX_PARALLEL_JOBS)"
 MAX_DOCUMENT_CHARS="$(env_value MAX_DOCUMENT_CHARS)"
 MAX_UPLOAD_MB="$(env_value MAX_UPLOAD_MB)"
+COMPLIANCE_ENTITIES_OBJECT_NAME="$(env_value COMPLIANCE_ENTITIES_OBJECT_NAME)"
 
 export OCI_CONFIG_FILE="${OCI_CONFIG_FILE:-~/.oci/config}"
 export OCI_PROFILE="${OCI_PROFILE:-DEFAULT}"
@@ -148,7 +149,8 @@ ansible-playbook -i "$INVENTORY" ansible/playbook.yml \
   -e "stale_processing_minutes=${STALE_PROCESSING_MINUTES:-12}" \
   -e "max_parallel_jobs=${MAX_PARALLEL_JOBS:-2}" \
   -e "max_document_chars=${MAX_DOCUMENT_CHARS:-50000}" \
-  -e "max_upload_mb=${MAX_UPLOAD_MB:-10}"
+  -e "max_upload_mb=${MAX_UPLOAD_MB:-10}" \
+  -e "compliance_entities_object_name=${COMPLIANCE_ENTITIES_OBJECT_NAME:-compliance/public_sector_entities.csv}"
 
 cat <<EOF
 

@@ -196,6 +196,7 @@ docs/assets/oci-ai-document-review-architecture.svg
            v
 +----------------------------+
 | Compliance Overlay         |
+| Object Storage KB Match    |
 | Public-Sector Expense Risk |
 +----------+-----------------+
            |
@@ -358,7 +359,8 @@ docs/assets/oci-ai-document-review-architecture.svg
                          v
               +----------------------+
               | Compliance Overlay   |
-              | Public-Sector Expense|
+              | Object Storage KB    |
+              | Compliance Review    |
               +----------------------+
 ```
 
@@ -485,7 +487,7 @@ docs/assets/oci-ai-document-review-architecture.svg
                                       +----------------------------+
                                       | Streamlit + Worker Pool    |
                                       | Object Storage / DU / GenAI|
-                                      | Compliance Overlay         |
+                                      | Compliance KB Overlay      |
                                       +----------------------------+
 ```
 

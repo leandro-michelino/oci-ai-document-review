@@ -42,6 +42,15 @@ class ObjectStorageClient:
         )
         return response.data.content.decode("utf-8")
 
+    def put_text(self, object_name: str, content: str) -> str:
+        self.client.put_object(
+            namespace_name=self.config.oci_namespace,
+            bucket_name=self.config.oci_bucket_name,
+            object_name=object_name,
+            put_object_body=content.encode("utf-8"),
+        )
+        return object_name
+
     def delete_object(self, object_name: str) -> None:
         self.client.delete_object(
             namespace_name=self.config.oci_namespace,

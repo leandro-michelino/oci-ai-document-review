@@ -21,6 +21,7 @@ Commit `terraform/.terraform.lock.hcl`. It pins provider checksums and keeps Ter
 Prepared resources:
 
 - Private Object Storage bucket for uploads
+- Same private Object Storage bucket also stores the curated compliance KB object at `compliance/public_sector_entities.csv`
 - VCN with public and private subnets
 - Security lists only, no NSGs
 - Public route table to Internet Gateway
@@ -30,6 +31,8 @@ Prepared resources:
 - Optional IAM policy for an existing admin group, disabled by default
 
 Terraform does not deploy application code. Application deployment is handled by `../scripts/deploy.sh` and `../ansible/playbook.yml` after Terraform creates or refreshes the infrastructure.
+
+The compliance knowledge-base CSV is not a Terraform resource. The app seeds it into the existing private bucket from `../data/compliance/public_sector_entities.csv` if `COMPLIANCE_ENTITIES_OBJECT_NAME` is missing at runtime.
 
 Create or choose a project compartment before deployment:
 

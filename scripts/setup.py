@@ -125,6 +125,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-parallel-jobs", default="2")
     parser.add_argument("--max-document-chars", default="50000")
     parser.add_argument("--max-upload-mb", default="10")
+    parser.add_argument(
+        "--compliance-entities-object-name",
+        default=os.getenv(
+            "COMPLIANCE_ENTITIES_OBJECT_NAME",
+            "compliance/public_sector_entities.csv",
+        ),
+    )
     parser.add_argument("--app-title", default="OCI AI Document Review Portal")
     parser.add_argument("--generate-ssh-key", action="store_true")
     parser.add_argument("--non-interactive", action="store_true")
@@ -545,6 +552,7 @@ STALE_PROCESSING_MINUTES={args.stale_processing_minutes}
 MAX_PARALLEL_JOBS={args.max_parallel_jobs}
 MAX_DOCUMENT_CHARS={args.max_document_chars}
 MAX_UPLOAD_MB={args.max_upload_mb}
+COMPLIANCE_ENTITIES_OBJECT_NAME={args.compliance_entities_object_name}
 LOCAL_METADATA_DIR=data/metadata
 LOCAL_REPORTS_DIR=data/reports
 LOCAL_UPLOADS_DIR=data/uploads

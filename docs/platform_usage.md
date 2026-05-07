@@ -262,7 +262,7 @@ Recommended processing flow:
 7. Choose the next action shown by the app:
    View Dashboard, Open Actions, or Upload Another.
 8. Use Dashboard to watch the queue while the worker pool runs the live steps:
-   Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance risk overlay, metadata/report save.
+   Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
 9. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables.
 10. Click Open next to a document.
 11. Use the Actions page to review the executive summary, key points, risks, recommendations, and supporting details.
@@ -281,7 +281,21 @@ Workflow data is stored in the same local JSON metadata record as the processing
 
 Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. The app first tries rich OCR/table/key-value extraction, then falls back to text-only OCR if the rich mode fails. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Password-protected, very large, low-resolution, or heavily compressed image PDFs may still return little text or fail.
 
-Expense-like documents that mention public-sector cues are flagged for compliance attention after GenAI analysis. The overlay adds a high-risk `Public-sector expense compliance review` note and forces human review. Treat this as a demo control for reviewer routing, not as a final compliance determination.
+Expense-like documents are checked against the curated compliance knowledge base after GenAI analysis. The default Object Storage object is `compliance/public_sector_entities.csv`, seeded from the bundled `data/compliance/public_sector_entities.csv` file if the object is missing. The check uses extracted text, file name, business reference, notes, and selected AI fields. Matching public-sector entities or cues add a `Public-sector expense compliance review` note, route the document to `Compliance review` in Actions, and show the risk with green/yellow/red badges. Treat this as a reviewer-routing control, not as a final compliance determination.
+
+To update the MVP knowledge base manually, edit a CSV with this schema:
+
+```text
+entity_name,aliases,country,type,risk_level,source,source_date,notes
+```
+
+Then upload it to the configured private bucket object:
+
+```text
+compliance/public_sector_entities.csv
+```
+
+Keep `source` and `source_date` populated so the risk evidence remains auditable. Do not use live internet search as the compliance authority for this MVP.
 
 Document Understanding calls are bounded by runtime settings:
 

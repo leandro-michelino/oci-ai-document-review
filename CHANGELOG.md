@@ -16,7 +16,9 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - Text-native files and PDFs with selectable text go directly to GenAI after local extraction.
 - Images and scanned/image-only PDFs use OCI Document Understanding OCR.
 - DU text-only OCR fallback is used when rich table/key-value extraction fails.
-- Public-sector expense signals are flagged as compliance attention risks and force human review.
+- Curated compliance knowledge-base matching flags public-sector expense risks and routes them to Actions as `Compliance review`.
+- The compliance KB is read from `compliance/public_sector_entities.csv` in Object Storage, seeded from `data/compliance/public_sector_entities.csv` when missing.
+- Dashboard and Actions risk badges use green/yellow/red risk colors.
 - README architecture design appears near the beginning of the document.
 - Documentation, ASCII architecture flows, and the rendered architecture image reflect the current v0.3.0 runtime path.
 

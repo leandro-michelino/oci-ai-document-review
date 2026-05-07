@@ -34,6 +34,10 @@ class AppConfig(BaseSettings):
     max_parallel_jobs: int = Field(default=2, alias="MAX_PARALLEL_JOBS")
     max_document_chars: int = Field(default=50000, alias="MAX_DOCUMENT_CHARS")
     max_upload_mb: int = Field(default=10, alias="MAX_UPLOAD_MB")
+    compliance_entities_object_name: str = Field(
+        default="compliance/public_sector_entities.csv",
+        alias="COMPLIANCE_ENTITIES_OBJECT_NAME",
+    )
     local_metadata_dir: Path = Field(
         default=Path("data/metadata"), alias="LOCAL_METADATA_DIR"
     )

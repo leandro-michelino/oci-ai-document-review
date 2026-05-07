@@ -4,6 +4,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+from src.compliance import (
+    ComplianceCatalog,
+    load_compliance_catalog,
+    load_local_compliance_catalog,
+    term_matches,
+)
 from src.config import AppConfig
 from src.document_understanding_client import DocumentUnderstandingClient
 from src.genai_client import GenAIClient
@@ -23,24 +29,6 @@ from src.text_extraction import extract_text_locally
 
 logger = get_logger(__name__)
 
-PUBLIC_SECTOR_TERMS = (
-    "public sector",
-    "government",
-    "ministry",
-    "municipality",
-    "municipal",
-    "state-owned",
-    "state owned",
-    "public authority",
-    "public official",
-    "civil servant",
-    "department of",
-    "embassy",
-    "police",
-    "military",
-    "army",
-    "council",
-)
 EXPENSE_TERMS = (
     "invoice",
     "receipt",
@@ -119,21 +107,44 @@ def error_message(exc: Exception) -> str:
 
 
 def matched_terms(text: str, terms: tuple[str, ...]) -> list[str]:
-    normalized = text.lower()
-    return [term for term in terms if term in normalized]
+    return [term for term in terms if term_matches(text, term)]
+
+
+def compliance_context(record: DocumentRecord, extracted_text: str) -> str:
+    analysis = record.analysis
+    parts = [
+        extracted_text,
+        record.document_name,
+        record.business_reference or "",
+        record.notes or "",
+    ]
+    if analysis:
+        parts.extend(
+            [
+                analysis.document_class,
+                analysis.executive_summary,
+                " ".join(analysis.key_points),
+                " ".join(analysis.recommendations),
+            ]
+        )
+    return "\n".join(part for part in parts if part)
 
 
 def apply_compliance_attention(
-    record: DocumentRecord, extracted_text: str
+    record: DocumentRecord,
+    extracted_text: str,
+    catalog: ComplianceCatalog | None = None,
 ) -> DocumentRecord:
     if record.analysis is None:
         return record
-    public_matches = matched_terms(extracted_text, PUBLIC_SECTOR_TERMS)
+    catalog = catalog or load_local_compliance_catalog()
+    context = compliance_context(record, extracted_text)
+    public_matches = catalog.find_public_sector_matches(context)
     if not public_matches:
         return record
 
     detected_type = detected_document_type(record.analysis.document_class)
-    expense_matches = matched_terms(extracted_text, EXPENSE_TERMS)
+    expense_matches = matched_terms(context, EXPENSE_TERMS)
     is_expense = (
         record.document_type == DocumentType.INVOICE
         or detected_type == DocumentType.INVOICE
@@ -145,17 +156,24 @@ def apply_compliance_attention(
     if not any(
         note.risk == PUBLIC_SECTOR_EXPENSE_RISK for note in record.analysis.risk_notes
     ):
-        evidence_parts = [f"public-sector cue: {', '.join(public_matches[:3])}"]
+        highest_severity = max(
+            (match.entity.risk_level for match in public_matches),
+            key=lambda severity: {"LOW": 1, "MEDIUM": 2, "HIGH": 3}.get(severity, 0),
+        )
+        evidence_parts = [
+            f"knowledge-base: {catalog.source_name}",
+            "public-sector match: "
+            + " | ".join(match.evidence for match in public_matches[:3]),
+        ]
         if expense_matches:
             evidence_parts.append(f"expense cue: {', '.join(expense_matches[:3])}")
         record.analysis.risk_notes.append(
             RiskNote(
                 risk=PUBLIC_SECTOR_EXPENSE_RISK,
-                severity="HIGH",
+                severity=highest_severity,
                 evidence=(
-                    "Potential public-sector related expense. "
-                    + "; ".join(evidence_parts)
-                    + "."
+                    "Curated compliance knowledge base matched a public-sector entity "
+                    "or cue in an expense context. " + "; ".join(evidence_parts) + "."
                 ),
             )
         )
@@ -174,6 +192,9 @@ class DocumentProcessor:
         self.config = config
         self.store = MetadataStore(config)
         self.object_storage = ObjectStorageClient(config)
+        self.compliance_catalog = load_compliance_catalog(
+            config, object_storage=self.object_storage
+        )
         self._document_ai = None
         self.genai = GenAIClient(config)
 
@@ -270,7 +291,9 @@ class DocumentProcessor:
             if record.document_type == DocumentType.AUTO_DETECT:
                 record.document_type = detected_document_type(analysis.document_class)
             record.analysis = analysis
-            apply_compliance_attention(record, extraction.text)
+            apply_compliance_attention(
+                record, extraction.text, catalog=self.compliance_catalog
+            )
             record.status = ProcessingStatus.AI_ANALYZED
             self.store.save(record)
             progress("Generated structured analysis with OCI Generative AI")

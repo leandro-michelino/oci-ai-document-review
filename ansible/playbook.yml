@@ -106,6 +106,7 @@
           MAX_PARALLEL_JOBS={{ max_parallel_jobs | default('2') }}
           MAX_DOCUMENT_CHARS={{ max_document_chars | default('50000') }}
           MAX_UPLOAD_MB={{ max_upload_mb | default('10') }}
+          COMPLIANCE_ENTITIES_OBJECT_NAME={{ compliance_entities_object_name | default('compliance/public_sector_entities.csv') }}
           LOCAL_METADATA_DIR=data/metadata
           LOCAL_REPORTS_DIR=data/reports
           LOCAL_UPLOADS_DIR=data/uploads

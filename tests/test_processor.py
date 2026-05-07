@@ -293,7 +293,76 @@ def test_processor_flags_public_sector_expense_for_compliance(tmp_path, monkeypa
         "Public-sector expense compliance review"
     )
     assert record.analysis.risk_notes[-1].severity == "HIGH"
-    assert "public-sector cue: ministry" in record.analysis.risk_notes[-1].evidence
+    assert "knowledge-base" in record.analysis.risk_notes[-1].evidence
+    assert "matched term: ministry" in record.analysis.risk_notes[-1].evidence
+
+
+def test_processor_flags_public_sector_expense_from_business_reference(
+    tmp_path, monkeypatch
+):
+    class FakeObjectStorage:
+        def __init__(self, config):
+            self.config = config
+
+        def upload_file(self, local_path, object_name):
+            assert local_path.exists()
+
+        @staticmethod
+        def object_uri(object_name):
+            return f"oci://bucket/{object_name}"
+
+    class FakeDocumentAI:
+        def __init__(self, config):
+            raise AssertionError(
+                "Document Understanding should not initialize for text files"
+            )
+
+    class FakeGenAI:
+        def __init__(self, config):
+            self.config = config
+
+        @staticmethod
+        def analyze_document(prompt):
+            assert "Restaurant receipt total GBP 42" in prompt
+            return DocumentAnalysis(
+                document_class="INVOICE",
+                executive_summary="Lunch receipt.",
+                confidence_score=0.9,
+                human_review_required=False,
+            )
+
+    monkeypatch.setattr("src.processor.ObjectStorageClient", FakeObjectStorage)
+    monkeypatch.setattr("src.processor.DocumentUnderstandingClient", FakeDocumentAI)
+    monkeypatch.setattr("src.processor.GenAIClient", FakeGenAI)
+
+    config = SimpleNamespace(
+        local_metadata_dir=tmp_path / "metadata",
+        local_reports_dir=tmp_path / "reports",
+        local_uploads_dir=tmp_path / "uploads",
+        max_document_chars=50000,
+        genai_model_id="cohere.command-r-plus",
+        document_ai_timeout_seconds=30,
+        document_ai_retry_attempts=1,
+    )
+    config.local_metadata_dir.mkdir()
+    config.local_reports_dir.mkdir()
+    config.local_uploads_dir.mkdir()
+    source = tmp_path / "receipt.txt"
+    source.write_text("Restaurant receipt total GBP 42", encoding="utf-8")
+
+    record = DocumentProcessor(config).process(
+        source_path=source,
+        document_name="receipt.txt",
+        document_type=DocumentType.INVOICE,
+        business_reference="lunch with gov customer",
+        document_id="doc-gov-reference",
+    )
+
+    assert record.analysis.human_review_required is True
+    assert record.analysis.risk_notes[-1].severity == "HIGH"
+    assert "knowledge-base" in record.analysis.risk_notes[-1].evidence
+    assert "matched term: gov" in record.analysis.risk_notes[-1].evidence
+    assert "receipt" in record.analysis.risk_notes[-1].evidence
 
 
 def test_detected_document_type_handles_unknown_and_aliases():

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1360" height="1600" viewBox="0 0 1360 1600" role="img" aria-labelledby="title desc">
   <title id="title">OCI AI Document Review Architecture</title>
-  <desc id="desc">Architecture diagram showing a business user uploading documents to a Streamlit portal, a background worker queue, OCI Object Storage, local text extraction or Document Understanding OCR with text-only fallback, OCI Generative AI, compliance risk overlay, dashboard queue with fragment refresh, and human review workflow.</desc>
+  <desc id="desc">Architecture diagram showing a business user uploading documents to a Streamlit portal, a background worker queue, OCI Object Storage, local text extraction or Document Understanding OCR with text-only fallback, OCI Generative AI, curated compliance knowledge-base risk overlay, dashboard queue with fragment refresh, and human review workflow.</desc>
   <defs>
     <style>
       .title { font: 700 30px Arial, sans-serif; fill: #111827; }
@@ -91,7 +91,7 @@
   <g transform="translate(400 1065)">
     <rect class="human" width="560" height="112" rx="16"/>
     <text x="280" y="42" text-anchor="middle" class="node-title">Compliance + metadata</text>
-    <text x="280" y="78" text-anchor="middle" class="node-sub">Risk overlay, reports, audit</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub">KB risk overlay, reports, audit</text>
   </g>
 
   <path class="link" d="M680 1177 V1214"/>

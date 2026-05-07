@@ -117,7 +117,8 @@ Streamlit upload
   -> DU text-only OCR fallback when rich table/key-value extraction fails
   -> JSON-safe extraction result conversion when Document Understanding is used
   -> GenAI CohereChatRequest
-  -> compliance risk overlay for public-sector expense signals
+  -> curated compliance knowledge-base lookup from Object Storage
+  -> compliance risk overlay and Actions routing
   -> automatic document type label when Auto-detect was selected
   -> metadata JSON
   -> Markdown report
@@ -144,7 +145,31 @@ Uploads are queued into a background worker pool. The browser returns immediatel
 
 The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh stays on the Dashboard instead of returning to Upload. The Dashboard body runs inside a Streamlit fragment and refreshes every 10 seconds while the session is active. That updates metrics and split queue tables without using a full browser reload.
 
-After GenAI returns structured analysis, the app applies a deterministic compliance overlay. Expense-like documents that mention public-sector cues such as government, ministry, municipality, state-owned entity, public official, embassy, police, or department are flagged with a high-risk `Public-sector expense compliance review` note and forced into human review. This is an MVP simulation aid, not a final compliance decision.
+After GenAI returns structured analysis, the app applies a deterministic compliance overlay. It checks extracted text, file name, business reference, notes, and selected AI fields against the curated entity catalog configured by `COMPLIANCE_ENTITIES_OBJECT_NAME`, defaulting to `compliance/public_sector_entities.csv` in Object Storage. If the object is missing, the app seeds it from the bundled `data/compliance/public_sector_entities.csv` file and falls back locally if Object Storage cannot be reached.
+
+Expense-like documents that match public-sector entries such as `gov`, ministries, municipalities, state agencies, public officials, or named entities such as ZIMSEC are flagged with a `Public-sector expense compliance review` note. The evidence records the knowledge-base source, matched term, entity type, country, source, and source date. These documents show as `Compliance review` in the Actions queue with red/yellow/green risk badges. This is a reviewer-routing control for the MVP, not a final compliance determination.
+
+## Compliance Knowledge Base
+
+The default seeded catalog is tracked in Git at:
+
+```text
+data/compliance/public_sector_entities.csv
+```
+
+At runtime, the app reads the catalog from the private Object Storage bucket object configured by:
+
+```text
+COMPLIANCE_ENTITIES_OBJECT_NAME=compliance/public_sector_entities.csv
+```
+
+The file can be CSV or JSON. The CSV schema is:
+
+```text
+entity_name,aliases,country,type,risk_level,source,source_date,notes
+```
+
+Aliases are separated with `|`. The matcher uses whole-word normalized matching so short aliases such as `gov` match `lunch with gov customer` but do not match unrelated words such as `governance`. If the Object Storage object is missing, the app uploads the bundled seed file and then uses the Object Storage copy as the source of truth.
 
 ## Document Lifecycle Workflow
 

@@ -17,7 +17,14 @@ from src.job_queue import (
 )
 from src.metadata_store import MetadataStore
 from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
-from src.processor import create_document_id, safe_document_name
+from src.compliance import load_compliance_catalog, load_local_compliance_catalog
+from src.object_storage_client import ObjectStorageClient
+from src.processor import (
+    PUBLIC_SECTOR_EXPENSE_RISK,
+    apply_compliance_attention,
+    create_document_id,
+    safe_document_name,
+)
 from src.report_generator import generate_markdown_report
 from src.version import VERSION_LABEL
 
@@ -254,7 +261,7 @@ def apply_theme() -> None:
             line-height: 1.2;
             white-space: nowrap;
         }
-        .state-good, .risk-low {
+        .state-good, .risk-low, .risk-none {
             color: var(--good-text);
             background: var(--good-bg);
             border-color: #b7dbc2;
@@ -273,11 +280,6 @@ def apply_theme() -> None:
             color: var(--info-text);
             background: var(--info-bg);
             border-color: #bdd1df;
-        }
-        .risk-none {
-            color: #5f5a52;
-            background: #efede8;
-            border-color: #d4d0c8;
         }
         .soft-panel {
             background: var(--panel-bg);
@@ -461,6 +463,16 @@ def risk_tone(value: str) -> str:
     return RISK_TONE.get(value.upper(), "risk-none")
 
 
+def risk_badge(value: str) -> str:
+    labels = {
+        "NONE": "GREEN: NONE",
+        "LOW": "GREEN: LOW",
+        "MEDIUM": "YELLOW: MEDIUM",
+        "HIGH": "RED: HIGH",
+    }
+    return badge(labels.get(value.upper(), value), risk_tone(value))
+
+
 def render_status_strip(record) -> None:
     risk = highest_risk_level(record)
     confidence = confidence_percent(record)
@@ -470,7 +482,7 @@ def render_status_strip(record) -> None:
     chips = [
         badge(record.status.value, state_tone(record.status.value)),
         badge(record.review_status.value, state_tone(record.review_status.value)),
-        badge(f"Risk {risk}", risk_tone(risk)),
+        risk_badge(risk),
         badge(confidence_label, "state-info"),
         badge(next_action(record), state_tone(record.status.value)),
     ]
@@ -645,6 +657,14 @@ def highest_risk_evidence(record) -> str | None:
     return None
 
 
+def has_compliance_risk(record) -> bool:
+    if not record.analysis:
+        return False
+    return any(
+        risk.risk == PUBLIC_SECTOR_EXPENSE_RISK for risk in record.analysis.risk_notes
+    )
+
+
 def confidence_percent(record) -> int | None:
     if not record.analysis:
         return None
@@ -667,6 +687,8 @@ def next_action(record) -> str:
         return "Retry planned"
     if record.status.value == "FAILED":
         return "Fix and retry"
+    if requires_human_action(record) and has_compliance_risk(record):
+        return "Compliance review"
     if requires_human_action(record):
         return "Approve or reject"
     if record.review_status.value == "APPROVED":
@@ -691,15 +713,17 @@ def queue_stage(record) -> str:
 def action_priority(record) -> int:
     if record.workflow_status == WorkflowStatus.ESCALATED:
         return 0
-    if requires_human_action(record):
+    if requires_human_action(record) and has_compliance_risk(record):
         return 1
-    if record.status.value == "FAILED":
+    if requires_human_action(record):
         return 2
-    if record.status.value in ACTIVE_STATUSES:
+    if record.status.value == "FAILED":
         return 3
+    if record.status.value in ACTIVE_STATUSES:
+        return 4
     if record.review_status.value in {"APPROVED", "REJECTED"}:
-        return 5
-    return 4
+        return 6
+    return 5
 
 
 def is_actionable_record(record) -> bool:
@@ -853,7 +877,7 @@ def record_to_row(record):
 def filter_queue_rows(df: pd.DataFrame, view: str, query: str) -> pd.DataFrame:
     filtered = df.copy()
     if view == "Ready":
-        filtered = filtered[filtered["Action"] == "Approve or reject"]
+        filtered = filtered[filtered["Stage"] == "Ready"]
     elif view == "Processing":
         filtered = filtered[filtered["Status"].isin(ACTIVE_STATUSES)]
     elif view == "Failed":
@@ -915,21 +939,19 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
             render_status_strip(focus)
             st.write(focus.document_name)
             cols = st.columns([0.75, 0.75, 1.5])
-            cols[0].button(
+            if cols[0].button(
                 "Open in Actions",
                 type="primary",
                 key=f"dashboard_focus_open_{focus.document_id}",
-                on_click=open_page_from_dashboard,
-                args=(PAGE_DETAIL, focus.document_id),
                 width="stretch",
-            )
-            cols[1].button(
+            ):
+                open_page_from_dashboard(PAGE_DETAIL, focus.document_id)
+            if cols[1].button(
                 "Upload",
                 key="dashboard_focus_upload",
-                on_click=open_page_from_dashboard,
-                args=(PAGE_UPLOAD,),
                 width="stretch",
-            )
+            ):
+                open_page_from_dashboard(PAGE_UPLOAD)
             cols[2].caption(
                 "Ready items are shown before failed items, then active and reviewed work."
             )
@@ -949,13 +971,12 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
             f"No documents need action. {reviewed_count} document"
             f"{'s have' if reviewed_count != 1 else ' has'} already been reviewed."
         )
-        st.button(
+        if st.button(
             "Upload",
             type="primary",
             key="dashboard_focus_upload_clear",
-            on_click=open_page_from_dashboard,
-            args=(PAGE_UPLOAD,),
-        )
+        ):
+            open_page_from_dashboard(PAGE_UPLOAD)
 
 
 def render_queue_section(view: str, rows: pd.DataFrame) -> None:
@@ -982,14 +1003,13 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
     for _, row in rows.iterrows():
         row_cols = st.columns(widths, vertical_alignment="center")
         document_id = row["Document ID"]
-        row_cols[0].button(
+        if row_cols[0].button(
             "↗",
             key=f"queue_open_{view}_{document_id}",
             help=f"Open {row['Name']} in Actions",
-            on_click=open_page_from_dashboard,
-            args=(PAGE_DETAIL, document_id),
             width="content",
-        )
+        ):
+            open_page_from_dashboard(PAGE_DETAIL, document_id)
         row_cols[1].write(row["Name"])
         details = [f"{row['Uploaded']} · {row['Type']}"]
         if row["Reference"]:
@@ -997,7 +1017,7 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
         if row["Assignee"] != "Unassigned":
             details.append(f"Owner: {row['Assignee']}")
         row_cols[1].caption(" | ".join(details))
-        row_cols[2].write(row["Risk Level"])
+        row_cols[2].markdown(risk_badge(row["Risk Level"]), unsafe_allow_html=True)
         row_cols[2].caption(row["Risk Detail"])
         confidence = row["Confidence"]
         row_cols[3].write("N/A" if pd.isna(confidence) else f"{int(confidence)}%")
@@ -1077,6 +1097,33 @@ def refresh_markdown_report(config, record) -> None:
         generate_markdown_report(record, config.genai_model_id),
         encoding="utf-8",
     )
+
+
+def compliance_catalog_for_app(config):
+    try:
+        return load_compliance_catalog(
+            config, object_storage=ObjectStorageClient(config)
+        )
+    except Exception:
+        return load_local_compliance_catalog()
+
+
+def backfill_compliance_attention(config, store, catalog=None) -> int:
+    catalog = catalog or compliance_catalog_for_app(config)
+    updated_count = 0
+    for record in store.list_records():
+        if not record.analysis:
+            continue
+        before = record.model_dump_json()
+        apply_compliance_attention(
+            record, record.extracted_text_preview or "", catalog=catalog
+        )
+        if record.model_dump_json() == before:
+            continue
+        store.save(record)
+        refresh_markdown_report(config, record)
+        updated_count += 1
+    return updated_count
 
 
 def apply_review_action(
@@ -1564,21 +1611,19 @@ def render_dashboard_live_content(config, store) -> None:
         with st.container(border=True):
             st.info("No documents processed yet.")
             empty_cols = st.columns([0.5, 0.5, 1.5])
-            empty_cols[0].button(
+            if empty_cols[0].button(
                 "Upload",
                 type="primary",
                 key="dashboard_empty_upload",
-                on_click=open_page_from_dashboard,
-                args=(PAGE_UPLOAD,),
                 width="stretch",
-            )
-            empty_cols[1].button(
+            ):
+                open_page_from_dashboard(PAGE_UPLOAD)
+            if empty_cols[1].button(
                 "Settings",
                 key="dashboard_empty_settings",
-                on_click=open_page_from_dashboard,
-                args=(PAGE_SETTINGS,),
                 width="stretch",
-            )
+            ):
+                open_page_from_dashboard(PAGE_SETTINGS)
             empty_cols[2].caption(
                 "Run OCI Preflight in Settings before processing customer documents."
             )
@@ -1587,7 +1632,7 @@ def render_dashboard_live_content(config, store) -> None:
     rows = [record_to_row(record) for record in records]
     df = pd.DataFrame(rows)
     active_runs = df[df["Status"].isin(ACTIVE_STATUSES)]
-    ready_count = (df["Action"] == "Approve or reject").sum()
+    ready_count = (df["Stage"] == "Ready").sum()
     failed_count = (df["Status"] == "FAILED").sum()
     cols = st.columns(4)
     cols[0].metric("Total", len(records))
@@ -1616,20 +1661,18 @@ def render_dashboard_live_content(config, store) -> None:
         placeholder="Name, reference, status, action, or summary",
         help="Search applies to every queue section below.",
     )
-    search_cols[1].button(
+    if search_cols[1].button(
         "Upload",
         key="dashboard_upload_action",
-        on_click=open_page_from_dashboard,
-        args=(PAGE_UPLOAD,),
         width="stretch",
-    )
-    search_cols[2].button(
+    ):
+        open_page_from_dashboard(PAGE_UPLOAD)
+    if search_cols[2].button(
         "Actions",
         key="dashboard_actions_action",
-        on_click=open_page_from_dashboard,
-        args=(PAGE_DETAIL,),
         width="stretch",
-    )
+    ):
+        open_page_from_dashboard(PAGE_DETAIL)
 
     sections = queue_view_frames(df=df, query=search)
     filtered = filter_queue_rows(df=df, view="All", query=search)
@@ -1781,6 +1824,10 @@ def settings_page(config):
             st.write(f"GenAI endpoint: `{config.genai_endpoint}`")
             st.write(f"Compartment: `{config.oci_compartment_id}`")
             st.write(f"Bucket: `{config.oci_bucket_name}`")
+            st.write(
+                "Compliance knowledge base: "
+                f"`{config.compliance_entities_object_name}`"
+            )
             st.write(f"Max parallel jobs: `{config.max_parallel_jobs}`")
             st.write(f"Document AI timeout: `{config.document_ai_timeout_seconds}s`")
             st.info(
@@ -1826,6 +1873,12 @@ def main():
     )
     if stale_count:
         st.warning(f"{stale_count} stale processing run was marked as failed.")
+    compliance_backfill_count = backfill_compliance_attention(config, store)
+    if compliance_backfill_count:
+        st.info(
+            f"{compliance_backfill_count} existing document"
+            f"{'s were' if compliance_backfill_count != 1 else ' was'} flagged for compliance attention."
+        )
 
     pages = [PAGE_UPLOAD, PAGE_DASHBOARD, PAGE_DETAIL, PAGE_SETTINGS]
     nav_records = store.list_records()

@@ -5,6 +5,7 @@ import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 from app import (
+    backfill_compliance_attention,
     file_size_label,
     filter_queue_rows,
     next_action,
@@ -103,6 +104,48 @@ def test_risk_detail_label_explains_missing_and_multiple_risks():
     assert risk_detail_label(mixed) == "3 risk notes: 1 high, 1 medium, 1 low."
 
 
+def test_compliance_backfill_updates_existing_metadata(tmp_path):
+    from src.metadata_store import MetadataStore
+
+    config = type(
+        "Config",
+        (),
+        {
+            "local_metadata_dir": tmp_path / "metadata",
+            "genai_model_id": "cohere.command-r-plus",
+        },
+    )()
+    store = MetadataStore(config)
+    report_path = tmp_path / "report.md"
+    record = DocumentRecord(
+        document_id="doc-existing-gov",
+        document_name="receipt.pdf",
+        document_type=DocumentType.INVOICE,
+        business_reference="lunch with gov customer",
+        extracted_text_preview="Restaurant receipt total GBP 42.",
+        report_path=str(report_path),
+        analysis=DocumentAnalysis(
+            document_class="INVOICE",
+            executive_summary="Lunch receipt.",
+            confidence_score=0.9,
+            human_review_required=False,
+        ),
+    )
+    report_path.write_text("old report", encoding="utf-8")
+    store.save(record)
+
+    assert backfill_compliance_attention(config, store) == 1
+    updated = store.load("doc-existing-gov")
+
+    assert updated.analysis.human_review_required is True
+    assert updated.analysis.risk_notes[-1].severity == "HIGH"
+    assert "knowledge-base" in updated.analysis.risk_notes[-1].evidence
+    assert "matched term: gov" in updated.analysis.risk_notes[-1].evidence
+    assert "Public-sector expense compliance review" in report_path.read_text(
+        encoding="utf-8"
+    )
+
+
 def test_next_action_for_failed_and_reviewed_records():
     failed = make_record("doc-3", "bad.pdf", status=ProcessingStatus.FAILED)
     approved = make_record("doc-4", "approved.pdf", status=ProcessingStatus.APPROVED)
@@ -110,6 +153,22 @@ def test_next_action_for_failed_and_reviewed_records():
 
     assert next_action(failed) == "Fix and retry"
     assert next_action(approved) == "Approved"
+
+
+def test_next_action_routes_compliance_risk_to_actions_queue():
+    record = make_record(
+        "doc-compliance",
+        "receipt.pdf",
+        risks=[
+            RiskNote(
+                risk="Public-sector expense compliance review",
+                severity="HIGH",
+                evidence="knowledge-base match",
+            )
+        ],
+    )
+
+    assert next_action(record) == "Compliance review"
 
 
 def test_next_action_surfaces_workflow_states():
@@ -302,6 +361,10 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
                 break
         assert app.session_state["page"] == "Actions"
         assert app.session_state["selected_document_id"] == "test-doc"
+        assert all(
+            "Calling st.rerun() within a callback" not in warning.value
+            for warning in app.warning
+        )
         app = app.run()
         assert app.session_state["page"] == "Actions"
 
