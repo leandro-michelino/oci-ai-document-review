@@ -12,19 +12,11 @@ The image above is the share-ready reference architecture. Terminal-friendly ASC
 
 OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI to convert uploaded documents into structured review summaries, risk notes, recommendations, workflow metadata, and downloadable reports.
 
+The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, and Functions.
+
 Current version: `v0.3.0`
 
 Contact: Leandro Michelino | Oracle ACE | leandro.michelino@oracle.com.
-
-## Versioning
-
-The project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
-
-- `MAJOR`: production-breaking architecture or data model changes.
-- `MINOR`: visible workflow, cloud integration, or capability changes.
-- `PATCH`: bug fixes, documentation updates, and small UX refinements.
-
-The current source-of-truth version is `src/version.py`, and release notes are tracked in `CHANGELOG.md`.
 
 ## What This Project Does
 
@@ -106,7 +98,11 @@ Reviewer assigns owner, SLA, workflow status, or comments
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, a Processing queue, a horizontal Ready band for approval work, paired Failed and Reviewed queues, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Reviewers can download the original source document for review when the local working copy is available. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, a Processing queue, a horizontal Ready band for approval work, paired Failed and Reviewed queues, and an `Open` action directly in front of each file.
+
+The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Reviewers can download the original source document for review when the local working copy is available. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata.
+
+Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Compliance Knowledge Base
 
@@ -156,12 +152,6 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 
 Confidence, extracted fields, recommendations, missing information, and risk notes are AI-assisted signals. A human reviewer must still verify the document and make the final approval or rejection decision.
 
-## Description
-
-This project implements an end-to-end AI document review portal on Oracle Cloud Infrastructure. Users upload PDFs, images, or text-native files through a Streamlit web interface, the app stores the originals in a private Object Storage bucket, extracts text locally or with OCI Document Understanding, analyzes the content with OCI Generative AI, and presents a queue dashboard plus a focused Actions page with summaries, risks, recommendations, approval actions, and downloadable Markdown or JSON reports.
-
-The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, and Functions.
-
 ## OCI Deployment
 
 The project is intended to be deployed from your local laptop into your own OCI compartment.
@@ -180,7 +170,7 @@ Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and i
 
 Detailed Terraform outputs, Ansible output, deployment flow, operations commands, and portal usage instructions are in `docs/platform_usage.md`. Current review findings, cleanup decisions, and verification commands are tracked in `docs/repository_review.md`.
 
-## Real MVP Verification
+## Preflight Verification
 
 The app is wired to real OCI services. It does not use simulated processing in the runtime path.
 
@@ -231,6 +221,14 @@ An illustrative cost estimate and pricing worksheet is available in `docs/cost_e
 
 This estimate is not an official Oracle quote and may not be realistic for your tenancy, usage, region, discount terms, or free tier eligibility. Use the Oracle Cost Estimator and request a formal quote from your Oracle representative before using it for budgeting or production planning.
 
+## Prerequisites
+
+- Python 3.11 or later
+- Terraform 1.x
+- Ansible
+- An OCI account with an API key and IAM policies for Object Storage, Document Understanding, and Generative AI
+- An SSH key pair for VM access
+
 ## Setup
 
 Create and activate a Python 3.11+ virtual environment:
@@ -268,7 +266,7 @@ The setup wizard keeps the runtime region and GenAI region separate:
 - `allowed_ingress_cidr` is normalized to CIDR form, such as `203.0.113.10/32`.
 - Explicit open ingress such as `0.0.0.0/0` is rejected by both setup and Terraform validation.
 
-## Prepared Infrastructure
+## Infrastructure
 
 Terraform files are ready under `terraform/`.
 
@@ -330,6 +328,16 @@ The app supports:
 - Processing lifecycle view for each document
 - Field guide with `?` explanations for review and file metadata fields
 - OCI Preflight checks in Settings
+
+## Versioning
+
+The project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
+
+- `MAJOR`: production-breaking architecture or data model changes.
+- `MINOR`: visible workflow, cloud integration, or capability changes.
+- `PATCH`: bug fixes, documentation updates, and small UX refinements.
+
+The current source-of-truth version is `src/version.py`, and release notes are tracked in `CHANGELOG.md`.
 
 ## Future Enhancements
 

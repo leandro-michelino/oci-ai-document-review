@@ -370,9 +370,3 @@ Networking
   - Outbound transfer
   - Public IP and gateway-related charges, if applicable in the selected price list
 ```
-
-## Recommended Disclaimer For The Article
-
-```text
-Cost note: The cost estimates in this article are illustrative only and may not reflect actual OCI billing for your tenancy, region, usage, free tier eligibility, discounts, or contract terms. For accurate pricing, use the Oracle Cost Estimator, OCI Cost Analysis, and a formal quote from your Oracle representative.
-```
