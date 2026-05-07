@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import shutil
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 
 from src.config import AppConfig
 from src.logger import get_logger
 from src.metadata_store import MetadataStore
-from src.models import DocumentType, ProcessingStatus
-from src.processor import DocumentProcessor, error_message
+from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
+from src.processor import (
+    DocumentProcessor,
+    create_document_id,
+    error_message,
+    safe_document_name,
+)
 
 logger = get_logger(__name__)
 _executors: dict[int, ThreadPoolExecutor] = {}
@@ -73,6 +78,65 @@ def submit_document_processing(
     return True
 
 
+def retry_document_processing(
+    config: AppConfig,
+    document_id: str,
+    actor: str = "Reviewer",
+    reason: str | None = None,
+) -> str:
+    store = MetadataStore(config)
+    original = store.load(document_id)
+    if original.status != ProcessingStatus.FAILED:
+        raise ValueError("Only failed documents can be retried.")
+
+    storage_name = safe_document_name(original.document_name)
+    original_copy = config.local_uploads_dir / f"{document_id}-{storage_name}"
+    if not original_copy.exists():
+        raise FileNotFoundError(
+            "The local working copy for this failed document is not available. "
+            "Upload the source file again."
+        )
+
+    retry_document_id = create_document_id()
+    retry_source = (
+        config.local_uploads_dir / f"retry-{retry_document_id}-{storage_name}"
+    )
+    shutil.copyfile(original_copy, retry_source)
+
+    retry_record = DocumentRecord(
+        document_id=retry_document_id,
+        document_name=original.document_name,
+        document_type=original.document_type,
+        source_file_size_bytes=original.source_file_size_bytes,
+        source_file_mime_type=original.source_file_mime_type,
+        status=ProcessingStatus.UPLOADED,
+        business_reference=original.business_reference,
+        notes=original.notes,
+        parent_document_id=document_id,
+        assignee=original.assignee,
+        due_at=original.due_at,
+        workflow_status=(
+            WorkflowStatus.ASSIGNED if original.assignee else WorkflowStatus.NEW
+        ),
+    )
+    store.save(retry_record)
+    store.record_retry(
+        document_id, actor=actor, reason=reason, new_document_id=retry_document_id
+    )
+    submit_document_processing(
+        config=config,
+        source_path=retry_source,
+        document_id=retry_document_id,
+        document_name=original.document_name,
+        document_type=original.document_type,
+        business_reference=original.business_reference,
+        notes=original.notes,
+        source_file_size_bytes=original.source_file_size_bytes,
+        source_file_mime_type=original.source_file_mime_type,
+    )
+    return retry_document_id
+
+
 def _remove_submitted(document_id: str) -> None:
     with _lock:
         _submitted.discard(document_id)
@@ -109,12 +173,7 @@ def _process_document(
 
 def _mark_failed(config: AppConfig, document_id: str, exc: Exception) -> None:
     try:
-        MetadataStore(config).update(
-            document_id,
-            status=ProcessingStatus.FAILED,
-            error_message=error_message(exc),
-            processed_at=datetime.now(timezone.utc),
-        )
+        MetadataStore(config).mark_failed(document_id, error_message(exc))
     except Exception:
         logger.exception(
             "Could not mark background processing failed for %s", document_id

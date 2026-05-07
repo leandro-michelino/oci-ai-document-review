@@ -31,6 +31,36 @@ class ReviewStatus(str, Enum):
     REJECTED = "REJECTED"
 
 
+class WorkflowStatus(str, Enum):
+    NEW = "NEW"
+    ASSIGNED = "ASSIGNED"
+    IN_REVIEW = "IN_REVIEW"
+    WAITING_FOR_INFO = "WAITING_FOR_INFO"
+    ESCALATED = "ESCALATED"
+    RETRY_PLANNED = "RETRY_PLANNED"
+    CLOSED = "CLOSED"
+
+
+class WorkflowComment(BaseModel):
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    author: str = "Reviewer"
+    comment: str
+
+
+class AuditEvent(BaseModel):
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    actor: str = "System"
+    action: str
+    detail: str | None = None
+
+
+class RetryEvent(BaseModel):
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    actor: str = "Reviewer"
+    reason: str | None = None
+    new_document_id: str | None = None
+
+
 class RiskNote(BaseModel):
     risk: str
     severity: str = Field(pattern="^(LOW|MEDIUM|HIGH)$")
@@ -100,8 +130,23 @@ class DocumentRecord(BaseModel):
     review_comments: str | None = None
     business_reference: str | None = None
     notes: str | None = None
+    parent_document_id: str | None = None
+    assignee: str | None = None
+    due_at: datetime | None = None
+    workflow_status: WorkflowStatus = WorkflowStatus.NEW
+    workflow_comments: list[WorkflowComment] = Field(default_factory=list)
+    audit_events: list[AuditEvent] = Field(default_factory=list)
+    retry_count: int = 0
+    retry_history: list[RetryEvent] = Field(default_factory=list)
     analysis: DocumentAnalysis | None = None
     extracted_text_preview: str | None = None
     extraction_source: str | None = None
     report_path: str | None = None
     error_message: str | None = None
+
+    @field_validator(
+        "workflow_comments", "audit_events", "retry_history", mode="before"
+    )
+    @classmethod
+    def none_to_empty_workflow_lists(cls, value):
+        return [] if value is None else value

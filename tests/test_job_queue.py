@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
-from src.job_queue import _process_document
+from src.job_queue import _process_document, retry_document_processing
 from src.metadata_store import MetadataStore
-from src.models import DocumentRecord, DocumentType, ProcessingStatus
+from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
 
 
 def test_background_worker_marks_startup_failure_failed(tmp_path, monkeypatch):
@@ -38,4 +38,61 @@ def test_background_worker_marks_startup_failure_failed(tmp_path, monkeypatch):
     updated = store.load("doc-failed")
     assert updated.status == ProcessingStatus.FAILED
     assert updated.error_message == "missing runtime config"
+    assert updated.audit_events[-1].action == "PROCESSING_FAILED"
     assert not source.exists()
+
+
+def test_retry_document_processing_creates_child_record_and_history(
+    tmp_path, monkeypatch
+):
+    config = SimpleNamespace(
+        local_metadata_dir=tmp_path / "metadata",
+        local_uploads_dir=tmp_path / "uploads",
+        max_parallel_jobs=1,
+    )
+    config.local_metadata_dir.mkdir()
+    config.local_uploads_dir.mkdir()
+    store = MetadataStore(config)
+    store.save(
+        DocumentRecord(
+            document_id="doc-failed",
+            document_name="contract.pdf",
+            document_type=DocumentType.CONTRACT,
+            status=ProcessingStatus.FAILED,
+            assignee="Legal",
+        )
+    )
+    (config.local_uploads_dir / "doc-failed-contract.pdf").write_text(
+        "contract source",
+        encoding="utf-8",
+    )
+    submitted = {}
+
+    def fake_submit_document_processing(**kwargs):
+        submitted.update(kwargs)
+        return True
+
+    monkeypatch.setattr("src.job_queue.create_document_id", lambda: "doc-retry")
+    monkeypatch.setattr(
+        "src.job_queue.submit_document_processing",
+        fake_submit_document_processing,
+    )
+
+    retry_id = retry_document_processing(
+        config,
+        "doc-failed",
+        actor="Reviewer",
+        reason="Transient OCR issue",
+    )
+
+    assert retry_id == "doc-retry"
+    original = store.load("doc-failed")
+    assert original.retry_count == 1
+    assert original.retry_history[-1].new_document_id == "doc-retry"
+    assert original.workflow_status == WorkflowStatus.RETRY_PLANNED
+    retry = store.load("doc-retry")
+    assert retry.parent_document_id == "doc-failed"
+    assert retry.assignee == "Legal"
+    assert retry.workflow_status == WorkflowStatus.ASSIGNED
+    assert submitted["document_id"] == "doc-retry"
+    assert submitted["source_path"].name == "retry-doc-retry-contract.pdf"

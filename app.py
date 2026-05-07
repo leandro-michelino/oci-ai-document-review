@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import date, datetime, time, timezone
 from html import escape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -10,10 +11,14 @@ import streamlit.components.v1 as components
 
 from src.config import get_config
 from src.health_checks import run_preflight
-from src.job_queue import submit_document_processing, submitted_document_ids
+from src.job_queue import (
+    retry_document_processing,
+    submit_document_processing,
+    submitted_document_ids,
+)
 from src.metadata_store import MetadataStore
-from src.models import DocumentRecord, DocumentType, ProcessingStatus
-from src.processor import create_document_id
+from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
+from src.processor import create_document_id, safe_document_name
 from src.report_generator import generate_markdown_report
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
@@ -66,6 +71,10 @@ FIELD_HELP = {
     "Status": "Processing state for the document lifecycle, from upload through approval or failure.",
     "Stage": "Simple queue state: Queued, Processing, Ready, Reviewed, or Failed.",
     "Storage": "Whether the original file has an OCI Object Storage path recorded.",
+    "Workflow": "Human workflow state used for assignment, SLA tracking, escalation, and closure.",
+    "Assignee": "Person or team responsible for the next review action.",
+    "SLA": "Due date for the current review workflow.",
+    "Retries": "Number of retry attempts recorded for this document.",
     "Text source": "How text was extracted before GenAI analysis: local text/PDF extraction or OCI Document Understanding OCR.",
     "Text preview": "Number of extracted characters stored for quick inspection in the portal.",
 }
@@ -75,6 +84,9 @@ FIELD_GUIDE_ROWS = [
     ("Risk", FIELD_HELP["Risk"]),
     ("Confidence", FIELD_HELP["Confidence"]),
     ("Action", FIELD_HELP["Action"]),
+    ("Workflow", FIELD_HELP["Workflow"]),
+    ("Assignee", FIELD_HELP["Assignee"]),
+    ("SLA", FIELD_HELP["SLA"]),
     ("Document type", FIELD_HELP["Document type"]),
     ("File size", FIELD_HELP["File size"]),
     ("MIME type", FIELD_HELP["MIME type"]),
@@ -102,6 +114,17 @@ def document_type_label(document_type: DocumentType | str) -> str:
         DocumentType.TECHNICAL_REPORT.value: "Technical report",
     }
     return labels.get(value, value.replace("_", " ").title())
+
+
+def workflow_status_label(status: WorkflowStatus | str) -> str:
+    value = status.value if isinstance(status, WorkflowStatus) else status
+    return value.replace("_", " ").title()
+
+
+def utc_start_of_day(value: date | None) -> datetime | None:
+    if value is None:
+        return None
+    return datetime.combine(value, time.min, tzinfo=timezone.utc)
 
 
 def review_document_type_options(current: DocumentType) -> list[DocumentType]:
@@ -486,6 +509,28 @@ def extracted_text_label(record) -> str:
     return f"{len(record.extracted_text_preview):,} preview chars"
 
 
+def sla_label(record) -> str:
+    if not record.due_at:
+        return "No SLA"
+    if record.workflow_status == WorkflowStatus.CLOSED:
+        return "Closed"
+    now = datetime.now(timezone.utc)
+    due_at = record.due_at
+    if due_at.tzinfo is None:
+        due_at = due_at.replace(tzinfo=timezone.utc)
+    if due_at.date() < now.date():
+        return "Overdue"
+    if due_at.date() == now.date():
+        return "Due today"
+    return f"Due {due_at.date().isoformat()}"
+
+
+def local_working_copy_path(config, record) -> Path:
+    return config.local_uploads_dir / (
+        f"{record.document_id}-{safe_document_name(record.document_name)}"
+    )
+
+
 def render_file_information(record, compact: bool = False) -> None:
     core_info = [
         ("File name", record.document_name),
@@ -493,9 +538,13 @@ def render_file_information(record, compact: bool = False) -> None:
         ("File size", file_size_label(record.source_file_size_bytes)),
         ("Uploaded", record.uploaded_at.strftime("%Y-%m-%d %H:%M")),
         ("Status", record.status.value),
+        ("Workflow", workflow_status_label(record.workflow_status)),
         ("Action", next_action(record)),
     ]
     extra_info = [
+        ("Assignee", record.assignee or "Unassigned"),
+        ("SLA", sla_label(record)),
+        ("Retries", str(record.retry_count)),
         ("Extension", file_extension(record)),
         ("MIME type", record.source_file_mime_type or "Not captured"),
         ("Business reference", record.business_reference or "Not provided"),
@@ -549,6 +598,12 @@ def requires_human_action(record) -> bool:
 
 
 def next_action(record) -> str:
+    if record.workflow_status == WorkflowStatus.ESCALATED:
+        return "Escalated review"
+    if record.workflow_status == WorkflowStatus.WAITING_FOR_INFO:
+        return "Waiting for info"
+    if record.workflow_status == WorkflowStatus.RETRY_PLANNED:
+        return "Retry planned"
     if record.status.value == "FAILED":
         return "Fix and retry"
     if requires_human_action(record):
@@ -573,15 +628,17 @@ def queue_stage(record) -> str:
 
 
 def action_priority(record) -> int:
-    if requires_human_action(record):
+    if record.workflow_status == WorkflowStatus.ESCALATED:
         return 0
-    if record.status.value == "FAILED":
+    if requires_human_action(record):
         return 1
-    if record.status.value in ACTIVE_STATUSES:
+    if record.status.value == "FAILED":
         return 2
+    if record.status.value in ACTIVE_STATUSES:
+        return 3
     if record.review_status.value in {"APPROVED", "REJECTED"}:
-        return 4
-    return 3
+        return 5
+    return 4
 
 
 def sort_action_records(records: list[DocumentRecord]) -> list[DocumentRecord]:
@@ -595,7 +652,9 @@ def reviewer_action_count(records: list[DocumentRecord]) -> int:
     return sum(
         1
         for record in records
-        if requires_human_action(record) or record.status.value == "FAILED"
+        if requires_human_action(record)
+        or record.status.value == "FAILED"
+        or record.workflow_status == WorkflowStatus.ESCALATED
     )
 
 
@@ -642,6 +701,14 @@ def processing_stage_rows(record) -> list[dict[str, str]]:
             "State": record.review_status.value,
             "Evidence": next_action(record),
         },
+        {
+            "Stage": "Workflow",
+            "State": workflow_status_label(record.workflow_status),
+            "Evidence": (
+                f"{record.assignee or 'Unassigned'}; {sla_label(record)}; "
+                f"{record.retry_count} retr{'y' if record.retry_count == 1 else 'ies'}"
+            ),
+        },
     ]
 
 
@@ -679,6 +746,10 @@ def record_to_row(record):
         record.status.value,
         stage,
         record.review_status.value,
+        record.workflow_status.value,
+        record.assignee or "",
+        sla_label(record),
+        str(record.retry_count),
         record.business_reference or "",
         action,
         summary,
@@ -690,6 +761,10 @@ def record_to_row(record):
         "Status": record.status.value,
         "Stage": stage,
         "Review": record.review_status.value,
+        "Workflow": workflow_status_label(record.workflow_status),
+        "Assignee": record.assignee or "Unassigned",
+        "SLA": sla_label(record),
+        "Retries": record.retry_count,
         "Uploaded": record.uploaded_at.strftime("%Y-%m-%d %H:%M"),
         "Uploaded Sort": record.uploaded_at.isoformat(),
         "Reference": record.business_reference or "",
@@ -744,7 +819,9 @@ def dashboard_focus_record(records: list[DocumentRecord]) -> DocumentRecord | No
         (
             record
             for record in sort_action_records(records)
-            if requires_human_action(record) or record.status.value == "FAILED"
+            if requires_human_action(record)
+            or record.status.value == "FAILED"
+            or record.workflow_status == WorkflowStatus.ESCALATED
         ),
         None,
     )
@@ -842,14 +919,20 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
             width="stretch",
         )
         row_cols[1].write(row["Name"])
+        details = []
         if row["Reference"]:
-            row_cols[1].caption(f"Ref: {row['Reference']}")
+            details.append(f"Ref: {row['Reference']}")
+        if row["Assignee"] != "Unassigned":
+            details.append(f"Owner: {row['Assignee']}")
+        if details:
+            row_cols[1].caption(" | ".join(details))
         row_cols[2].write(row["Uploaded"])
         row_cols[3].write(row["Type"])
         row_cols[4].write(row["Risk Level"])
         confidence = row["Confidence"]
         row_cols[5].write("N/A" if pd.isna(confidence) else f"{int(confidence)}%")
         row_cols[6].write(row["Action"])
+        row_cols[6].caption(f"{row['Workflow']} | {row['SLA']}")
 
 
 def schedule_dashboard_refresh(active_count: int, seconds: int = 10) -> None:
@@ -914,13 +997,25 @@ def render_queued_actions(record) -> None:
         )
 
 
+def refresh_markdown_report(config, record) -> None:
+    if not record.analysis or not record.report_path:
+        return
+    Path(record.report_path).write_text(
+        generate_markdown_report(record, config.genai_model_id),
+        encoding="utf-8",
+    )
+
+
 def apply_review_action(
-    store, document_id: str, approved: bool, comments: str | None
+    config, store, document_id: str, approved: bool, comments: str | None
 ) -> bool:
     if not approved and not (comments or "").strip():
         st.error("Add review comments before rejecting.")
         return False
-    store.set_review(document_id, approved=approved, comments=comments or None)
+    updated = store.set_review(
+        document_id, approved=approved, comments=comments or None
+    )
+    refresh_markdown_report(config, updated)
     st.success("Approved" if approved else "Rejected")
     return True
 
@@ -955,7 +1050,7 @@ def render_document_type_editor(config, store, record, key_prefix: str) -> None:
         st.rerun()
 
 
-def render_review_action_panel(store, record, key_prefix: str) -> None:
+def render_review_action_panel(config, store, record, key_prefix: str) -> None:
     if record.status.value == "FAILED":
         st.error(
             "This document failed processing. Upload a corrected file or check service logs."
@@ -980,14 +1075,213 @@ def render_review_action_panel(store, record, key_prefix: str) -> None:
         "Approve", type="primary", key=f"{key_prefix}_approve_{record.document_id}"
     ):
         if apply_review_action(
-            store, record.document_id, approved=True, comments=comments
+            config, store, record.document_id, approved=True, comments=comments
         ):
             st.rerun()
     if cols[1].button("Reject", key=f"{key_prefix}_reject_{record.document_id}"):
         if apply_review_action(
-            store, record.document_id, approved=False, comments=comments
+            config, store, record.document_id, approved=False, comments=comments
         ):
             st.rerun()
+
+
+def workflow_option_index(record) -> int:
+    options = list(WorkflowStatus)
+    try:
+        return options.index(record.workflow_status)
+    except ValueError:
+        return 0
+
+
+def render_retry_panel(config, store, record, key_prefix: str) -> None:
+    if record.status != ProcessingStatus.FAILED:
+        return
+
+    st.markdown("### Retry processing")
+    working_copy = local_working_copy_path(config, record)
+    if working_copy.exists():
+        st.caption(f"Source copy ready: {working_copy.name}")
+    else:
+        st.warning(
+            "The local working copy is missing. Upload the source file again before retrying."
+        )
+
+    actor = st.text_input(
+        "Retry requested by",
+        value=record.assignee or "Reviewer",
+        key=f"{key_prefix}_retry_actor_{record.document_id}",
+    )
+    reason = st.text_area(
+        "Retry reason",
+        value="",
+        height=90,
+        key=f"{key_prefix}_retry_reason_{record.document_id}",
+    )
+    if st.button(
+        "Retry Processing",
+        type="primary",
+        key=f"{key_prefix}_retry_{record.document_id}",
+        disabled=not working_copy.exists(),
+        width="stretch",
+    ):
+        try:
+            new_document_id = retry_document_processing(
+                config=config,
+                document_id=record.document_id,
+                actor=actor,
+                reason=reason or None,
+            )
+        except (FileNotFoundError, ValueError) as exc:
+            st.error(str(exc))
+        except Exception as exc:
+            st.error(f"Retry could not be queued: {exc}")
+        else:
+            refresh_markdown_report(config, store.load(record.document_id))
+            st.session_state["selected_document_id"] = new_document_id
+            st.session_state["dashboard_selected_document"] = new_document_id
+            st.success("Retry queued. Opening the new processing record.")
+            st.rerun()
+
+
+def render_workflow_comments(config, store, record, key_prefix: str) -> None:
+    st.markdown("### Notes")
+    author = st.text_input(
+        "Comment author",
+        value=record.assignee or "Reviewer",
+        key=f"{key_prefix}_comment_author_{record.document_id}",
+    )
+    comment = st.text_area(
+        "Add workflow comment",
+        value="",
+        height=90,
+        key=f"{key_prefix}_workflow_comment_{record.document_id}",
+    )
+    if st.button(
+        "Add Comment",
+        key=f"{key_prefix}_add_comment_{record.document_id}",
+        disabled=not comment.strip(),
+        width="stretch",
+    ):
+        updated = store.add_comment(record.document_id, author=author, comment=comment)
+        refresh_markdown_report(config, updated)
+        st.success("Comment added.")
+        st.rerun()
+
+    if record.workflow_comments:
+        comment_rows = [
+            {
+                "Created": item.created_at.strftime("%Y-%m-%d %H:%M"),
+                "Author": item.author,
+                "Comment": item.comment,
+            }
+            for item in sorted(
+                record.workflow_comments,
+                key=lambda item: item.created_at,
+                reverse=True,
+            )
+        ]
+        st.dataframe(pd.DataFrame(comment_rows), width="stretch", hide_index=True)
+    else:
+        st.info("No workflow comments yet.")
+
+
+def render_audit_trail(record) -> None:
+    st.markdown("### Audit trail")
+    if not record.audit_events:
+        st.info("No workflow events recorded yet.")
+        return
+    rows = [
+        {
+            "Created": item.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Actor": item.actor,
+            "Action": item.action.replace("_", " ").title(),
+            "Detail": item.detail or "",
+        }
+        for item in sorted(record.audit_events, key=lambda item: item.created_at)
+    ]
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+
+def render_retry_history(record) -> None:
+    if not record.retry_history:
+        return
+    st.markdown("### Retry history")
+    rows = [
+        {
+            "Created": item.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Actor": item.actor,
+            "Reason": item.reason or "",
+            "New document": item.new_document_id or "",
+        }
+        for item in sorted(
+            record.retry_history,
+            key=lambda item: item.created_at,
+            reverse=True,
+        )
+    ]
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+
+def render_workflow_panel(config, store, record, key_prefix: str) -> None:
+    st.subheader("Workflow")
+    if record.parent_document_id:
+        st.caption(f"Retry of document `{record.parent_document_id}`")
+
+    options = list(WorkflowStatus)
+    selected_status = st.selectbox(
+        "Workflow status",
+        options,
+        index=workflow_option_index(record),
+        format_func=workflow_status_label,
+        help=FIELD_HELP["Workflow"],
+        key=f"{key_prefix}_workflow_status_{record.document_id}",
+    )
+    assignee = st.text_input(
+        "Assignee",
+        value=record.assignee or "",
+        placeholder="Reviewer, team, or queue",
+        help=FIELD_HELP["Assignee"],
+        key=f"{key_prefix}_assignee_{record.document_id}",
+    )
+    has_sla = st.checkbox(
+        "Use SLA due date",
+        value=record.due_at is not None,
+        key=f"{key_prefix}_has_sla_{record.document_id}",
+    )
+    due_date = st.date_input(
+        "SLA due date",
+        value=record.due_at.date() if record.due_at else date.today(),
+        disabled=not has_sla,
+        help=FIELD_HELP["SLA"],
+        key=f"{key_prefix}_due_date_{record.document_id}",
+    )
+    actor = st.text_input(
+        "Updated by",
+        value=record.assignee or "Reviewer",
+        key=f"{key_prefix}_workflow_actor_{record.document_id}",
+    )
+    due_at = utc_start_of_day(due_date) if has_sla else None
+    if st.button(
+        "Save Workflow",
+        type="primary",
+        key=f"{key_prefix}_save_workflow_{record.document_id}",
+        width="stretch",
+    ):
+        updated = store.set_workflow(
+            document_id=record.document_id,
+            workflow_status=selected_status,
+            assignee=assignee,
+            due_at=due_at,
+            actor=actor,
+        )
+        refresh_markdown_report(config, updated)
+        st.success("Workflow updated.")
+        st.rerun()
+
+    render_retry_panel(config, store, record, key_prefix)
+    render_workflow_comments(config, store, record, key_prefix)
+    render_retry_history(record)
+    render_audit_trail(record)
 
 
 def render_analysis_overview(record) -> None:
@@ -1338,10 +1632,12 @@ def detail_page(config, store):
         with st.container(border=True):
             st.subheader("Decision")
             render_document_type_editor(config, store, record, "detail")
-            render_review_action_panel(store, record, "detail")
+            render_review_action_panel(config, store, record, "detail")
             if record.review_comments:
                 st.markdown("### Comments")
                 st.write(record.review_comments)
+        with st.container(border=True):
+            render_workflow_panel(config, store, record, "detail")
 
     with st.expander("Analysis details"):
         render_analysis_details(record)

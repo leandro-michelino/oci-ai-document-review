@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="1600" viewBox="0 0 1360 1600" role="img" aria-labelledby="title desc">
+  <title id="title">OCI AI Document Review Architecture</title>
+  <desc id="desc">Architecture diagram showing a business user uploading documents to a Streamlit portal, a background worker queue, OCI Object Storage, local text extraction or Document Understanding, OCI Generative AI, dashboard queue, and human review workflow.</desc>
+  <defs>
+    <style>
+      .title { font: 700 30px Arial, sans-serif; fill: #111827; }
+      .node-title { font: 700 29px Arial, sans-serif; fill: #2f3540; }
+      .node-sub { font: 400 22px Arial, sans-serif; fill: #4b5563; }
+      .label { font: 400 20px Arial, sans-serif; fill: #8b8b83; }
+      .footer { font: 400 20px Arial, sans-serif; fill: #b0aaa2; }
+      .link { fill: none; stroke: #96948c; stroke-width: 3; }
+      .arrow { fill: #74746f; }
+      .dot { fill: #96948c; }
+      .app { fill: #f0efff; stroke: #aaa2ff; }
+      .oci { fill: #e3f7f0; stroke: #49c7a1; }
+      .genai { fill: #fff2dc; stroke: #ff930f; }
+      .local { fill: #e8f3ff; stroke: #80baff; }
+      .human { fill: #f3f1eb; stroke: #b9b5ac; }
+    </style>
+  </defs>
+
+  <rect width="1360" height="1600" fill="#ffffff"/>
+  <text x="680" y="52" text-anchor="middle" class="title">OCI AI Document Review - architecture</text>
+
+  <g transform="translate(520 80)">
+    <rect class="human" width="320" height="88" rx="16"/>
+    <text x="160" y="54" text-anchor="middle" class="node-title">Business user</text>
+  </g>
+
+  <path class="link" d="M680 168 V205"/>
+  <path class="arrow" d="M680 204 l-9 -15 h18z"/>
+
+  <g transform="translate(400 205)">
+    <rect class="app" width="560" height="112" rx="16"/>
+    <text x="280" y="42" text-anchor="middle" class="node-title" fill="#352b85">Streamlit web portal</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub" fill="#4d48c9">Upload, dashboard, actions page</text>
+  </g>
+
+  <path class="link" d="M680 317 V354"/>
+  <path class="arrow" d="M680 353 l-9 -15 h18z"/>
+
+  <g transform="translate(400 354)">
+    <rect class="app" width="560" height="112" rx="16"/>
+    <text x="280" y="42" text-anchor="middle" class="node-title" fill="#352b85">Background worker queue</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub" fill="#4d48c9">Parallel async processing</text>
+  </g>
+
+  <path class="link" d="M680 466 V503"/>
+  <path class="arrow" d="M680 502 l-9 -15 h18z"/>
+
+  <g transform="translate(400 503)">
+    <rect class="oci" width="560" height="112" rx="16"/>
+    <text x="280" y="42" text-anchor="middle" class="node-title" fill="#00594d">OCI Object Storage</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub" fill="#006b5a">Private bucket, per-document path</text>
+  </g>
+
+  <circle class="dot" cx="680" cy="650" r="7"/>
+  <path class="link" d="M680 615 V650 H240 V700"/>
+  <path class="arrow" d="M240 699 l-9 -15 h18z"/>
+  <path class="link" d="M680 650 H1120 V700"/>
+  <path class="arrow" d="M1120 699 l-9 -15 h18z"/>
+  <text x="384" y="638" text-anchor="middle" class="label">Text-native and text PDFs</text>
+  <text x="912" y="638" text-anchor="middle" class="label">Images / scanned</text>
+
+  <g transform="translate(60 700)">
+    <rect class="local" width="360" height="112" rx="16"/>
+    <text x="180" y="42" text-anchor="middle" class="node-title" fill="#06437e">Local text extract</text>
+    <text x="180" y="78" text-anchor="middle" class="node-sub" fill="#0e57b6">Direct extraction, no DU call</text>
+  </g>
+
+  <g transform="translate(940 700)">
+    <rect class="oci" width="360" height="112" rx="16"/>
+    <text x="180" y="42" text-anchor="middle" class="node-title" fill="#00594d">Doc Understanding</text>
+    <text x="180" y="78" text-anchor="middle" class="node-sub" fill="#006b5a">OCR and key values</text>
+  </g>
+
+  <circle class="dot" cx="680" cy="876" r="7"/>
+  <path class="link" d="M240 812 V876 H680"/>
+  <path class="link" d="M1120 812 V876 H680 V916"/>
+  <path class="arrow" d="M680 915 l-9 -15 h18z"/>
+
+  <g transform="translate(380 916)">
+    <rect class="genai" width="600" height="112" rx="16"/>
+    <text x="300" y="42" text-anchor="middle" class="node-title" fill="#824400">OCI Generative AI</text>
+    <text x="300" y="78" text-anchor="middle" class="node-sub" fill="#824400">Cohere - review - risk flags - confidence</text>
+  </g>
+
+  <path class="link" d="M680 1028 V1065"/>
+  <path class="arrow" d="M680 1064 l-9 -15 h18z"/>
+
+  <g transform="translate(400 1065)">
+    <rect class="human" width="560" height="112" rx="16"/>
+    <text x="280" y="42" text-anchor="middle" class="node-title">Local JSON metadata</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub">Reports, workflow, audit, retries</text>
+  </g>
+
+  <path class="link" d="M680 1177 V1214"/>
+  <path class="arrow" d="M680 1213 l-9 -15 h18z"/>
+
+  <g transform="translate(400 1214)">
+    <rect class="app" width="560" height="112" rx="16"/>
+    <text x="280" y="42" text-anchor="middle" class="node-title" fill="#352b85">Dashboard queue</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub" fill="#4d48c9">Metrics, search, lifecycle view</text>
+  </g>
+
+  <path class="link" d="M680 1326 V1363"/>
+  <path class="arrow" d="M680 1362 l-9 -15 h18z"/>
+
+  <g transform="translate(400 1363)">
+    <rect class="human" width="560" height="112" rx="16"/>
+    <text x="280" y="42" text-anchor="middle" class="node-title">Workflow and decision</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub">Assign - SLA - approve - retry</text>
+  </g>
+
+  <text x="680" y="1518" text-anchor="middle" class="footer">Infra as Code: Terraform - Ansible</text>
+
+  <g transform="translate(140 1542)">
+    <rect class="app" width="28" height="28" rx="6"/>
+    <text x="42" y="22" class="node-sub">App layer</text>
+  </g>
+  <g transform="translate(460 1542)">
+    <rect class="oci" width="28" height="28" rx="6"/>
+    <text x="42" y="22" class="node-sub">OCI service</text>
+  </g>
+  <g transform="translate(760 1542)">
+    <rect class="genai" width="28" height="28" rx="6"/>
+    <text x="42" y="22" class="node-sub">Generative AI</text>
+  </g>
+  <g transform="translate(1060 1542)">
+    <rect class="local" width="28" height="28" rx="6"/>
+    <text x="42" y="22" class="node-sub">Local proc.</text>
+  </g>
+
+  <text x="680" y="1590" text-anchor="middle" fill="#d6d1ca" font-family="Arial, sans-serif" font-size="20">github.com/leandro-michelino/oci-ai-document-review</text>
+</svg>

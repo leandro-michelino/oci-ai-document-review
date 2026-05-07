@@ -40,12 +40,18 @@ def _risks_table(analysis: DocumentAnalysis) -> str:
     return "\n".join(lines)
 
 
+def _label(value: object) -> str:
+    text = str(value)
+    return text.replace("_", " ").title()
+
+
 def generate_markdown_report(record: DocumentRecord, model_id: str) -> str:
     analysis = record.analysis
     if analysis is None:
         raise ValueError("Cannot generate a report without analysis")
 
     generated_at = datetime.now(timezone.utc).isoformat()
+    due_at = record.due_at.date().isoformat() if record.due_at else "No SLA"
     return f"""# Document Intelligence Report
 
 ## Document Metadata
@@ -86,6 +92,16 @@ def generate_markdown_report(record: DocumentRecord, model_id: str) -> str:
 - Human Review Required: {analysis.human_review_required}
 - Review Status: {record.review_status.value}
 - Review Comments: {record.review_comments or "None"}
+
+## Workflow
+
+- Workflow Status: {_label(record.workflow_status.value)}
+- Assignee: {record.assignee or "Unassigned"}
+- SLA Due Date: {due_at}
+- Parent Document ID: {record.parent_document_id or "None"}
+- Retry Count: {record.retry_count}
+- Workflow Comments: {len(record.workflow_comments)}
+- Audit Events: {len(record.audit_events)}
 
 ## Processing Metadata
 

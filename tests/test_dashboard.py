@@ -21,6 +21,7 @@ from src.models import (
     ProcessingStatus,
     RiskNote,
     ReviewStatus,
+    WorkflowStatus,
 )
 
 
@@ -59,9 +60,14 @@ def test_record_to_row_adds_dashboard_fields():
 
     assert row["Risk Level"] == "HIGH"
     assert row["Stage"] == "Ready"
+    assert row["Workflow"] == "New"
+    assert row["Assignee"] == "Unassigned"
+    assert row["SLA"] == "No SLA"
+    assert row["Retries"] == 0
     assert row["Confidence"] == 76
     assert row["Action"] == "Approve or reject"
     assert "contract.pdf" in row["Search Text"]
+    assert "new" in row["Search Text"]
 
 
 def test_next_action_for_failed_and_reviewed_records():
@@ -73,10 +79,29 @@ def test_next_action_for_failed_and_reviewed_records():
     assert next_action(approved) == "Approved"
 
 
+def test_next_action_surfaces_workflow_states():
+    escalated = make_record("doc-6", "escalated.pdf")
+    escalated.workflow_status = WorkflowStatus.ESCALATED
+    waiting = make_record("doc-7", "waiting.pdf")
+    waiting.workflow_status = WorkflowStatus.WAITING_FOR_INFO
+    retry_planned = make_record(
+        "doc-8",
+        "retry.pdf",
+        status=ProcessingStatus.FAILED,
+    )
+    retry_planned.workflow_status = WorkflowStatus.RETRY_PLANNED
+
+    assert next_action(escalated) == "Escalated review"
+    assert next_action(waiting) == "Waiting for info"
+    assert next_action(retry_planned) == "Retry planned"
+
+
 def test_processing_stage_rows_show_backend_lifecycle():
     record = make_record("doc-5", "lifecycle.pdf")
     record.object_storage_path = "oci://bucket/documents/doc-5/lifecycle.pdf"
     record.extracted_text_preview = "Important contract text"
+    record.assignee = "Legal"
+    record.workflow_status = WorkflowStatus.ASSIGNED
 
     rows = processing_stage_rows(record)
 
@@ -87,10 +112,13 @@ def test_processing_stage_rows_show_backend_lifecycle():
         "GenAI analysis",
         "Review report",
         "Human decision",
+        "Workflow",
     ]
     assert rows[1]["State"] == "Complete"
     assert rows[2]["Evidence"] == "Extraction source not recorded; text preview saved"
-    assert rows[-1]["Evidence"] == "Approve or reject"
+    assert rows[-2]["Evidence"] == "Approve or reject"
+    assert rows[-1]["State"] == "Assigned"
+    assert "Legal" in rows[-1]["Evidence"]
 
 
 def test_file_size_label_formats_known_and_missing_sizes():
@@ -157,16 +185,19 @@ def test_actions_prioritize_user_work():
     )
     approved = make_record("doc-4", "approved.pdf", status=ProcessingStatus.APPROVED)
     approved.review_status = ReviewStatus.APPROVED
+    escalated = make_record("doc-5", "escalated.pdf")
+    escalated.workflow_status = WorkflowStatus.ESCALATED
 
-    ordered = sort_action_records([approved, processing, failed, ready])
+    ordered = sort_action_records([approved, processing, failed, ready, escalated])
 
     assert [record.document_id for record in ordered] == [
+        "doc-5",
         "doc-1",
         "doc-2",
         "doc-3",
         "doc-4",
     ]
-    assert reviewer_action_count([ready, failed, processing, approved]) == 2
+    assert reviewer_action_count([ready, failed, processing, approved, escalated]) == 3
 
 
 def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):

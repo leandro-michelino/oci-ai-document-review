@@ -4,6 +4,16 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 
 ## End-to-End MVP Flow
 
+Rendered share-ready diagram:
+
+![OCI AI Document Review architecture](assets/oci-ai-document-review-architecture.png)
+
+Editable source:
+
+```text
+docs/assets/oci-ai-document-review-architecture.svg
+```
+
 ```text
 +---------------+
 | Business User |
@@ -44,6 +54,12 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 +-------+---------------+
         |
         v
++----------------------------+
+| Local JSON Metadata        |
+| Report, Workflow, Audit    |
++------------+---------------+
+        |
+        v
 +-----------------------+
 | Dashboard Queue       |
 | Next Action + Tables  |
@@ -52,12 +68,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
         v
 +-----------------------+
 | Actions Review        |
-| Correct Type, Decide  |
-+-------+---------------+
-        |
-        v
-+-----------------------+
-| Markdown / JSON Report|
+| Type, Workflow, Decide|
 +-----------------------+
 ```
 
@@ -87,7 +98,10 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
                  |    Images / image-only PDFs
                  |
                  +--> Generative AI
-                      Structured review
+                 |    Structured review
+                 |
+                 +--> Local JSON metadata
+                      Reports, workflow, audit, retries
 ```
 
 ## Processing Sequence
@@ -151,7 +165,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
            v
 +----------------------------+
 | Metadata + Report          |
-| JSON + Markdown            |
+| JSON + Markdown + Audit    |
 +----------+-----------------+
            |
            v
@@ -163,8 +177,47 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
            v
 +----------------------------+
 | Actions Review             |
-| Correct Type / Approve     |
+| Workflow / Type / Approve  |
 +----------------------------+
+```
+
+## Document Lifecycle Workflow
+
+```text
++--------------------------+
+| Dashboard Next Action    |
+| Processing / Ready / ... |
++------------+-------------+
+             |
+             v
++--------------------------+
+| Actions Page             |
+| Decision + Workflow      |
++------------+-------------+
+             |
+             +----------------------+----------------------+-------------------+
+             |                      |                      |                   |
+             v                      v                      v                   v
++-------------------+  +---------------------+  +-------------------+  +-------------------+
+| Assign Owner      |  | Set SLA Due Date    |  | Add Comment      |  | Retry Failure     |
+| Workflow Status   |  | Overdue/Due Today   |  | Reviewer Notes   |  | Child Run Queued  |
++---------+---------+  +----------+----------+  +---------+---------+  +---------+---------+
+          |                       |                       |                      |
+          +-----------+-----------+-----------+-----------+----------+-----------+
+                                              |
+                                              v
+                               +----------------------------+
+                               | Local JSON Metadata        |
+                               | workflow_comments          |
+                               | audit_events               |
+                               | retry_history              |
+                               +-------------+--------------+
+                                             |
+                                             v
+                               +----------------------------+
+                               | Markdown / JSON Downloads  |
+                               | Updated From Latest State  |
+                               +----------------------------+
 ```
 
 ## Preflight Flow

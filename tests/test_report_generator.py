@@ -5,6 +5,7 @@ from src.models import (
     ExtractedFields,
     ProcessingStatus,
     RiskNote,
+    WorkflowStatus,
 )
 from src.report_generator import generate_markdown_report
 
@@ -30,6 +31,8 @@ def test_generate_markdown_report_contains_summary_and_model():
     assert "# Document Intelligence Report" in report
     assert "A short summary." in report
     assert "cohere.command-r-plus-08-2024" in report
+    assert "## Workflow" in report
+    assert "- Workflow Status: New" in report
 
 
 def test_generate_markdown_report_escapes_table_values():
@@ -59,3 +62,26 @@ def test_generate_markdown_report_escapes_table_values():
     assert "Net 30 \\| urgent" in report
     assert "Mismatch \\| amount" in report
     assert "Line one<br>Line two" in report
+
+
+def test_generate_markdown_report_contains_workflow_metadata():
+    record = DocumentRecord(
+        document_id="doc-3",
+        document_name="contract.pdf",
+        document_type=DocumentType.CONTRACT,
+        status=ProcessingStatus.REVIEW_REQUIRED,
+        workflow_status=WorkflowStatus.ESCALATED,
+        assignee="Legal",
+        retry_count=2,
+        analysis=DocumentAnalysis(
+            document_class="CONTRACT",
+            executive_summary="A short summary.",
+            confidence_score=0.8,
+        ),
+    )
+
+    report = generate_markdown_report(record, model_id="cohere.command-r-plus-08-2024")
+
+    assert "- Workflow Status: Escalated" in report
+    assert "- Assignee: Legal" in report
+    assert "- Retry Count: 2" in report

@@ -106,18 +106,29 @@ class DocumentProcessor:
         document_id = document_id or create_document_id()
         storage_name = safe_document_name(document_name)
         local_path = self.config.local_uploads_dir / f"{document_id}-{storage_name}"
-        shutil.copyfile(source_path, local_path)
+        if source_path.resolve() != local_path.resolve():
+            shutil.copyfile(source_path, local_path)
         progress("Stored local working copy")
 
-        record = DocumentRecord(
-            document_id=document_id,
-            document_name=document_name,
-            document_type=document_type,
-            source_file_size_bytes=source_file_size_bytes,
-            source_file_mime_type=source_file_mime_type,
-            business_reference=business_reference,
-            notes=notes,
-        )
+        if self.store.path_for(document_id).exists():
+            record = self.store.load(document_id)
+            record.document_name = document_name
+            record.document_type = document_type
+            record.source_file_size_bytes = source_file_size_bytes
+            record.source_file_mime_type = source_file_mime_type
+            record.business_reference = business_reference
+            record.notes = notes
+            record.error_message = None
+        else:
+            record = DocumentRecord(
+                document_id=document_id,
+                document_name=document_name,
+                document_type=document_type,
+                source_file_size_bytes=source_file_size_bytes,
+                source_file_mime_type=source_file_mime_type,
+                business_reference=business_reference,
+                notes=notes,
+            )
         self.store.save(record)
 
         try:
@@ -176,8 +187,5 @@ class DocumentProcessor:
             return record
         except Exception as exc:
             logger.exception("Document processing failed for %s", document_id)
-            record.status = ProcessingStatus.FAILED
-            record.error_message = error_message(exc)
-            record.processed_at = datetime.now(timezone.utc)
-            self.store.save(record)
+            self.store.mark_failed(document_id, error_message(exc), actor="Worker")
             raise

@@ -21,7 +21,9 @@ Users upload a document in the web portal. The platform then:
 8. Creates a JSON metadata record and a Markdown report.
 9. Shows the document in a clean Dashboard queue.
 10. Opens the Actions page for AI review, human decision, lifecycle details, and downloads.
-11. Lets a reviewer correct the document type, then approve or reject the document.
+11. Lets a reviewer assign ownership, set an SLA, add workflow comments, and inspect the audit trail.
+12. Lets failed documents be retried from the preserved local working copy.
+13. Lets a reviewer correct the document type, then approve or reject the document.
 ```
 
 The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
@@ -68,10 +70,13 @@ Dashboard shows the document as Ready
 Reviewer opens the Actions page
   |
   v
+Reviewer assigns owner, SLA, workflow status, or comments
+  |
+  v
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, or a failed-processing fix. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry`. Reviewed documents show `Approved` or `Rejected`. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, escalation, waiting-for-information follow-up, or a failed-processing fix. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Field Reference
 
@@ -85,6 +90,10 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | Risk | Highest severity found in AI risk notes. `NONE` means no risk note was returned. |
 | Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
 | Action | The next human or operational step for the selected document. |
+| Workflow | Human workflow state for assignment, SLA tracking, escalation, retry planning, and closure. |
+| Assignee | Person, team, or queue responsible for the next action. |
+| SLA | Due date for the current review workflow. |
+| Retries | Number of retry attempts recorded for this document. |
 | Document type | Review category chosen during upload or detected by GenAI. Reviewers can correct it before approval. |
 | File name | Original uploaded file name. |
 | Extension | File extension from the uploaded file name. |
@@ -118,6 +127,8 @@ Parent: ocid1.compartment.oc1..exampleparent
 Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and ingress CIDR in local files only.
 
 ## Architecture
+
+![OCI AI Document Review architecture](docs/assets/oci-ai-document-review-architecture.png)
 
 ```text
 +---------------+
@@ -158,12 +169,20 @@ Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and i
                             |
                             v
               +-----------------------------+
+              | Local JSON Metadata         |
+              | Reports, Workflow, Audit    |
+              +-------------+---------------+
+                            |
+                            v
+              +-----------------------------+
               | Dashboard Queue             |
+              | Split Tables + Next Action  |
               +-------------+---------------+
                             |
                             v
               +-----------------------------+
               | Actions Review              |
+              | Decision + Workflow         |
               +-----------------------------+
 ```
 
@@ -197,6 +216,7 @@ Uploaded file
   -> Markdown report
   -> Dashboard queue
   -> Actions page
+  -> workflow assignment, comments, audit, retry, approval/rejection
 ```
 
 If local extraction or Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
@@ -296,7 +316,7 @@ The app supports:
 - Local JSON metadata
 - Approve and reject review actions
 - Dashboard queue view with metrics, next-action guidance, search, split queue tables, shortcuts, and per-row Open actions
-- Actions page for prioritized approvals, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
+- Actions page for prioritized approvals, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document
 - Field guide with `?` explanations for review and file metadata fields
 - OCI Preflight checks in Settings

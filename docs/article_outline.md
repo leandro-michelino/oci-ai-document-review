@@ -5,6 +5,8 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 1. Why document-heavy processes remain manual
 2. Why selective Document Understanding plus GenAI is useful
 3. Architecture overview
+   - Use `docs/assets/oci-ai-document-review-architecture.png` as the LinkedIn post image.
+   - The editable source is `docs/assets/oci-ai-document-review-architecture.svg`.
 4. Dynamic GenAI region discovery
 5. Environment setup
 6. Terraform and Ansible deployment from a laptop
@@ -16,9 +18,10 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 12. Converting extraction results into JSON-safe metadata
 13. Generating structured AI insights with GenAI
 14. Using the Dashboard queue to find Ready, Processing, Failed, and Reviewed documents
-15. Reviewing and approving output in the Actions page
-16. End-to-end smoke test results
-17. Security and cost controls
+15. Tracking workflow assignment, SLA, comments, audit trail, and retry history
+16. Reviewing and approving output in the Actions page
+17. End-to-end smoke test results
+18. Security and cost controls
     - Include cost estimate disclaimer
     - Recommend Oracle Cost Estimator and Oracle representative quote
-18. Phase 2 with Autonomous Database, APEX, or Visual Builder
+19. Phase 2 with Autonomous Database, APEX, or Visual Builder

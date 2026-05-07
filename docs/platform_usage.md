@@ -38,7 +38,7 @@ Compute VM
   - systemd service
   - runtime .env
   - OCI SDK config copied from local profile
-  - local JSON metadata and Markdown reports
+  - local JSON metadata, workflow history, and Markdown reports
 ```
 
 No NSGs are used. Access is controlled with security lists.
@@ -251,12 +251,18 @@ Recommended processing flow:
 9. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables.
 10. Click Open next to a document.
 11. Use the Actions page to review the executive summary, key points, risks, recommendations, and supporting details.
-12. Correct the document type from the Decision panel if the detected label needs adjustment.
-13. Approve or reject the review from the Decision panel. Rejections require comments.
-14. Download Markdown or JSON results from the Downloads section.
+12. Use the Workflow panel to set the workflow status, assignee, and SLA due date.
+13. Add workflow comments when the reviewer needs extra context or follow-up.
+14. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
+15. Inspect the audit trail and retry history in the same Workflow panel.
+16. Correct the document type from the Decision panel if the detected label needs adjustment.
+17. Approve or reject the review from the Decision panel. Rejections require comments.
+18. Download Markdown or JSON results from the Downloads section.
 ```
 
 Processing fails clearly if a required live service step fails. For example, if local extraction or Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
+
+Workflow data is stored in the same local JSON metadata record as the processing result. The app records assignee, SLA due date, workflow status, comments, audit events, parent document id for retry children, retry count, and retry history. This phase intentionally keeps the MVP on local JSON metadata; it does not introduce database persistence, user authentication, or role-based approval routing.
 
 Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Password-protected, very large, low-resolution, or heavily compressed image PDFs may still return little text or fail.
 
