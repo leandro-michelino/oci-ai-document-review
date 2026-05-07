@@ -30,6 +30,12 @@ docs/assets/oci-ai-document-review-architecture.svg
              |
              v
 +--------------------------+
+| Local Working Copy       |
+| Download + Retry         |
++------------+-------------+
+             |
+             v
++--------------------------+
 | Background Worker Pool   |
 | Queue, Parallel Jobs     |
 +------------+-------------+
@@ -64,6 +70,13 @@ docs/assets/oci-ai-document-review-architecture.svg
                     | Risks, Recommendations     |
                     +-------------+--------------+
                                   |
+                                  | content safety block
+                                  v
+                    +----------------------------+
+                    | Safety Message Sanitizer   |
+                    | Manual Review Fallback     |
+                    +-------------+--------------+
+                                  |
                                   v
                     +----------------------------+
                     | Compliance Risk Overlay    |
@@ -86,7 +99,8 @@ docs/assets/oci-ai-document-review-architecture.svg
                                   v
                     +----------------------------+
                     | Actions Review             |
-                    | Type, Workflow, Decide     |
+                    | Source Download, Workflow  |
+                    | Type, Decide               |
                     | Next-In-Line Routing       |
                     +----------------------------+
 ```
@@ -105,6 +119,9 @@ docs/assets/oci-ai-document-review-architecture.svg
 | Streamlit + Worker Pool |
 +-----------+-------------+
             |
+            +--> Source Download
+            |    Download Doc for Review from data/uploads
+            |
             +--> Local Text Extract
             |    Text files / PDFs with selectable text
             |
@@ -122,11 +139,14 @@ docs/assets/oci-ai-document-review-architecture.svg
                  +--> Generative AI
                  |    Structured review
                  |
+                 +--> Safety sanitizer
+                 |    Manual-review fallback and raw provider JSON scrub
+                 |
                  +--> Compliance risk overlay
                  |    Public-sector expense attention flag
                  |
                  +--> Local JSON metadata
-                      Reports, workflow, audit, retries
+                      Reports, workflow, audit, retries, source download path
 ```
 
 ## Processing Sequence
@@ -186,40 +206,116 @@ docs/assets/oci-ai-document-review-architecture.svg
 | CohereChatRequest          |
 +----------+-----------------+
            |
-           | strict JSON analysis
-           v
+           +-----------------------------+
+           |                             |
+           | strict JSON analysis        | content safety block
+           v                             v
 +----------------------------+
 | Type Label                 |
 | Auto-detect -> Real Type   |
 +----------+-----------------+
-           |
-           v
-+----------------------------+
-| Compliance Overlay         |
-| Object Storage KB Match    |
-| Public-Sector Expense Risk |
-+----------+-----------------+
-           |
-           v
-+----------------------------+
-| Metadata + Report          |
-| JSON + Markdown + Audit    |
-+----------+-----------------+
-           |
-           v
-+----------------------------+
-| Dashboard Queue            |
-| Processing / Ready /       |
-| Failed / Reviewed          |
-+----------+-----------------+
-           |
-           v
-+----------------------------+
-| Actions Review             |
-| Source Preview / Workflow  |
-| Type / Approve             |
-| Next-In-Line Navigation    |
-+----------------------------+
+           |                  +----------------------------+
+           |                  | Safety Message Sanitizer   |
+           |                  | Fallback Analysis          |
+           |                  +-------------+--------------+
+           |                                |
+           +----------------+---------------+
+                            |
+                            v
+              +----------------------------+
+              | Sanitized Analysis         |
+              | No Raw Provider JSON       |
+              +-------------+--------------+
+                            |
+                            v
+              +----------------------------+
+              | Compliance Overlay         |
+              | Object Storage KB Match    |
+              | Public-Sector Expense Risk |
+              +----------+-----------------+
+                         |
+                         v
+              +----------------------------+
+              | Metadata + Report          |
+              | JSON + Markdown + Audit    |
+              +----------+-----------------+
+                         |
+                         v
+              +----------------------------+
+              | Dashboard Queue            |
+              | Processing / Ready /       |
+              | Failed / Reviewed          |
+              +----------+-----------------+
+                         |
+                         v
+              +----------------------------+
+              | Actions Review             |
+              | Source Download / Workflow |
+              | Type / Approve             |
+              | Next-In-Line Navigation    |
+              +----------------------------+
+```
+
+## Safety Filter Flow
+
+```text
++--------------------------+
+| OCI Generative AI Call   |
++------------+-------------+
+             |
+             +----------------------------+----------------------------+
+             |                            |                            |
+             v                            v                            |
++--------------------------+  +----------------------------+           |
+| Structured JSON Analysis |  | Provider Content Block     |           |
+| Normal Review Path       |  | InvalidParameter / Safety  |           |
++------------+-------------+  +-------------+--------------+           |
+             |                              |                          |
+             |                              v                          |
+             |                 +----------------------------+          |
+             |                 | src/safety_messages.py     |          |
+             |                 | Sanitized Reviewer Message |          |
+             |                 +-------------+--------------+          |
+             |                               |                         |
+             |                               v                         |
+             |                 +----------------------------+          |
+             |                 | Fallback Analysis          |          |
+             |                 | Risk High + Manual Review  |          |
+             |                 +-------------+--------------+          |
+             |                               |                         |
+             +---------------+---------------+                         |
+                             |                                         |
+                             v                                         |
+              +----------------------------+                           |
+              | Metadata / UI / Downloads  |                           |
+              | No Raw Provider JSON       |                           |
+              +----------------------------+                           |
+```
+
+## Source Download Flow
+
+```text
++--------------------------+
+| Uploaded File            |
++------------+-------------+
+             |
+             v
++--------------------------+
+| Local Working Copy       |
+| data/uploads             |
++------------+-------------+
+             |
+             v
++--------------------------+
+| Actions Source Document  |
+| Download Doc for Review  |
++------------+-------------+
+             |
+             v
++--------------------------+
+| Approver Opens File      |
+| Locally For Review       |
++--------------------------+
 ```
 
 ## Document Lifecycle Workflow
@@ -233,7 +329,7 @@ docs/assets/oci-ai-document-review-architecture.svg
              v
 +--------------------------+
 | Actions Page             |
-| Source Preview           |
+| Source Download          |
 | Decision + Workflow      |
 +------------+-------------+
              |

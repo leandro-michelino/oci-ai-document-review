@@ -57,6 +57,15 @@ variable "freeform_tags" {
 variable "allowed_ingress_cidr" {
   description = "CIDR allowed to access SSH and Streamlit."
   type        = string
+
+  validation {
+    condition = (
+      can(cidrnetmask(var.allowed_ingress_cidr)) &&
+      var.allowed_ingress_cidr != "0.0.0.0/0" &&
+      var.allowed_ingress_cidr != "::/0"
+    )
+    error_message = "allowed_ingress_cidr must be a valid, narrow CIDR and must not be 0.0.0.0/0 or ::/0."
+  }
 }
 
 variable "ssh_public_key_path" {
@@ -75,28 +84,53 @@ variable "instance_ocpus" {
   description = "OCPUs for flexible shapes."
   type        = number
   default     = 1
+
+  validation {
+    condition     = var.instance_ocpus > 0
+    error_message = "instance_ocpus must be greater than zero."
+  }
 }
 
 variable "instance_memory_gbs" {
   description = "Memory in GB for flexible shapes."
   type        = number
   default     = 6
+
+  validation {
+    condition     = var.instance_memory_gbs > 0
+    error_message = "instance_memory_gbs must be greater than zero."
+  }
 }
 
 variable "vcn_cidr" {
   description = "VCN CIDR."
   type        = string
   default     = "10.42.0.0/16"
+
+  validation {
+    condition     = can(cidrnetmask(var.vcn_cidr))
+    error_message = "vcn_cidr must be a valid CIDR block."
+  }
 }
 
 variable "subnet_cidr" {
   description = "Public subnet CIDR."
   type        = string
   default     = "10.42.1.0/24"
+
+  validation {
+    condition     = can(cidrnetmask(var.subnet_cidr))
+    error_message = "subnet_cidr must be a valid CIDR block."
+  }
 }
 
 variable "private_subnet_cidr" {
   description = "Private subnet CIDR for future backend services."
   type        = string
   default     = "10.42.2.0/24"
+
+  validation {
+    condition     = can(cidrnetmask(var.private_subnet_cidr))
+    error_message = "private_subnet_cidr must be a valid CIDR block."
+  }
 }

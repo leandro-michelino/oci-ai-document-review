@@ -519,6 +519,10 @@ def normalize_cidr(value: str) -> str:
         network = ip_network(value, strict=False)
     except ValueError as exc:
         raise SystemExit(f"Invalid CIDR: {value}") from exc
+    if network.prefixlen == 0:
+        raise SystemExit(
+            "Invalid CIDR: open ingress is not allowed. Use a trusted /32 or narrow CIDR."
+        )
     return str(network)
 
 

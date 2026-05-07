@@ -49,6 +49,11 @@ def test_validate_cidr_rejects_invalid_values():
         validate_cidr("not-a-cidr")
 
 
+def test_validate_cidr_rejects_open_ingress():
+    with pytest.raises(SystemExit, match="open ingress"):
+        validate_cidr("0.0.0.0/0")
+
+
 def test_non_interactive_setup_validates_regions_and_uses_profile_runtime_region():
     args = Namespace(
         non_interactive=True,

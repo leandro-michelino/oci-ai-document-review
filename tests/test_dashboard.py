@@ -15,12 +15,12 @@ from app import (
     next_action_document_id,
     processing_stage_rows,
     queue_view_frames,
-    read_text_preview,
     record_to_row,
     reviewer_action_count,
     risk_detail_label,
+    source_download_mime,
+    source_download_name,
     sort_action_records,
-    source_preview_kind,
 )
 from src.models import (
     DocumentAnalysis,
@@ -164,24 +164,14 @@ def test_display_error_message_hides_raw_genai_safety_json():
     assert "content safety filter" in display_error_message(raw)
 
 
-def test_source_preview_kind_supports_reviewer_visible_formats():
-    pdf = make_record("doc-pdf", "contract.pdf")
-    image = make_record("doc-image", "receipt.bin")
-    image.source_file_mime_type = "image/png"
-    text = make_record("doc-text", "notes.txt")
-    unsupported = make_record("doc-zip", "archive.zip")
+def test_source_download_metadata_uses_safe_name_and_mime_type():
+    record = make_record("doc-pdf", "../../Receipt 21.pdf")
+    record.source_file_mime_type = "application/pdf; charset=binary"
+    no_mime = make_record("doc-bin", "archive.zip")
 
-    assert source_preview_kind(pdf) == "pdf"
-    assert source_preview_kind(image) == "image"
-    assert source_preview_kind(text) == "text"
-    assert source_preview_kind(unsupported) is None
-
-
-def test_read_text_preview_truncates_large_source(tmp_path):
-    source = tmp_path / "large.txt"
-    source.write_text("abcdef", encoding="utf-8")
-
-    assert read_text_preview(source, max_bytes=3) == "abc\n\n[Preview truncated]"
+    assert source_download_name(record) == "Receipt_21.pdf"
+    assert source_download_mime(record) == "application/pdf"
+    assert source_download_mime(no_mime) == "application/octet-stream"
 
 
 def test_compliance_backfill_updates_existing_metadata(tmp_path):

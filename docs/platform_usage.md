@@ -138,7 +138,7 @@ The setup wizard:
 9. Writes local .env and terraform/terraform.tfvars.
 ```
 
-If setup cannot discover your current public IP, it stops instead of writing an open ingress CIDR. Re-run it with `--allowed-ingress-cidr` set to a trusted CIDR such as your current public IP with `/32`. If you pass a single host IP, setup normalizes it to `/32`.
+If setup cannot discover your current public IP, it stops instead of writing an open ingress CIDR. Re-run it with `--allowed-ingress-cidr` set to a trusted CIDR such as your current public IP with `/32`. If you pass a single host IP, setup normalizes it to `/32`. Explicit open ingress such as `0.0.0.0/0` is rejected.
 
 ## Deploy From Laptop
 
@@ -335,8 +335,7 @@ Dashboard
 
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
-  - Shows the source document inline when the VM still has the local working copy.
-  - Supports browser previews for PDFs, images, and text-like files without requiring a download.
+  - Shows a `Download Doc for Review` button when the VM still has the local working copy.
   - Shows a focused AI review summary with key points and recommendations.
   - Shows the Decision panel for approve or reject.
   - Keeps analysis details, file and processing details, extracted text, and downloads in expanders.
@@ -422,9 +421,11 @@ curl -fsS -I http://<vm-public-ip>:8501
 
 For the Dashboard `At a glance` cards specifically, the deployed `app.py` should contain `dashboard_metrics_html()`. That helper emits the metric cards as one compact HTML block, which prevents Streamlit Markdown from treating later card markup as an indented code block.
 
-For Actions source previews, the deployed `app.py` should contain `render_source_document_preview()`. It reads the local working copy from `/opt/oci-ai-document-review/data/uploads` and renders supported document formats inline for the approver.
+For Actions source downloads, the deployed `app.py` should contain `render_source_document_download()`. It reads the local working copy from `/opt/oci-ai-document-review/data/uploads` and exposes it through a `Download Doc for Review` button for the approver.
 
 For OCI Generative AI content-safety failures, the deployed source should contain `src/safety_messages.py`. That helper replaces raw provider JSON such as `InvalidParameter` and `Inappropriate content detected` before it reaches UI display, metadata reloads, JSON downloads, or regenerated Markdown reports.
+
+Runtime configuration is validated before the app starts. Invalid auth modes, negative or zero processing limits, out-of-range GenAI temperature, and unsafe compliance knowledge-base object names fail fast instead of starting a misconfigured service.
 
 ## End-To-End Verification
 
@@ -447,7 +448,7 @@ Use this checklist after any wiring or deployment change:
 14. Confirm analysis is populated.
 15. Confirm the Markdown report exists.
 16. Confirm Dashboard opens the selected record in Actions.
-17. Confirm Actions shows the Source document preview for PDF, image, or text-like uploads when the local working copy exists.
+17. Confirm Actions shows the `Download Doc for Review` button when the local working copy exists.
 18. Confirm approve or reject updates the review state.
 ```
 

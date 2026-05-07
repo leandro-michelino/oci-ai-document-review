@@ -20,12 +20,14 @@ bucket_name              = "doc-review-input"
 
 # Restrict SSH and Streamlit access to your current public IP.
 # Example: "203.0.113.10/32"
+# Open ingress such as "0.0.0.0/0" is rejected by validation.
 allowed_ingress_cidr = "x.x.x.x/32"
 
 # Public key used for the compute instance.
 ssh_public_key_path = "~/.ssh/id_rsa.pub"
 
 # Compute sizing.
+# CPU and memory values must be greater than zero.
 instance_shape      = "VM.Standard.A1.Flex"
 instance_ocpus      = 1
 instance_memory_gbs = 6

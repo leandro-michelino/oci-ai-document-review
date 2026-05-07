@@ -30,8 +30,8 @@ Current project version: `v0.3.0`
     - Mention severity-labeled risk badges.
 17. Tracking workflow assignment, SLA, comments, audit trail, and retry history
 18. Reviewing and approving output in the Actions page
-    - Mention inline source-document preview for PDFs, images, and text-like files when the local working copy exists.
-    - Mention that unsupported types still have metadata, extracted text, and AI analysis for review.
+    - Mention the `Download Doc for Review` button when the local working copy exists.
+    - Mention that metadata, extracted text, and AI analysis remain available for review.
     - Mention next-in-line routing after approval or rejection.
 19. Handling OCI GenAI content-safety blocks without exposing raw provider JSON
 20. End-to-end smoke test results

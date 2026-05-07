@@ -182,7 +182,7 @@ Reviewer assigns owner, SLA, workflow status, or comments
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, a Processing queue, a horizontal Ready band for approval work, paired Failed and Reviewed queues, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Reviewers can inspect the source document in the browser when the local working copy is available: PDFs render inline, images display inline, and text-like files show a read-only source preview. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, a Processing queue, a horizontal Ready band for approval work, paired Failed and Reviewed queues, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Reviewers can download the original source document for review when the local working copy is available. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Compliance Knowledge Base
 
@@ -254,7 +254,7 @@ Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and i
 
 ## Platform Usage
 
-Detailed Terraform outputs, Ansible output, deployment flow, operations commands, and portal usage instructions are in `docs/platform_usage.md`.
+Detailed Terraform outputs, Ansible output, deployment flow, operations commands, and portal usage instructions are in `docs/platform_usage.md`. Current review findings, cleanup decisions, and verification commands are tracked in `docs/repository_review.md`.
 
 ## Real MVP Verification
 
@@ -342,6 +342,7 @@ The setup wizard keeps the runtime region and GenAI region separate:
 - GenAI region is selected only from discovered supported chat-model regions.
 - If `--runtime-region` is omitted in non-interactive setup, the OCI profile region is used.
 - `allowed_ingress_cidr` is normalized to CIDR form, such as `203.0.113.10/32`.
+- Explicit open ingress such as `0.0.0.0/0` is rejected by both setup and Terraform validation.
 
 ## Prepared Infrastructure
 
@@ -363,7 +364,7 @@ terraform init
 terraform plan
 ```
 
-The plan prepares a private Object Storage bucket, VCN, public subnet, private subnet, security lists, public and private route tables, Internet Gateway, NAT Gateway, Service Gateway, and compute VM. It does not use NSGs.
+The plan prepares a private Object Storage bucket, VCN, public subnet, private subnet, security lists, public and private route tables, Internet Gateway, NAT Gateway, Service Gateway, and compute VM. It does not use NSGs. Terraform validates network CIDR syntax, rejects open ingress, and requires positive flexible-shape sizing before apply.
 
 Deploy end to end:
 
@@ -401,7 +402,7 @@ The app supports:
 - Local JSON metadata
 - Approve and reject review actions
 - Dashboard queue view with metrics, next-action guidance, search, split queue tables, shortcuts, and per-row Open actions
-- Actions page for prioritized approvals, inline source-document preview, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
+- Actions page for prioritized approvals, source-document download, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document
 - Field guide with `?` explanations for review and file metadata fields
 - OCI Preflight checks in Settings

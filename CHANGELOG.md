@@ -11,8 +11,12 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - Documentation now makes the live deployment boundary explicit: pushing to GitHub records source changes, but the OCI VM is updated only by running `./scripts/deploy.sh` from the local laptop.
 - Added post-deployment verification guidance for confirming the VM has the current dashboard code, the `oci-ai-document-review` systemd service is active, and the portal responds on the Streamlit URL.
 - Documented the Dashboard `At a glance` rendering guard: metric cards are emitted as one compact HTML block so Streamlit does not render later cards as escaped code text.
-- Actions now includes an inline Source document preview for reviewer approval work when the local working copy is available. PDFs, images, and text-like files render in the browser; unsupported types fall back to metadata and extracted text.
+- Actions now includes a `Download Doc for Review` button for reviewer approval work when the local working copy is available.
 - Provider content-safety JSON is sanitized across worker failures, existing metadata loads, preflight display, JSON downloads, and regenerated Markdown reports.
+- Runtime settings now validate auth mode, numeric processing limits, and compliance knowledge-base object names before the app starts.
+- Terraform now validates narrow ingress CIDRs, flexible-shape sizing, and network CIDR syntax; setup rejects explicit open ingress such as `0.0.0.0/0`.
+- ASCII architecture flows now include source-document download, safety-filter sanitization, and the deployment/configuration boundary.
+- Workspace cleanup removes generated Python, test, linter, and deployment-render scratch files from the local tree.
 
 ## v0.3.0
 

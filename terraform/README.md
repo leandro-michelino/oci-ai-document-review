@@ -93,6 +93,7 @@ Public subnet
   - Public IP enabled
   - Route table sends 0.0.0.0/0 to Internet Gateway
   - Security list allows SSH and Streamlit from allowed_ingress_cidr
+  - Open ingress such as 0.0.0.0/0 is rejected by variable validation
 
 Private subnet
   - Reserved for future backend services
@@ -103,3 +104,5 @@ Private subnet
 ```
 
 No NSGs are created by this configuration.
+
+Terraform variable validation also checks VCN/subnet CIDR syntax and requires positive flexible-shape CPU and memory values before apply.

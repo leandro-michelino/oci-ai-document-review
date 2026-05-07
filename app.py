@@ -45,7 +45,6 @@ READY_FOR_DECISION = {"REVIEW_REQUIRED"}
 ACTIVE_STATUSES = {"UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"}
 QUEUE_SECTION_VIEWS = ["Processing", "Ready", "Failed", "Reviewed"]
 DASHBOARD_REFRESH_SECONDS = 10
-TEXT_PREVIEW_MAX_BYTES = 750_000
 CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
 CONTACT_MESSAGE = "In case of any question, get in touch."
 PAGE_UPLOAD = "Upload"
@@ -76,40 +75,6 @@ STATE_TONE = {
     "EXTRACTED": "state-info",
     "AI_ANALYZED": "state-info",
     "UPLOADED": "state-info",
-}
-IMAGE_PREVIEW_EXTENSIONS = {
-    ".bmp",
-    ".gif",
-    ".jpeg",
-    ".jpg",
-    ".png",
-    ".tif",
-    ".tiff",
-    ".webp",
-}
-TEXT_PREVIEW_EXTENSIONS = {
-    ".csv",
-    ".htm",
-    ".html",
-    ".json",
-    ".log",
-    ".md",
-    ".text",
-    ".txt",
-    ".xml",
-    ".yaml",
-    ".yml",
-}
-TEXT_PREVIEW_MIME_TYPES = {
-    "application/json",
-    "application/xml",
-    "application/x-yaml",
-    "text/csv",
-    "text/html",
-    "text/markdown",
-    "text/plain",
-    "text/xml",
-    "text/yaml",
 }
 FIELD_HELP = {
     "Action": "The next human or operational step for the selected document.",
@@ -814,31 +779,15 @@ def normalized_mime_type(record) -> str:
     return (record.source_file_mime_type or "").split(";", 1)[0].strip().lower()
 
 
-def source_preview_kind(record) -> str | None:
-    mime_type = normalized_mime_type(record)
-    extension = Path(record.document_name).suffix.lower()
-    if mime_type == "application/pdf" or extension == ".pdf":
-        return "pdf"
-    if mime_type.startswith("image/") or extension in IMAGE_PREVIEW_EXTENSIONS:
-        return "image"
-    if (
-        mime_type.startswith("text/")
-        or mime_type in TEXT_PREVIEW_MIME_TYPES
-        or extension in TEXT_PREVIEW_EXTENSIONS
-    ):
-        return "text"
-    return None
+def source_download_mime(record) -> str:
+    return normalized_mime_type(record) or "application/octet-stream"
 
 
-def read_text_preview(path: Path, max_bytes: int = TEXT_PREVIEW_MAX_BYTES) -> str:
-    data = path.read_bytes()[:max_bytes]
-    text = data.decode("utf-8", errors="replace")
-    if path.stat().st_size > max_bytes:
-        text += "\n\n[Preview truncated]"
-    return text
+def source_download_name(record) -> str:
+    return safe_document_name(record.document_name)
 
 
-def render_source_document_preview(config, record) -> None:
+def render_source_document_download(config, record) -> None:
     working_copy = local_working_copy_path(config, record)
     if not working_copy.exists():
         st.info(
@@ -847,30 +796,15 @@ def render_source_document_preview(config, record) -> None:
         )
         return
 
-    preview_kind = source_preview_kind(record)
     st.caption(f"{working_copy.name} | {file_size_label(working_copy.stat().st_size)}")
-    if preview_kind == "pdf":
-        st.pdf(
-            working_copy.read_bytes(),
-            height=620,
-            key=f"source_pdf_{record.document_id}",
-        )
-    elif preview_kind == "image":
-        st.image(str(working_copy), caption=record.document_name, width="stretch")
-    elif preview_kind == "text":
-        st.text_area(
-            "Source preview",
-            value=read_text_preview(working_copy),
-            height=360,
-            disabled=True,
-            label_visibility="collapsed",
-            key=f"source_text_{record.document_id}",
-        )
-    else:
-        st.info(
-            "Inline preview is not available for this file type. The processing "
-            "metadata and extracted text are still available below."
-        )
+    st.download_button(
+        "Download Doc for Review",
+        data=working_copy.read_bytes(),
+        file_name=source_download_name(record),
+        mime=source_download_mime(record),
+        key=f"source_download_{record.document_id}",
+        width="stretch",
+    )
 
 
 def render_file_information(record, compact: bool = False) -> None:
@@ -2373,7 +2307,7 @@ def detail_page(config, store):
     render_status_strip(record)
 
     with st.expander("Source document", expanded=True):
-        render_source_document_preview(config, record)
+        render_source_document_download(config, record)
 
     review_col, decision_col = st.columns([1.45, 0.85], gap="large")
     with review_col:

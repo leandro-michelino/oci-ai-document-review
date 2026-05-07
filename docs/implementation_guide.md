@@ -37,7 +37,7 @@ python scripts/setup.py \
 
 Before showing GenAI choices, setup reads your OCI subscriptions and probes OCI Generative AI for active supported chat models. The app currently uses OCI SDK `CohereChatRequest`, so setup writes a Cohere chat model id.
 
-The wizard keeps runtime and GenAI region selection separate. Runtime region hosts compute, networking, Object Storage, and Document Understanding. GenAI region is selected only from discovered supported chat-model regions. In non-interactive mode, setup validates the supplied OCIDs and subscribed regions; if `--runtime-region` is omitted, it uses the OCI profile region. The wizard also writes a narrow `allowed_ingress_cidr`; host IPs are normalized to `/32`, and setup never falls back to open ingress.
+The wizard keeps runtime and GenAI region selection separate. Runtime region hosts compute, networking, Object Storage, and Document Understanding. GenAI region is selected only from discovered supported chat-model regions. In non-interactive mode, setup validates the supplied OCIDs and subscribed regions; if `--runtime-region` is omitted, it uses the OCI profile region. The wizard also writes a narrow `allowed_ingress_cidr`; host IPs are normalized to `/32`, and setup rejects explicit open ingress instead of falling back to it.
 
 ## Review And Deploy
 
@@ -139,13 +139,15 @@ STALE_PROCESSING_MINUTES=12
 MAX_PARALLEL_JOBS=2
 ```
 
+The app validates runtime configuration before startup. Invalid OCI auth modes, zero or negative processing limits, out-of-range GenAI temperature, and unsafe compliance knowledge-base object names fail fast.
+
 Scanned PDFs and PDFs that contain page images use OCR. The app first tries rich Document Understanding extraction for OCR, tables, and key-values. If that rich extraction fails but text-only OCR succeeds, the app still sends the OCR text to GenAI and records the source as `OCI Document Understanding text-only OCR fallback`. Scanned files need more time than text-based PDFs and can fail if the scan is low quality, rotated, password-protected, too large, or above the upload limit.
 
 Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run remains in an active stage beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
 
 The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh stays on the Dashboard instead of returning to Upload. The Dashboard body runs inside a Streamlit fragment and refreshes every 10 seconds while the session is active. That updates metrics and split queue tables without using a full browser reload. Dashboard metric cards are emitted as one compact HTML block through `dashboard_metrics_html()` so Streamlit Markdown does not treat later cards as escaped code text.
 
-The Actions page includes a Source document preview before the AI review area. It uses the preserved local working copy in `data/uploads` and renders PDFs with Streamlit's PDF viewer, images with the image component, and text-like files in a read-only preview. If the working copy is missing or the type is unsupported, the reviewer still sees metadata, lifecycle details, extracted text, and generated analysis.
+The Actions page includes a Source document section before the AI review area. It uses the preserved local working copy in `data/uploads` and shows a `Download Doc for Review` button so the reviewer can open the original file locally. If the working copy is missing, the reviewer still sees metadata, lifecycle details, extracted text, and generated analysis.
 
 After GenAI returns structured analysis, the app applies a deterministic compliance overlay. It checks extracted text, file name, business reference, notes, and selected AI fields against the curated entity catalog configured by `COMPLIANCE_ENTITIES_OBJECT_NAME`, defaulting to `compliance/public_sector_entities.csv` in Object Storage. If the object is missing, the app seeds it from the bundled `data/compliance/public_sector_entities.csv` file and falls back locally if Object Storage cannot be reached.
 
@@ -247,7 +249,7 @@ Then on the portal:
 3. Choose Auto-detect once and confirm the record receives a concrete document type.
 4. Confirm Dashboard shows the record as Ready.
 5. Open the record from Dashboard.
-6. Confirm the Actions page shows the Source document preview for supported file types.
+6. Confirm the Actions page shows the `Download Doc for Review` button when the local working copy exists.
 7. Confirm the Actions page shows AI summary, key points, and recommendations.
 8. Confirm the Workflow panel can assign an owner, set an SLA, add a comment, and show an audit event.
 9. For a failed document, confirm Retry Processing creates a child record and the original shows retry history.

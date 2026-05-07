@@ -5,7 +5,11 @@
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 .deploy/
+.streamlit/secrets.toml
 *.pem
 *.key
 *.p12
@@ -15,6 +19,7 @@ __pycache__/
 id_rsa*
 oci_api_key*
 *.pyc
+*.log
 data/metadata/*.json
 data/reports/*.md
 data/uploads/*
