@@ -514,3 +514,37 @@ def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):
         assert "- Document Type: INVOICE" in report_path.read_text(encoding="utf-8")
     finally:
         get_config.cache_clear()
+
+
+def test_approve_advances_actions_picker_to_next_item(monkeypatch, tmp_path):
+    configure_streamlit_test_env(monkeypatch, tmp_path)
+
+    from src.config import get_config
+    from src.metadata_store import MetadataStore
+
+    get_config.cache_clear()
+    try:
+        config = get_config()
+        store = MetadataStore(config)
+        current = make_record("doc-current", "current-contract.pdf")
+        current.uploaded_at = datetime(2026, 5, 7, 12, 0, tzinfo=timezone.utc)
+        next_record = make_record("doc-next", "next-contract.pdf")
+        next_record.uploaded_at = datetime(2026, 5, 7, 11, 0, tzinfo=timezone.utc)
+        store.save(next_record)
+        store.save(current)
+
+        app = AppTest.from_file("app.py", default_timeout=5)
+        app.query_params["page"] = "Actions"
+        app = app.run()
+        assert app.session_state["selected_document_id"] == "doc-current"
+
+        for button in app.button:
+            if button.label == "Approve":
+                app = button.click().run()
+                break
+
+        assert store.load("doc-current").review_status == ReviewStatus.APPROVED
+        assert app.session_state["selected_document_id"] == "doc-next"
+        assert app.session_state["detail_action_item"] == "doc-next"
+    finally:
+        get_config.cache_clear()

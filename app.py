@@ -52,6 +52,8 @@ PAGE_DASHBOARD = "Dashboard"
 PAGE_DETAIL = "Actions"
 PAGE_SETTINGS = "Settings"
 PAGE_QUERY_PARAM = "page"
+DETAIL_ACTION_PICKER_KEY = "detail_action_item"
+PENDING_DETAIL_DOCUMENT_KEY = "pending_detail_document_id"
 LEGACY_PAGE_NAMES = {
     "Upload Document": PAGE_UPLOAD,
     "Review Dashboard": PAGE_DASHBOARD,
@@ -1583,6 +1585,8 @@ def open_page(page: str, document_id: str | None = None) -> None:
         st.session_state["selected_document_id"] = document_id
         if page == PAGE_DASHBOARD:
             st.session_state["dashboard_selected_document"] = document_id
+        if page == PAGE_DETAIL:
+            st.session_state[PENDING_DETAIL_DOCUMENT_KEY] = document_id
     st.session_state["page"] = page
     st.session_state["requested_page"] = page
     st.session_state["action_navigation"] = True
@@ -1674,6 +1678,7 @@ def apply_review_action(
     if next_document_id:
         st.session_state["selected_document_id"] = next_document_id
         st.session_state["dashboard_selected_document"] = next_document_id
+        st.session_state[PENDING_DETAIL_DOCUMENT_KEY] = next_document_id
         decision = "Approved" if approved else "Rejected"
         st.success(f"{decision}. Opening the next action item.")
     else:
@@ -2270,8 +2275,15 @@ def detail_page(config, store):
     action_cols[2].metric("Processing", active_actions)
     action_cols[3].metric("Reviewed", reviewed_actions)
 
+    pending_document_id = st.session_state.pop(PENDING_DETAIL_DOCUMENT_KEY, None)
+    if pending_document_id in ids:
+        st.session_state["selected_document_id"] = pending_document_id
+        st.session_state[DETAIL_ACTION_PICKER_KEY] = pending_document_id
+
     default_id = st.session_state.get("selected_document_id", ids[0])
     index = ids.index(default_id) if default_id in ids else 0
+    if st.session_state.get(DETAIL_ACTION_PICKER_KEY) not in ids:
+        st.session_state[DETAIL_ACTION_PICKER_KEY] = ids[index]
     labels = {
         record.document_id: f"{record.document_name} - {queue_stage(record)} - "
         f"{record.uploaded_at.strftime('%Y-%m-%d %H:%M')}"
@@ -2283,7 +2295,7 @@ def detail_page(config, store):
         ids,
         index=index,
         format_func=lambda item: labels.get(item, item),
-        key="detail_action_item",
+        key=DETAIL_ACTION_PICKER_KEY,
     )
     picker_cols[1].button(
         "Dashboard",
