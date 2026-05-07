@@ -8,13 +8,12 @@ Current project version: `v0.3.0`
 
 Rendered share-ready diagram:
 
-![OCI AI Document Review architecture](assets/oci-ai-document-review-architecture.png)
+![OCI AI Document Review architecture](../Architecture.png)
 
 Editable source:
 
 ```text
 docs/assets/oci-ai-document-review-architecture.excalidraw
-docs/assets/oci-ai-document-review-architecture.svg
 ```
 
 ```text
