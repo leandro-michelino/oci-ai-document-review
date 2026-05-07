@@ -469,6 +469,27 @@ def test_sidebar_upload_settings_and_query_navigation(monkeypatch, tmp_path):
         get_config.cache_clear()
 
 
+def test_upload_how_to_use_button_opens_guide(monkeypatch, tmp_path):
+    configure_streamlit_test_env(monkeypatch, tmp_path)
+
+    from src.config import get_config
+
+    get_config.cache_clear()
+    try:
+        app = AppTest.from_file("app.py", default_timeout=5).run()
+        assert app.session_state["page"] == "Upload"
+
+        for button in app.button:
+            if button.label == "How to Use":
+                app = button.click().run()
+                break
+
+        assert app.session_state["page"] == "How to Use"
+        assert query_value(app.query_params, "page") == "How to Use"
+    finally:
+        get_config.cache_clear()
+
+
 def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):
     configure_streamlit_test_env(monkeypatch, tmp_path)
 

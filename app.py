@@ -50,6 +50,7 @@ CONTACT_MESSAGE = "In case of any question, get in touch."
 PAGE_UPLOAD = "Upload"
 PAGE_DASHBOARD = "Dashboard"
 PAGE_DETAIL = "Actions"
+PAGE_HELP = "How to Use"
 PAGE_SETTINGS = "Settings"
 PAGE_QUERY_PARAM = "page"
 DETAIL_ACTION_PICKER_KEY = "detail_action_item"
@@ -594,9 +595,91 @@ def apply_theme() -> None:
             cursor: help;
             vertical-align: text-top;
         }
+        .howto-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.85rem;
+            margin: 0.65rem 0 1rem;
+        }
+        .howto-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
+        }
+        .howto-panel h3 {
+            font-size: 1.02rem;
+            margin: 0 0 0.35rem;
+        }
+        .howto-panel p {
+            color: var(--text-soft);
+            line-height: 1.45;
+            margin: 0 0 0.8rem;
+        }
+        .howto-step {
+            display: grid;
+            grid-template-columns: 1.65rem minmax(0, 1fr);
+            gap: 0.55rem;
+            align-items: start;
+            border-top: 1px solid var(--panel-border);
+            padding-top: 0.65rem;
+            margin-top: 0.65rem;
+        }
+        .howto-number {
+            align-items: center;
+            background: #f6e6dd;
+            border: 1px solid #ddb7a7;
+            border-radius: 999px;
+            color: var(--brand-dark);
+            display: inline-flex;
+            font-size: 0.78rem;
+            font-weight: 900;
+            height: 1.55rem;
+            justify-content: center;
+            width: 1.55rem;
+        }
+        .howto-title {
+            color: var(--text-strong);
+            font-size: 0.92rem;
+            font-weight: 800;
+            line-height: 1.3;
+            margin-bottom: 0.15rem;
+        }
+        .howto-copy {
+            color: var(--text-soft);
+            font-size: 0.86rem;
+            line-height: 1.45;
+        }
+        .howto-status-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.6rem;
+            margin: 0.75rem 0 1rem;
+        }
+        .howto-status {
+            background: #fbfaf7;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+        .howto-status strong {
+            color: var(--text-strong);
+            display: block;
+            font-size: 0.88rem;
+            margin-bottom: 0.25rem;
+        }
+        .howto-status span {
+            color: var(--text-soft);
+            display: block;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
         @media (max-width: 980px) {
             .dashboard-grid,
-            .dashboard-workbench {
+            .dashboard-workbench,
+            .howto-grid,
+            .howto-status-grid {
                 grid-template-columns: 1fr;
             }
             .review-snapshot,
@@ -1647,11 +1730,12 @@ def compliance_catalog_for_app(config):
 
 
 def backfill_compliance_attention(config, store, catalog=None) -> int:
+    records = [record for record in store.list_records() if record.analysis]
+    if not records:
+        return 0
     catalog = catalog or compliance_catalog_for_app(config)
     updated_count = 0
-    for record in store.list_records():
-        if not record.analysis:
-            continue
+    for record in records:
         before = record.model_dump_json()
         apply_compliance_attention(
             record, record.extracted_text_preview or "", catalog=catalog
@@ -1661,6 +1745,14 @@ def backfill_compliance_attention(config, store, catalog=None) -> int:
         store.save(record)
         refresh_markdown_report(config, record)
         updated_count += 1
+    return updated_count
+
+
+def run_compliance_backfill_once(config, store) -> int:
+    if st.session_state.get("compliance_backfill_checked"):
+        return 0
+    updated_count = backfill_compliance_attention(config, store)
+    st.session_state["compliance_backfill_checked"] = True
     return updated_count
 
 
@@ -2047,9 +2139,17 @@ def upload_page(config, store):
         "Upload",
         "Add a document. The app queues it, processes it in OCI, then sends it to review.",
     )
-    st.caption(
+    intro_cols = st.columns([1, 0.24], vertical_alignment="center")
+    intro_cols[0].caption(
         f"GenAI region: {config.genai_region} | Parallel jobs: {config.max_parallel_jobs} | "
         f"Upload limit: {config.max_upload_mb} MB"
+    )
+    intro_cols[1].button(
+        "How to Use",
+        key="upload_howto",
+        width="stretch",
+        on_click=open_page,
+        args=(PAGE_HELP,),
     )
 
     with st.container(border=True):
@@ -2416,6 +2516,128 @@ def settings_page(config):
     st.caption(f"{CONTACT_TEXT}. {CONTACT_MESSAGE}")
 
 
+def render_howto_step(number: int, title: str, body: str) -> str:
+    return f"""
+    <div class="howto-step">
+      <div class="howto-number">{number}</div>
+      <div>
+        <div class="howto-title">{escape(title)}</div>
+        <div class="howto-copy">{escape(body)}</div>
+      </div>
+    </div>
+    """
+
+
+def howto_page(config, store):
+    page_header(
+        "Guide",
+        "How to Use",
+        "A short path for submitting documents and completing reviewer decisions.",
+    )
+
+    uploader_steps = [
+        (
+            "Choose the review type",
+            "Start in Upload, choose a document type or Auto-detect, then add an optional reference and notes.",
+        ),
+        (
+            "Queue the document",
+            "Attach the PDF, image, or text file and click Queue Document. The browser can move on while the worker processes it.",
+        ),
+        (
+            "Watch the queue",
+            "Use Dashboard to see whether the document is queued, processing, ready, failed, or reviewed.",
+        ),
+        (
+            "Fix only failed items",
+            "If processing fails, open the item from Dashboard or Actions, check the failure detail, and retry with a corrected file.",
+        ),
+    ]
+    approver_steps = [
+        (
+            "Open Actions",
+            "Use Actions for the review queue. The highest-priority item is selected first.",
+        ),
+        (
+            "Read the source and AI review",
+            "Download Doc for Review when needed, then check the summary, extracted fields, risks, and recommendations.",
+        ),
+        (
+            "Update workflow details",
+            "Set the document type, assignee, SLA, workflow status, or comments when the decision needs context.",
+        ),
+        (
+            "Approve or reject",
+            "Approve clean items or reject with comments. The page advances to the next action item automatically.",
+        ),
+    ]
+
+    st.markdown(
+        f"""
+        <div class="howto-grid">
+          <div class="howto-panel">
+            <h3>For uploaders</h3>
+            <p>Use this path when you are submitting a document for AI-assisted review.</p>
+            {"".join(render_howto_step(index, title, body) for index, (title, body) in enumerate(uploader_steps, start=1))}
+          </div>
+          <div class="howto-panel">
+            <h3>For approvers</h3>
+            <p>Use this path when you are making the final human decision.</p>
+            {"".join(render_howto_step(index, title, body) for index, (title, body) in enumerate(approver_steps, start=1))}
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("### Queue states")
+    st.markdown(
+        """
+        <div class="howto-status-grid">
+          <div class="howto-status"><strong>Queued / Processing</strong><span>The document is waiting for or running through OCR, extraction, GenAI, and compliance checks.</span></div>
+          <div class="howto-status"><strong>Ready</strong><span>The document needs a reviewer to inspect the results and approve or reject.</span></div>
+          <div class="howto-status"><strong>Failed</strong><span>The document needs an operational fix or retry before review can continue.</span></div>
+          <div class="howto-status"><strong>Reviewed</strong><span>The document has already been approved or rejected and stays available for audit.</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    records = store.list_records()
+    pending_count = reviewer_action_count(records)
+    ready_count = sum(1 for record in records if requires_human_action(record))
+    failed_count = sum(1 for record in records if record.status.value == "FAILED")
+
+    metric_cols = st.columns(3)
+    metric_cols[0].metric("Needs action", pending_count)
+    metric_cols[1].metric("Ready for decision", ready_count)
+    metric_cols[2].metric("Needs retry", failed_count)
+
+    nav_cols = st.columns(3)
+    nav_cols[0].button(
+        "Upload Document",
+        type="primary",
+        key="howto_upload",
+        width="stretch",
+        on_click=open_page,
+        args=(PAGE_UPLOAD,),
+    )
+    nav_cols[1].button(
+        "View Dashboard",
+        key="howto_dashboard",
+        width="stretch",
+        on_click=open_page,
+        args=(PAGE_DASHBOARD,),
+    )
+    nav_cols[2].button(
+        "Open Actions",
+        key="howto_actions",
+        width="stretch",
+        on_click=open_page,
+        args=(PAGE_DETAIL,),
+    )
+
+
 def main():
     config = load_app_config()
     store = MetadataStore(config)
@@ -2427,14 +2649,14 @@ def main():
     )
     if stale_count:
         st.warning(f"{stale_count} stale processing run was marked as failed.")
-    compliance_backfill_count = backfill_compliance_attention(config, store)
+    compliance_backfill_count = run_compliance_backfill_once(config, store)
     if compliance_backfill_count:
         st.info(
             f"{compliance_backfill_count} existing document"
             f"{'s were' if compliance_backfill_count != 1 else ' was'} flagged for compliance attention."
         )
 
-    pages = [PAGE_UPLOAD, PAGE_DASHBOARD, PAGE_DETAIL, PAGE_SETTINGS]
+    pages = [PAGE_UPLOAD, PAGE_DASHBOARD, PAGE_DETAIL, PAGE_HELP, PAGE_SETTINGS]
     nav_records = store.list_records()
     action_count = reviewer_action_count(nav_records)
     st.sidebar.title(config.app_title)
@@ -2483,6 +2705,8 @@ def main():
         dashboard_page(config, store)
     elif page == PAGE_DETAIL:
         detail_page(config, store)
+    elif page == PAGE_HELP:
+        howto_page(config, store)
     else:
         settings_page(config)
 
