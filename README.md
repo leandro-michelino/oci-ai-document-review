@@ -1,8 +1,8 @@
 # OCI AI Document Review Portal
 
-## Architecture
+## Reference Architecture
 
-![OCI AI Document Review architecture](docs/assets/oci-ai-document-review-architecture.png)
+The portal is a lightweight OCI-hosted document review workflow. It stores uploaded files in private Object Storage, extracts usable text with the lowest-cost path available, analyzes the content with OCI Generative AI, and routes the result to a human review queue with audit, retry, and approval actions.
 
 ```text
 +---------------+
@@ -82,15 +82,15 @@
                          +-------------------------------+
 ```
 
-More ASCII flows are in `docs/architecture_flows.md`.
+Additional sequence, lifecycle, refresh, and deployment flows are maintained in `docs/architecture_flows.md`.
 
 ## Overview
 
-A deployed Oracle Cloud Infrastructure MVP that turns uploaded business documents into structured AI review reports using Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI.
+OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI to convert uploaded documents into structured review summaries, risk notes, recommendations, workflow metadata, and downloadable reports.
 
 Current version: `v0.3.0`
 
-Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+Contact: Leandro Michelino | Oracle ACE | leandro.michelino@oracle.com.
 
 ## Versioning
 
@@ -104,7 +104,7 @@ The current source-of-truth version is `src/version.py`, and release notes are t
 
 ## What This Project Does
 
-This project is a working document review portal for OCI. It is designed for business documents such as receipts, invoices, contracts, compliance files, reports, and general PDFs or images.
+This project is a working OCI document review portal for business files such as receipts, invoices, contracts, compliance documents, reports, PDFs, and images.
 
 Users upload a document in the web portal. The platform then:
 
