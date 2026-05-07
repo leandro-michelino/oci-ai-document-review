@@ -8,10 +8,12 @@ from app import (
     file_size_label,
     filter_queue_rows,
     next_action,
+    next_action_document_id,
     processing_stage_rows,
     queue_view_frames,
     record_to_row,
     reviewer_action_count,
+    risk_detail_label,
     sort_action_records,
 )
 from src.models import (
@@ -59,6 +61,8 @@ def test_record_to_row_adds_dashboard_fields():
     row = record_to_row(record)
 
     assert row["Risk Level"] == "HIGH"
+    assert row["Risks"] == 1
+    assert row["Risk Detail"] == "1 risk note: 1 high."
     assert row["Stage"] == "Ready"
     assert row["Workflow"] == "New"
     assert row["Assignee"] == "Unassigned"
@@ -68,6 +72,28 @@ def test_record_to_row_adds_dashboard_fields():
     assert row["Action"] == "Approve or reject"
     assert "contract.pdf" in row["Search Text"]
     assert "new" in row["Search Text"]
+
+
+def test_risk_detail_label_explains_missing_and_multiple_risks():
+    no_analysis = DocumentRecord(
+        document_id="doc-empty",
+        document_name="empty.pdf",
+        document_type=DocumentType.GENERAL,
+    )
+    no_risks = make_record("doc-safe", "safe.pdf")
+    mixed = make_record(
+        "doc-mixed",
+        "mixed.pdf",
+        risks=[
+            RiskNote(risk="Missing signature", severity="HIGH"),
+            RiskNote(risk="Unclear payment terms", severity="MEDIUM"),
+            RiskNote(risk="Minor formatting issue", severity="LOW"),
+        ],
+    )
+
+    assert risk_detail_label(no_analysis) == "Risk not analyzed yet."
+    assert risk_detail_label(no_risks) == "No AI risk notes returned."
+    assert risk_detail_label(mixed) == "3 risk notes: 1 high, 1 medium, 1 low."
 
 
 def test_next_action_for_failed_and_reviewed_records():
@@ -200,6 +226,22 @@ def test_actions_prioritize_user_work():
     assert reviewer_action_count([ready, failed, processing, approved, escalated]) == 3
 
 
+def test_next_action_document_id_skips_current_and_reviewed_records():
+    current = make_record("doc-current", "current.pdf")
+    next_ready = make_record("doc-ready", "ready.pdf")
+    failed = make_record("doc-failed", "failed.pdf", status=ProcessingStatus.FAILED)
+    approved = make_record(
+        "doc-approved", "approved.pdf", status=ProcessingStatus.APPROVED
+    )
+    approved.review_status = ReviewStatus.APPROVED
+
+    assert (
+        next_action_document_id([approved, current, failed, next_ready], "doc-current")
+        == "doc-ready"
+    )
+    assert next_action_document_id([approved, current], "doc-current") is None
+
+
 def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
     monkeypatch.setenv("OCI_REGION", "uk-london-1")
     monkeypatch.setenv("GENAI_REGION", "uk-london-1")
@@ -247,7 +289,7 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
         assert app.session_state["page"] == "Dashboard"
 
         for button in app.button:
-            if button.label == "Open":
+            if button.label == "↗":
                 app = button.click().run()
                 break
         assert app.session_state["page"] == "Actions"

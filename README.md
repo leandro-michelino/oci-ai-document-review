@@ -87,7 +87,7 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | Status | Processing state for the document lifecycle, from upload through approval or failure. |
 | Stage | Simplified queue state shown in the Dashboard: `Queued`, `Processing`, `Ready`, `Reviewed`, or `Failed`. |
 | Review | Human review decision state: `PENDING`, `APPROVED`, or `REJECTED`. |
-| Risk | Highest severity found in AI risk notes. `NONE` means no risk note was returned. |
+| Risk | Highest AI risk-note severity for the document, with note counts and supporting evidence shown in the Dashboard and Analysis details. `NONE` means no risk note was returned. |
 | Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
 | Action | The next human or operational step for the selected document. |
 | Workflow | Human workflow state for assignment, SLA tracking, escalation, retry planning, and closure. |

@@ -67,7 +67,10 @@ FIELD_HELP = {
     "MIME type": "Browser-reported file content type captured during upload.",
     "Report": "Whether a Markdown review report exists on the VM.",
     "Review": "Human review decision state: PENDING, APPROVED, or REJECTED.",
-    "Risk": "Highest severity found in AI risk notes. NONE means no risk note was returned.",
+    "Risk": (
+        "Highest AI risk-note severity for the document. The value is based on "
+        "returned risk notes and supporting evidence, not a final compliance decision."
+    ),
     "Status": "Processing state for the document lifecycle, from upload through approval or failure.",
     "Stage": "Simple queue state: Queued, Processing, Ready, Reviewed, or Failed.",
     "Storage": "Whether the original file has an OCI Object Storage path recorded.",
@@ -584,6 +587,43 @@ def highest_risk_level(record) -> str:
     )
 
 
+def risk_counts(record) -> dict[str, int]:
+    counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    if not record.analysis:
+        return counts
+    for risk in record.analysis.risk_notes:
+        severity = risk.severity.upper()
+        if severity in counts:
+            counts[severity] += 1
+    return counts
+
+
+def risk_detail_label(record) -> str:
+    if not record.analysis:
+        return "Risk not analyzed yet."
+    if not record.analysis.risk_notes:
+        return "No AI risk notes returned."
+    counts = risk_counts(record)
+    parts = [
+        f"{counts[severity]} {severity.lower()}"
+        for severity in ("HIGH", "MEDIUM", "LOW")
+        if counts[severity]
+    ]
+    note_count = len(record.analysis.risk_notes)
+    note_word = "note" if note_count == 1 else "notes"
+    return f"{note_count} risk {note_word}: {', '.join(parts)}."
+
+
+def highest_risk_evidence(record) -> str | None:
+    if not record.analysis or not record.analysis.risk_notes:
+        return None
+    highest = highest_risk_level(record)
+    for risk in record.analysis.risk_notes:
+        if risk.severity == highest:
+            return risk.evidence or risk.risk
+    return None
+
+
 def confidence_percent(record) -> int | None:
     if not record.analysis:
         return None
@@ -641,6 +681,14 @@ def action_priority(record) -> int:
     return 4
 
 
+def is_actionable_record(record) -> bool:
+    return (
+        requires_human_action(record)
+        or record.status.value == "FAILED"
+        or record.workflow_status == WorkflowStatus.ESCALATED
+    )
+
+
 def sort_action_records(records: list[DocumentRecord]) -> list[DocumentRecord]:
     return sorted(
         records,
@@ -648,14 +696,17 @@ def sort_action_records(records: list[DocumentRecord]) -> list[DocumentRecord]:
     )
 
 
+def next_action_document_id(
+    records: list[DocumentRecord], current_document_id: str
+) -> str | None:
+    for record in sort_action_records(records):
+        if record.document_id != current_document_id and is_actionable_record(record):
+            return record.document_id
+    return None
+
+
 def reviewer_action_count(records: list[DocumentRecord]) -> int:
-    return sum(
-        1
-        for record in records
-        if requires_human_action(record)
-        or record.status.value == "FAILED"
-        or record.workflow_status == WorkflowStatus.ESCALATED
-    )
+    return sum(1 for record in records if is_actionable_record(record))
 
 
 def processing_stage_rows(record) -> list[dict[str, str]]:
@@ -770,6 +821,7 @@ def record_to_row(record):
         "Reference": record.business_reference or "",
         "Risk Level": highest_risk_level(record),
         "Risks": len(analysis.risk_notes) if analysis else 0,
+        "Risk Detail": risk_detail_label(record),
         "Confidence": confidence_percent(record),
         "Action": action,
         "Summary": summary,
@@ -819,9 +871,7 @@ def dashboard_focus_record(records: list[DocumentRecord]) -> DocumentRecord | No
         (
             record
             for record in sort_action_records(records)
-            if requires_human_action(record)
-            or record.status.value == "FAILED"
-            or record.workflow_status == WorkflowStatus.ESCALATED
+            if is_actionable_record(record)
         ),
         None,
     )
@@ -900,11 +950,11 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
         st.info(empty_messages.get(view, f"No {view.lower()} documents."))
         return
 
-    widths = [0.48, 1.75, 0.68, 0.68, 0.56, 0.68, 1.15]
+    widths = [0.24, 2.25, 0.78, 0.58, 1.28]
     header_cols = st.columns(widths, vertical_alignment="center")
     for col, label in zip(
         header_cols,
-        ["", "Name", "Uploaded", "Type", "Risk", "Confidence", "Action"],
+        ["", "Document", "Risk", "Conf.", "Action"],
     ):
         col.markdown(f"**{label}**")
 
@@ -912,27 +962,26 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
         row_cols = st.columns(widths, vertical_alignment="center")
         document_id = row["Document ID"]
         row_cols[0].button(
-            "Open",
+            "↗",
             key=f"queue_open_{view}_{document_id}",
+            help=f"Open {row['Name']} in Actions",
             on_click=open_page,
             args=(PAGE_DETAIL, document_id),
-            width="stretch",
+            width="content",
         )
         row_cols[1].write(row["Name"])
-        details = []
+        details = [f"{row['Uploaded']} · {row['Type']}"]
         if row["Reference"]:
             details.append(f"Ref: {row['Reference']}")
         if row["Assignee"] != "Unassigned":
             details.append(f"Owner: {row['Assignee']}")
-        if details:
-            row_cols[1].caption(" | ".join(details))
-        row_cols[2].write(row["Uploaded"])
-        row_cols[3].write(row["Type"])
-        row_cols[4].write(row["Risk Level"])
+        row_cols[1].caption(" | ".join(details))
+        row_cols[2].write(row["Risk Level"])
+        row_cols[2].caption(row["Risk Detail"])
         confidence = row["Confidence"]
-        row_cols[5].write("N/A" if pd.isna(confidence) else f"{int(confidence)}%")
-        row_cols[6].write(row["Action"])
-        row_cols[6].caption(f"{row['Workflow']} | {row['SLA']}")
+        row_cols[3].write("N/A" if pd.isna(confidence) else f"{int(confidence)}%")
+        row_cols[4].write(row["Action"])
+        row_cols[4].caption(f"{row['Workflow']} | {row['SLA']}")
 
 
 def schedule_dashboard_refresh(active_count: int, seconds: int = 10) -> None:
@@ -1016,7 +1065,15 @@ def apply_review_action(
         document_id, approved=approved, comments=comments or None
     )
     refresh_markdown_report(config, updated)
-    st.success("Approved" if approved else "Rejected")
+    next_document_id = next_action_document_id(store.list_records(), document_id)
+    if next_document_id:
+        st.session_state["selected_document_id"] = next_document_id
+        st.session_state["dashboard_selected_document"] = next_document_id
+        decision = "Approved" if approved else "Rejected"
+        st.success(f"{decision}. Opening the next action item.")
+    else:
+        st.session_state["selected_document_id"] = document_id
+        st.success("Approved" if approved else "Rejected")
     return True
 
 
@@ -1298,6 +1355,13 @@ def render_analysis_overview(record) -> None:
         f"Document class: {analysis.document_class} | "
         f"Confidence: {confidence_percent(record)}% | Risk: {highest_risk_level(record)}"
     )
+    risk_evidence = highest_risk_evidence(record)
+    if risk_evidence:
+        st.warning(
+            f"Risk detail: {risk_detail_label(record)} Highest-risk evidence: {risk_evidence}"
+        )
+    else:
+        st.info(f"Risk detail: {risk_detail_label(record)}")
 
     col_left, col_right = st.columns(2, gap="large")
     with col_left:
@@ -1327,8 +1391,16 @@ def render_analysis_details(record) -> None:
 
     st.markdown("### Risk Notes")
     if analysis.risk_notes:
+        risk_rows = [
+            {
+                "Severity": risk.severity,
+                "Risk note": risk.risk,
+                "Supporting evidence": risk.evidence or "No evidence returned",
+            }
+            for risk in analysis.risk_notes
+        ]
         st.dataframe(
-            pd.DataFrame([risk.model_dump() for risk in analysis.risk_notes]),
+            pd.DataFrame(risk_rows),
             width="stretch",
             hide_index=True,
         )
