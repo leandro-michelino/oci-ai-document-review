@@ -20,13 +20,13 @@ from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowS
 from src.compliance import load_compliance_catalog, load_local_compliance_catalog
 from src.object_storage_client import ObjectStorageClient
 from src.processor import (
-    GENAI_SAFETY_REVIEW_MESSAGE,
     PUBLIC_SECTOR_EXPENSE_RISK,
     apply_compliance_attention,
     create_document_id,
     safe_document_name,
 )
 from src.report_generator import generate_markdown_report
+from src.safety_messages import GENAI_SAFETY_REVIEW_MESSAGE, sanitize_provider_message
 from src.version import VERSION_LABEL
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
@@ -45,6 +45,7 @@ READY_FOR_DECISION = {"REVIEW_REQUIRED"}
 ACTIVE_STATUSES = {"UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"}
 QUEUE_SECTION_VIEWS = ["Processing", "Ready", "Failed", "Reviewed"]
 DASHBOARD_REFRESH_SECONDS = 10
+TEXT_PREVIEW_MAX_BYTES = 750_000
 CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
 CONTACT_MESSAGE = "In case of any question, get in touch."
 PAGE_UPLOAD = "Upload"
@@ -75,6 +76,40 @@ STATE_TONE = {
     "EXTRACTED": "state-info",
     "AI_ANALYZED": "state-info",
     "UPLOADED": "state-info",
+}
+IMAGE_PREVIEW_EXTENSIONS = {
+    ".bmp",
+    ".gif",
+    ".jpeg",
+    ".jpg",
+    ".png",
+    ".tif",
+    ".tiff",
+    ".webp",
+}
+TEXT_PREVIEW_EXTENSIONS = {
+    ".csv",
+    ".htm",
+    ".html",
+    ".json",
+    ".log",
+    ".md",
+    ".text",
+    ".txt",
+    ".xml",
+    ".yaml",
+    ".yml",
+}
+TEXT_PREVIEW_MIME_TYPES = {
+    "application/json",
+    "application/xml",
+    "application/x-yaml",
+    "text/csv",
+    "text/html",
+    "text/markdown",
+    "text/plain",
+    "text/xml",
+    "text/yaml",
 }
 FIELD_HELP = {
     "Action": "The next human or operational step for the selected document.",
@@ -775,6 +810,69 @@ def local_working_copy_path(config, record) -> Path:
     )
 
 
+def normalized_mime_type(record) -> str:
+    return (record.source_file_mime_type or "").split(";", 1)[0].strip().lower()
+
+
+def source_preview_kind(record) -> str | None:
+    mime_type = normalized_mime_type(record)
+    extension = Path(record.document_name).suffix.lower()
+    if mime_type == "application/pdf" or extension == ".pdf":
+        return "pdf"
+    if mime_type.startswith("image/") or extension in IMAGE_PREVIEW_EXTENSIONS:
+        return "image"
+    if (
+        mime_type.startswith("text/")
+        or mime_type in TEXT_PREVIEW_MIME_TYPES
+        or extension in TEXT_PREVIEW_EXTENSIONS
+    ):
+        return "text"
+    return None
+
+
+def read_text_preview(path: Path, max_bytes: int = TEXT_PREVIEW_MAX_BYTES) -> str:
+    data = path.read_bytes()[:max_bytes]
+    text = data.decode("utf-8", errors="replace")
+    if path.stat().st_size > max_bytes:
+        text += "\n\n[Preview truncated]"
+    return text
+
+
+def render_source_document_preview(config, record) -> None:
+    working_copy = local_working_copy_path(config, record)
+    if not working_copy.exists():
+        st.info(
+            "The source file is not available on this VM. Use the extracted text "
+            "and metadata, or upload the source again if a visual review is required."
+        )
+        return
+
+    preview_kind = source_preview_kind(record)
+    st.caption(f"{working_copy.name} | {file_size_label(working_copy.stat().st_size)}")
+    if preview_kind == "pdf":
+        st.pdf(
+            working_copy.read_bytes(),
+            height=620,
+            key=f"source_pdf_{record.document_id}",
+        )
+    elif preview_kind == "image":
+        st.image(str(working_copy), caption=record.document_name, width="stretch")
+    elif preview_kind == "text":
+        st.text_area(
+            "Source preview",
+            value=read_text_preview(working_copy),
+            height=360,
+            disabled=True,
+            label_visibility="collapsed",
+            key=f"source_text_{record.document_id}",
+        )
+    else:
+        st.info(
+            "Inline preview is not available for this file type. The processing "
+            "metadata and extracted text are still available below."
+        )
+
+
 def render_file_information(record, compact: bool = False) -> None:
     core_info = [
         ("File name", record.document_name),
@@ -1167,12 +1265,7 @@ def record_summary(record) -> str:
 def display_error_message(message: str | None) -> str:
     if not message:
         return "Processing failed before completion."
-    normalized = message.lower()
-    if "inappropriate content detected" in normalized or (
-        "invalidparameter" in normalized and "inappropriate content" in normalized
-    ):
-        return GENAI_SAFETY_REVIEW_MESSAGE
-    return message
+    return sanitize_provider_message(message) or GENAI_SAFETY_REVIEW_MESSAGE
 
 
 def record_to_row(record):
@@ -2279,6 +2372,9 @@ def detail_page(config, store):
     st.subheader(record.document_name)
     render_status_strip(record)
 
+    with st.expander("Source document", expanded=True):
+        render_source_document_preview(config, record)
+
     review_col, decision_col = st.columns([1.45, 0.85], gap="large")
     with review_col:
         render_analysis_overview(record)
@@ -2358,10 +2454,11 @@ def settings_page(config):
                 ):
                     results = run_preflight(config)
                 for result in results:
+                    detail = sanitize_provider_message(result.detail) or result.detail
                     if result.ok:
-                        st.success(f"{result.name}: {result.detail}")
+                        st.success(f"{result.name}: {detail}")
                     else:
-                        st.error(f"{result.name}: {result.detail}")
+                        st.error(f"{result.name}: {detail}")
                 if all(result.ok for result in results):
                     st.success("All OCI runtime checks passed.")
                 else:

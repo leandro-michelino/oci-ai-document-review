@@ -216,7 +216,8 @@ docs/assets/oci-ai-document-review-architecture.svg
            v
 +----------------------------+
 | Actions Review             |
-| Workflow / Type / Approve  |
+| Source Preview / Workflow  |
+| Type / Approve             |
 | Next-In-Line Navigation    |
 +----------------------------+
 ```
@@ -232,6 +233,7 @@ docs/assets/oci-ai-document-review-architecture.svg
              v
 +--------------------------+
 | Actions Page             |
+| Source Preview           |
 | Decision + Workflow      |
 +------------+-------------+
              |

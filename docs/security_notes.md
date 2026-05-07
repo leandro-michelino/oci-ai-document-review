@@ -45,9 +45,11 @@ local laptop .env files
 local private keys outside /opt/oci-ai-document-review/.oci/oci_api_key.pem
 ```
 
-Workflow assignment, SLA dates, comments, audit events, retry history, extracted text previews, and AI review output are stored in local JSON metadata on the VM for this MVP. Do not move those files into Git, public buckets, public screenshots, or external posts unless they are synthetic and scrubbed.
+Workflow assignment, SLA dates, comments, audit events, retry history, extracted text previews, and AI review output are stored in local JSON metadata on the VM for this MVP. Uploaded working copies are also retained locally under `/opt/oci-ai-document-review/data/uploads` so reviewers can view supported source documents inline in Actions and failed documents can be retried. Do not move those files into Git, public buckets, public screenshots, or external posts unless they are synthetic and scrubbed.
 
 The public-sector expense risk overlay is a deterministic reviewer-routing control for the MVP. It checks document text and metadata against the curated compliance knowledge base configured by `COMPLIANCE_ENTITIES_OBJECT_NAME`, defaulting to `compliance/public_sector_entities.csv` in Object Storage. Matches are auditable in the risk evidence, but they are not legal or compliance determinations. Human review remains mandatory for approval and rejection.
+
+OCI Generative AI content-safety provider JSON is treated as operational noise, not reviewer-facing evidence. The app replaces those raw provider messages with a short manual-review explanation when displaying errors, loading old metadata, generating downloads, or regenerating reports.
 
 For production, replace the copied API key with instance principals or another approved workload identity pattern, store secrets in OCI Vault, and add OCI Logging, audit review, budgets, and lifecycle policies.
 

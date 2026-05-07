@@ -26,6 +26,11 @@ from src.models import (
 from src.object_storage_client import ObjectStorageClient
 from src.prompts import build_prompt
 from src.report_generator import generate_markdown_report
+from src.safety_messages import (
+    GENAI_SAFETY_REVIEW_MESSAGE,
+    GENAI_SAFETY_REVIEW_RISK,
+    is_genai_content_filter_text,
+)
 from src.text_extraction import extract_text_locally
 
 logger = get_logger(__name__)
@@ -50,12 +55,6 @@ EXPENSE_TERMS = (
     "food",
 )
 PUBLIC_SECTOR_EXPENSE_RISK = "Public-sector expense compliance review"
-GENAI_SAFETY_REVIEW_RISK = "Automatic AI analysis blocked by content safety filter"
-GENAI_SAFETY_REVIEW_MESSAGE = (
-    "OCI Generative AI blocked automatic analysis with the service content safety "
-    "filter. The document was routed for manual review instead of showing the raw "
-    "provider error."
-)
 
 
 def create_document_id() -> str:
@@ -118,10 +117,7 @@ def error_message(exc: Exception) -> str:
 def is_genai_content_filter_error(exc: Exception) -> bool:
     code = str(getattr(exc, "code", "") or "")
     message = str(getattr(exc, "message", "") or exc)
-    combined = f"{code} {message}".lower()
-    return (
-        "invalidparameter" in combined and "inappropriate content" in combined
-    ) or "inappropriate content detected" in combined
+    return is_genai_content_filter_text(f"{code} {message}")
 
 
 def fallback_safety_analysis(extraction: ExtractionResult) -> DocumentAnalysis:

@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 
 from src.models import DocumentAnalysis, DocumentRecord
+from src.safety_messages import sanitize_provider_text
 
 
 def _normalize_markdown(value: object) -> str:
-    text = str(value)
+    text = sanitize_provider_text(value) or ""
     return text.replace("\n", "<br>").replace("|", "\\|")
 
 

@@ -182,7 +182,7 @@ Reviewer assigns owner, SLA, workflow status, or comments
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, a Processing queue, a horizontal Ready band for approval work, paired Failed and Reviewed queues, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, a Processing queue, a horizontal Ready band for approval work, paired Failed and Reviewed queues, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Reviewers can inspect the source document in the browser when the local working copy is available: PDFs render inline, images display inline, and text-like files show a read-only source preview. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Compliance Knowledge Base
 
@@ -200,7 +200,7 @@ data/compliance/public_sector_entities.csv
 
 During processing and backfill, the app checks extracted text, file name, business reference, notes, and selected AI fields against the catalog. Matching expense-like documents receive a `Public-sector expense compliance review` risk note with auditable evidence that includes the source object, matched term, entity type, country, source, and source date. Those documents stay in the Ready queue and appear in Actions as `Compliance review`.
 
-If OCI Generative AI blocks a prompt with the service content safety filter, the app no longer exposes the raw provider JSON to the reviewer. It creates a manual-review analysis with `Risk High`, explains that automatic AI analysis was blocked, and keeps the extracted text preview available for review.
+If OCI Generative AI blocks a prompt with the service content safety filter, the app no longer exposes the raw provider JSON to the reviewer. It creates a manual-review analysis with `Risk High`, explains that automatic AI analysis was blocked, keeps the extracted text preview available for review, and sanitizes existing metadata/report display paths so stored provider JSON is replaced with the reviewer-safe message.
 
 ## Field Reference
 
@@ -241,6 +241,8 @@ The repository includes the application code, Terraform infrastructure, Ansible 
 ## OCI Deployment
 
 The project is intended to be deployed from your local laptop into your own OCI compartment.
+
+Source control and live deployment are separate steps. A Git commit and push updates GitHub only; it does not update the running OCI VM. To make a source change visible in the portal, commit and push the change, then run `./scripts/deploy.sh` from the repo root so Ansible unpacks the release into `/opt/oci-ai-document-review` and restarts the `oci-ai-document-review` systemd service.
 
 ```text
 Name: oci-ai-document-review
@@ -369,7 +371,16 @@ Deploy end to end:
 ./scripts/deploy.sh
 ```
 
-The deployed VM uses the existing OCI API key and policies from your local OCI profile.
+The deployed VM uses the existing OCI API key and policies from your local OCI profile. For code-only changes, Terraform should normally report no infrastructure changes, while Ansible still refreshes the app archive, writes runtime configuration, installs dependencies if needed, and restarts Streamlit.
+
+After deployment, verify the live VM rather than relying on GitHub state:
+
+```bash
+ssh -i ~/.ssh/id_rsa opc@<vm-public-ip> "grep -n 'def dashboard_metrics_html' /opt/oci-ai-document-review/app.py && sudo systemctl is-active oci-ai-document-review"
+curl -fsS -I http://<vm-public-ip>:8501
+```
+
+If the browser still shows an old dashboard after a successful deploy, reload the page so the Streamlit session reconnects to the restarted service.
 
 The release package excludes local-only files and runtime-unneeded artifacts such as `.git/`, `.env`, `.oci/`, `.venv/`, Python caches, `terraform.tfvars`, Terraform state, API keys, private keys, and local metadata. Ansible also scrubs sensitive file patterns after unpacking before writing the intended runtime `.env` and OCI SDK config.
 
@@ -390,7 +401,7 @@ The app supports:
 - Local JSON metadata
 - Approve and reject review actions
 - Dashboard queue view with metrics, next-action guidance, search, split queue tables, shortcuts, and per-row Open actions
-- Actions page for prioritized approvals, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
+- Actions page for prioritized approvals, inline source-document preview, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document
 - Field guide with `?` explanations for review and file metadata fields
 - OCI Preflight checks in Settings

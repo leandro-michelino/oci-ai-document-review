@@ -148,6 +148,8 @@ Run:
 ./scripts/deploy.sh
 ```
 
+GitHub is not the live deployment target. Committing and pushing source changes preserves them in the remote repository, but the running portal changes only after this local deployment script builds a new release archive, copies it to the VM, and restarts the `oci-ai-document-review` service.
+
 The deploy script:
 
 ```text
@@ -163,6 +165,8 @@ The deploy script:
 10. Restarts the systemd service.
 11. Prints a structured deployment summary.
 ```
+
+For a code-only redeploy, Terraform should normally show `No changes`; the important app update happens in the Ansible tasks named `Unpack app release` and `Start portal service`.
 
 ## Terraform Outputs
 
@@ -331,6 +335,8 @@ Dashboard
 
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
+  - Shows the source document inline when the VM still has the local working copy.
+  - Supports browser previews for PDFs, images, and text-like files without requiring a download.
   - Shows a focused AI review summary with key points and recommendations.
   - Shows the Decision panel for approve or reject.
   - Keeps analysis details, file and processing details, extracted text, and downloads in expanders.
@@ -397,29 +403,52 @@ local private keys outside .oci/oci_api_key.pem
 After changing code locally:
 
 ```bash
+.venv/bin/pytest
+git status --short
+git add <changed-files>
+git commit -m "<message>"
+git push origin main
 ./scripts/deploy.sh
 ```
 
-The script reuses Terraform state, refreshes the app archive, reruns Ansible, updates dependencies if needed, and restarts the systemd service.
+The script reuses Terraform state, refreshes the app archive, reruns Ansible, updates dependencies if needed, and restarts the systemd service. The push and the VM deployment are intentionally both listed: GitHub records the release, while `./scripts/deploy.sh` applies it to `/opt/oci-ai-document-review` on the VM.
+
+Verify the live VM after deployment:
+
+```bash
+ssh -i ~/.ssh/id_rsa opc@<vm-public-ip> "grep -n 'def dashboard_metrics_html' /opt/oci-ai-document-review/app.py && grep -n 'st.markdown(dashboard_metrics_html(metric_cards)' /opt/oci-ai-document-review/app.py && sudo systemctl is-active oci-ai-document-review"
+curl -fsS -I http://<vm-public-ip>:8501
+```
+
+For the Dashboard `At a glance` cards specifically, the deployed `app.py` should contain `dashboard_metrics_html()`. That helper emits the metric cards as one compact HTML block, which prevents Streamlit Markdown from treating later card markup as an indented code block.
+
+For Actions source previews, the deployed `app.py` should contain `render_source_document_preview()`. It reads the local working copy from `/opt/oci-ai-document-review/data/uploads` and renders supported document formats inline for the approver.
+
+For OCI Generative AI content-safety failures, the deployed source should contain `src/safety_messages.py`. That helper replaces raw provider JSON such as `InvalidParameter` and `Inappropriate content detected` before it reaches UI display, metadata reloads, JSON downloads, or regenerated Markdown reports.
 
 ## End-To-End Verification
 
 Use this checklist after any wiring or deployment change:
 
 ```text
-1. terraform validate
-2. ./scripts/deploy.sh
-3. Confirm Terraform reports 0 unexpected infrastructure changes.
-4. Confirm Ansible finishes with failed=0.
-5. Confirm service is active and enabled.
-6. Run OCI Preflight from Settings.
-7. Upload a small real PDF or image.
-8. Confirm the record reaches REVIEW_REQUIRED.
-9. Confirm object_storage_path is populated.
-10. Confirm analysis is populated.
-11. Confirm the Markdown report exists.
-12. Confirm Dashboard opens the selected record in Actions.
-13. Confirm approve or reject updates the review state.
+1. .venv/bin/pytest
+2. terraform validate
+3. git commit and git push origin main, when the change should be recorded remotely.
+4. ./scripts/deploy.sh
+5. Confirm Terraform reports 0 unexpected infrastructure changes for code-only deploys.
+6. Confirm Ansible finishes with failed=0 and restarts the service.
+7. Confirm the deployed file under /opt/oci-ai-document-review contains the expected code.
+8. Confirm service is active and enabled.
+9. Hard refresh the browser or reopen the Streamlit URL.
+10. Run OCI Preflight from Settings.
+11. Upload a small real PDF or image.
+12. Confirm the record reaches REVIEW_REQUIRED.
+13. Confirm object_storage_path is populated.
+14. Confirm analysis is populated.
+15. Confirm the Markdown report exists.
+16. Confirm Dashboard opens the selected record in Actions.
+17. Confirm Actions shows the Source document preview for PDF, image, or text-like uploads when the local working copy exists.
+18. Confirm approve or reject updates the review state.
 ```
 
 Useful VM commands:

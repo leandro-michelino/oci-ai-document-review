@@ -9,6 +9,7 @@ from src.models import (
     ReviewStatus,
     WorkflowStatus,
 )
+from src.safety_messages import GENAI_SAFETY_REVIEW_MESSAGE
 
 
 def test_list_records_skips_invalid_metadata(tmp_path):
@@ -207,3 +208,23 @@ def test_mark_failed_records_audit_once_for_same_failure(tmp_path):
     assert second.error_message == "OCR timeout"
     assert [event.action for event in first.audit_events] == ["PROCESSING_FAILED"]
     assert [event.action for event in second.audit_events] == ["PROCESSING_FAILED"]
+
+
+def test_load_sanitizes_stored_genai_content_filter_json(tmp_path):
+    config = SimpleNamespace(local_metadata_dir=tmp_path)
+    store = MetadataStore(config)
+    raw = '{ "code" : "InvalidParameter", "message" : "Inappropriate content detected!!!" }'
+    store.save(
+        DocumentRecord(
+            document_id="doc-safety",
+            document_name="scan.pdf",
+            document_type=DocumentType.GENERAL,
+            status=ProcessingStatus.FAILED,
+            error_message=raw,
+        )
+    )
+
+    updated = store.mark_failed("doc-safety", raw, actor="Worker")
+
+    assert updated.error_message == GENAI_SAFETY_REVIEW_MESSAGE
+    assert updated.audit_events[-1].detail == GENAI_SAFETY_REVIEW_MESSAGE

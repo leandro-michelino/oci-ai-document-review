@@ -143,11 +143,15 @@ Scanned PDFs and PDFs that contain page images use OCR. The app first tries rich
 
 Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run remains in an active stage beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
 
-The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh stays on the Dashboard instead of returning to Upload. The Dashboard body runs inside a Streamlit fragment and refreshes every 10 seconds while the session is active. That updates metrics and split queue tables without using a full browser reload.
+The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh stays on the Dashboard instead of returning to Upload. The Dashboard body runs inside a Streamlit fragment and refreshes every 10 seconds while the session is active. That updates metrics and split queue tables without using a full browser reload. Dashboard metric cards are emitted as one compact HTML block through `dashboard_metrics_html()` so Streamlit Markdown does not treat later cards as escaped code text.
+
+The Actions page includes a Source document preview before the AI review area. It uses the preserved local working copy in `data/uploads` and renders PDFs with Streamlit's PDF viewer, images with the image component, and text-like files in a read-only preview. If the working copy is missing or the type is unsupported, the reviewer still sees metadata, lifecycle details, extracted text, and generated analysis.
 
 After GenAI returns structured analysis, the app applies a deterministic compliance overlay. It checks extracted text, file name, business reference, notes, and selected AI fields against the curated entity catalog configured by `COMPLIANCE_ENTITIES_OBJECT_NAME`, defaulting to `compliance/public_sector_entities.csv` in Object Storage. If the object is missing, the app seeds it from the bundled `data/compliance/public_sector_entities.csv` file and falls back locally if Object Storage cannot be reached.
 
 Expense-like documents that match public-sector entries such as `gov`, ministries, municipalities, state agencies, public officials, or named entities such as ZIMSEC are flagged with a `Public-sector expense compliance review` note. The evidence records the knowledge-base source, matched term, entity type, country, source, and source date. These documents show as `Compliance review` in the Actions queue with severity-labeled risk badges such as `Risk Small`, `Risk Medium`, and `Risk High`. This is a reviewer-routing control for the MVP, not a final compliance determination.
+
+OCI Generative AI content-safety failures are normalized through `src/safety_messages.py`. New worker failures, existing metadata loads, preflight display, JSON downloads, and regenerated Markdown reports replace raw provider JSON with a reviewer-safe explanation.
 
 ## Compliance Knowledge Base
 
@@ -243,13 +247,14 @@ Then on the portal:
 3. Choose Auto-detect once and confirm the record receives a concrete document type.
 4. Confirm Dashboard shows the record as Ready.
 5. Open the record from Dashboard.
-6. Confirm the Actions page shows AI summary, key points, and recommendations.
-7. Confirm the Workflow panel can assign an owner, set an SLA, add a comment, and show an audit event.
-8. For a failed document, confirm Retry Processing creates a child record and the original shows retry history.
-9. Confirm the reviewer can correct the document type if needed.
-10. Confirm JSON and Markdown downloads are available and include workflow metadata.
-11. Confirm approve or reject updates the review state, closes the workflow, and moves to the next action item when one exists.
-12. Upload or simulate a public-sector expense and confirm a high compliance attention risk is added.
+6. Confirm the Actions page shows the Source document preview for supported file types.
+7. Confirm the Actions page shows AI summary, key points, and recommendations.
+8. Confirm the Workflow panel can assign an owner, set an SLA, add a comment, and show an audit event.
+9. For a failed document, confirm Retry Processing creates a child record and the original shows retry history.
+10. Confirm the reviewer can correct the document type if needed.
+11. Confirm JSON and Markdown downloads are available and include workflow metadata.
+12. Confirm approve or reject updates the review state, closes the workflow, and moves to the next action item when one exists.
+13. Upload or simulate a public-sector expense and confirm a high compliance attention risk is added.
 ```
 
 ## Local App Run

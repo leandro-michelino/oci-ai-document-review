@@ -8,6 +8,7 @@ from src.models import (
     WorkflowStatus,
 )
 from src.report_generator import generate_markdown_report
+from src.safety_messages import GENAI_SAFETY_REVIEW_MESSAGE
 
 
 def test_generate_markdown_report_contains_summary_and_model():
@@ -62,6 +63,33 @@ def test_generate_markdown_report_escapes_table_values():
     assert "Net 30 \\| urgent" in report
     assert "Mismatch \\| amount" in report
     assert "Line one<br>Line two" in report
+
+
+def test_generate_markdown_report_sanitizes_provider_safety_json():
+    raw = '{ "code" : "InvalidParameter", "message" : "Inappropriate content detected!!!" }'
+    record = DocumentRecord(
+        document_id="doc-safety",
+        document_name="scan.pdf",
+        document_type=DocumentType.GENERAL,
+        status=ProcessingStatus.REVIEW_REQUIRED,
+        analysis=DocumentAnalysis(
+            document_class="GENERAL",
+            executive_summary="Manual review.",
+            risk_notes=[
+                RiskNote(
+                    risk="Provider block",
+                    severity="HIGH",
+                    evidence=raw,
+                )
+            ],
+            confidence_score=0.0,
+        ),
+    )
+
+    report = generate_markdown_report(record, model_id="cohere.command-r-plus-08-2024")
+
+    assert raw not in report
+    assert GENAI_SAFETY_REVIEW_MESSAGE in report
 
 
 def test_generate_markdown_report_contains_workflow_metadata():

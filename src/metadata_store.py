@@ -13,6 +13,7 @@ from src.models import (
     WorkflowComment,
     WorkflowStatus,
 )
+from src.safety_messages import sanitize_provider_payload
 
 logger = get_logger(__name__)
 ACTIVE_PROCESSING_STATUSES = {
@@ -32,22 +33,26 @@ class MetadataStore:
         return self.root / f"{document_id}.json"
 
     def save(self, record: DocumentRecord) -> None:
+        sanitized = DocumentRecord.model_validate(
+            sanitize_provider_payload(record.model_dump(mode="python"))
+        )
         self.path_for(record.document_id).write_text(
-            record.model_dump_json(indent=2), encoding="utf-8"
+            sanitized.model_dump_json(indent=2), encoding="utf-8"
         )
 
     def load(self, document_id: str) -> DocumentRecord:
-        return DocumentRecord.model_validate_json(
+        raw = DocumentRecord.model_validate_json(
             self.path_for(document_id).read_text(encoding="utf-8")
+        )
+        return DocumentRecord.model_validate(
+            sanitize_provider_payload(raw.model_dump(mode="python"))
         )
 
     def list_records(self) -> list[DocumentRecord]:
         records = []
         for path in sorted(self.root.glob("*.json"), reverse=True):
             try:
-                records.append(
-                    DocumentRecord.model_validate_json(path.read_text(encoding="utf-8"))
-                )
+                records.append(self.load(path.stem))
             except Exception as exc:
                 logger.warning("Skipping invalid metadata file %s: %s", path, exc)
         return records
@@ -64,7 +69,11 @@ class MetadataStore:
         self, record: DocumentRecord, action: str, actor: str, detail: str | None = None
     ) -> None:
         record.audit_events.append(
-            AuditEvent(actor=actor or "System", action=action, detail=detail)
+            AuditEvent(
+                actor=actor or "System",
+                action=action,
+                detail=sanitize_provider_payload(detail),
+            )
         )
 
     def set_workflow(
@@ -158,6 +167,7 @@ class MetadataStore:
         actor: str = "Worker",
         action: str = "PROCESSING_FAILED",
     ) -> DocumentRecord:
+        message = sanitize_provider_payload(message)
         record = self.load(document_id)
         record.status = ProcessingStatus.FAILED
         record.error_message = message
