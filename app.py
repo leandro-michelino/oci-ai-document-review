@@ -7,7 +7,6 @@ from tempfile import NamedTemporaryFile
 
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 from src.config import get_config
 from src.health_checks import run_preflight
@@ -20,17 +19,20 @@ from src.metadata_store import MetadataStore
 from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
 from src.processor import create_document_id, safe_document_name
 from src.report_generator import generate_markdown_report
+from src.version import VERSION_LABEL
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
 READY_FOR_DECISION = {"REVIEW_REQUIRED"}
 ACTIVE_STATUSES = {"UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"}
 QUEUE_SECTION_VIEWS = ["Processing", "Ready", "Failed", "Reviewed"]
+DASHBOARD_REFRESH_SECONDS = 10
 CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
 CONTACT_MESSAGE = "In case of any question, get in touch."
 PAGE_UPLOAD = "Upload"
 PAGE_DASHBOARD = "Dashboard"
 PAGE_DETAIL = "Actions"
 PAGE_SETTINGS = "Settings"
+PAGE_QUERY_PARAM = "page"
 LEGACY_PAGE_NAMES = {
     "Upload Document": PAGE_UPLOAD,
     "Review Dashboard": PAGE_DASHBOARD,
@@ -68,8 +70,9 @@ FIELD_HELP = {
     "Report": "Whether a Markdown review report exists on the VM.",
     "Review": "Human review decision state: PENDING, APPROVED, or REJECTED.",
     "Risk": (
-        "Highest AI risk-note severity for the document. The value is based on "
-        "returned risk notes and supporting evidence, not a final compliance decision."
+        "Highest AI or compliance risk-note severity for the document. The value is "
+        "based on returned risk notes and supporting evidence, not a final compliance "
+        "decision."
     ),
     "Status": "Processing state for the document lifecycle, from upload through approval or failure.",
     "Stage": "Simple queue state: Queued, Processing, Ready, Reviewed, or Failed.",
@@ -104,6 +107,24 @@ def normalize_page(page: str | None) -> str | None:
     if page is None:
         return None
     return LEGACY_PAGE_NAMES.get(page, page)
+
+
+def query_page() -> str | None:
+    try:
+        value = st.query_params.get(PAGE_QUERY_PARAM)
+    except Exception:
+        return None
+    if isinstance(value, list):
+        value = value[0] if value else None
+    return normalize_page(value)
+
+
+def sync_page_query(page: str) -> None:
+    try:
+        if query_page() != page:
+            st.query_params[PAGE_QUERY_PARAM] = page
+    except Exception:
+        return
 
 
 def document_type_label(document_type: DocumentType | str) -> str:
@@ -898,14 +919,14 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
                 "Open in Actions",
                 type="primary",
                 key=f"dashboard_focus_open_{focus.document_id}",
-                on_click=open_page,
+                on_click=open_page_from_dashboard,
                 args=(PAGE_DETAIL, focus.document_id),
                 width="stretch",
             )
             cols[1].button(
                 "Upload",
                 key="dashboard_focus_upload",
-                on_click=open_page,
+                on_click=open_page_from_dashboard,
                 args=(PAGE_UPLOAD,),
                 width="stretch",
             )
@@ -921,7 +942,7 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
                 f"The worker pool can run {config.max_parallel_jobs} at a time."
             )
             if st.button("Refresh Status", key="dashboard_focus_refresh"):
-                st.rerun()
+                rerun_dashboard_fragment()
             return
 
         st.write(
@@ -932,7 +953,7 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
             "Upload",
             type="primary",
             key="dashboard_focus_upload_clear",
-            on_click=open_page,
+            on_click=open_page_from_dashboard,
             args=(PAGE_UPLOAD,),
         )
 
@@ -965,7 +986,7 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
             "↗",
             key=f"queue_open_{view}_{document_id}",
             help=f"Open {row['Name']} in Actions",
-            on_click=open_page,
+            on_click=open_page_from_dashboard,
             args=(PAGE_DETAIL, document_id),
             width="content",
         )
@@ -984,19 +1005,21 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
         row_cols[4].caption(f"{row['Workflow']} | {row['SLA']}")
 
 
-def schedule_dashboard_refresh(active_count: int, seconds: int = 10) -> None:
+def rerun_dashboard_fragment() -> None:
+    st.rerun(scope="fragment")
+
+
+def open_page_from_dashboard(page: str, document_id: str | None = None) -> None:
+    open_page(page, document_id)
+    st.rerun()
+
+
+def render_dashboard_refresh_note(active_count: int) -> None:
     if active_count <= 0:
         return
     st.caption(
-        f"Auto-refreshing every {seconds} seconds while documents are processing."
-    )
-    components.html(
-        f"""
-        <script>
-        setTimeout(() => window.parent.location.reload(), {seconds * 1000});
-        </script>
-        """,
-        height=0,
+        "Refreshing Dashboard components every "
+        f"{DASHBOARD_REFRESH_SECONDS} seconds while documents are processing."
     )
 
 
@@ -1009,6 +1032,7 @@ def open_page(page: str, document_id: str | None = None) -> None:
     st.session_state["page"] = page
     st.session_state["requested_page"] = page
     st.session_state["action_navigation"] = True
+    sync_page_query(page)
 
 
 def open_fresh_upload() -> None:
@@ -1533,12 +1557,8 @@ def upload_page(config, store):
         render_queued_actions(record)
 
 
-def dashboard_page(config, store):
-    page_header(
-        "Review",
-        "Dashboard",
-        "See what needs attention, monitor processing, and open documents for review.",
-    )
+@st.fragment(run_every=f"{DASHBOARD_REFRESH_SECONDS}s")
+def render_dashboard_live_content(config, store) -> None:
     records = store.list_records()
     if not records:
         with st.container(border=True):
@@ -1548,14 +1568,14 @@ def dashboard_page(config, store):
                 "Upload",
                 type="primary",
                 key="dashboard_empty_upload",
-                on_click=open_page,
+                on_click=open_page_from_dashboard,
                 args=(PAGE_UPLOAD,),
                 width="stretch",
             )
             empty_cols[1].button(
                 "Settings",
                 key="dashboard_empty_settings",
-                on_click=open_page,
+                on_click=open_page_from_dashboard,
                 args=(PAGE_SETTINGS,),
                 width="stretch",
             )
@@ -1587,8 +1607,8 @@ def dashboard_page(config, store):
             f"{len(active_runs)} document{suffix} processing. Worker pool size: {config.max_parallel_jobs}."
         )
         if st.button("Refresh Status"):
-            st.rerun()
-        schedule_dashboard_refresh(len(active_runs))
+            rerun_dashboard_fragment()
+        render_dashboard_refresh_note(len(active_runs))
 
     search_cols = st.columns([1.25, 0.35, 0.35], vertical_alignment="bottom")
     search = search_cols[0].text_input(
@@ -1599,14 +1619,14 @@ def dashboard_page(config, store):
     search_cols[1].button(
         "Upload",
         key="dashboard_upload_action",
-        on_click=open_page,
+        on_click=open_page_from_dashboard,
         args=(PAGE_UPLOAD,),
         width="stretch",
     )
     search_cols[2].button(
         "Actions",
         key="dashboard_actions_action",
-        on_click=open_page,
+        on_click=open_page_from_dashboard,
         args=(PAGE_DETAIL,),
         width="stretch",
     )
@@ -1623,6 +1643,15 @@ def dashboard_page(config, store):
 
     if filtered.empty:
         st.info("No documents match this search.")
+
+
+def dashboard_page(config, store):
+    page_header(
+        "Review",
+        "Dashboard",
+        "See what needs attention, monitor processing, and open documents for review.",
+    )
+    render_dashboard_live_content(config, store)
 
 
 def detail_page(config, store):
@@ -1802,8 +1831,8 @@ def main():
     nav_records = store.list_records()
     action_count = reviewer_action_count(nav_records)
     st.sidebar.title(config.app_title)
-    st.sidebar.caption("AI document review on OCI")
-    current_page = (
+    st.sidebar.caption(f"AI document review on OCI | {VERSION_LABEL}")
+    current_page = query_page() or (
         normalize_page(st.session_state.get("page", PAGE_UPLOAD)) or PAGE_UPLOAD
     )
     requested_page = normalize_page(st.session_state.get("requested_page"))
@@ -1812,6 +1841,7 @@ def main():
     if current_page not in pages:
         current_page = PAGE_UPLOAD
     st.session_state["page"] = current_page
+    sync_page_query(current_page)
     action_navigation = bool(st.session_state.pop("action_navigation", False))
     st.sidebar.markdown("Navigation")
     for nav_page in pages:
@@ -1831,6 +1861,7 @@ def main():
         ):
             st.session_state["page"] = nav_page
             st.session_state.pop("requested_page", None)
+            sync_page_query(nav_page)
     page = st.session_state["page"]
     st.sidebar.divider()
     st.sidebar.metric("GenAI region", config.genai_region)

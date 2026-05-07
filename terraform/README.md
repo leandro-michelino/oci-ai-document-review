@@ -4,6 +4,8 @@ This directory prepares the OCI resources for the MVP.
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
+Current project version: `v0.3.0`
+
 Deployment is intended to run from your laptop only. There are no GitHub Actions or CI deployment workflows in this repository.
 
 Do not commit:
@@ -35,16 +37,26 @@ Create or choose a project compartment before deployment:
 ocid1.compartment.oc1..exampleproject
 ```
 
-Run the setup wizard first. It fetches subscribed OCI regions and probes OCI Generative AI before writing local config files.
+Run the setup wizard first. It validates the OCI profile, validates compartment OCIDs, fetches subscribed OCI regions, discovers the Object Storage namespace, separates runtime region from GenAI region selection, normalizes ingress CIDRs, and probes OCI Generative AI before writing local config files.
+
+Interactive setup:
+
+```bash
+python scripts/setup.py
+```
+
+Repeatable setup:
 
 ```bash
 python scripts/setup.py \
   --compartment-id ocid1.compartment.oc1..exampleproject \
   --parent-compartment-id ocid1.compartment.oc1..exampleparent \
-  --home-region your-home-region
+  --home-region your-home-region \
+  --runtime-region your-runtime-region \
+  --allowed-ingress-cidr 203.0.113.10/32
 ```
 
-Or copy the sample and edit it manually:
+Or copy the sample and edit it manually for recovery or advanced edits:
 
 ```bash
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars

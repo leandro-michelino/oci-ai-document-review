@@ -2,13 +2,15 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
+Current project version: `v0.3.0`
+
 ## MVP Controls
 
 - Keep Object Storage buckets private.
 - Do not commit `.env`, `terraform.tfvars`, Terraform state, `.deploy/`, OCI config files, API keys, private keys, or downloaded reports.
 - Use a narrow `allowed_ingress_cidr`, ideally your current public IP with `/32`.
 - Pass `--allowed-ingress-cidr` explicitly if setup cannot discover your current public IP. The setup script must not fall back to open ingress.
-- Keep the Streamlit VM behind security lists only. No NSGs are created in this version.
+- Keep the Streamlit VM behind security lists only. No NSGs are created in this MVP version.
 - Use existing least-privilege OCI policies for Object Storage, Document Understanding, and Generative AI.
 - Avoid logging full document text.
 - Keep human review before business approval.
@@ -16,7 +18,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 
 ## Credential Model
 
-The MVP deploys from your laptop and copies the existing OCI API key referenced by your local OCI profile to the VM. This keeps Git clean, but it is still a first-version credential model.
+The MVP deploys from your laptop and copies the existing OCI API key referenced by your local OCI profile to the VM. This keeps Git clean, but it is still an early-version credential model.
 
 Expected runtime credential files on the VM:
 
@@ -44,6 +46,8 @@ local private keys outside /opt/oci-ai-document-review/.oci/oci_api_key.pem
 ```
 
 Workflow assignment, SLA dates, comments, audit events, retry history, extracted text previews, and AI review output are stored in local JSON metadata on the VM for this MVP. Do not move those files into Git, public buckets, public screenshots, or external posts unless they are synthetic and scrubbed.
+
+The public-sector expense risk overlay is a deterministic reviewer-routing control for the MVP. It flags attention when expense-like text mentions public-sector cues, but it is not a legal or compliance determination. Human review remains mandatory for approval and rejection.
 
 For production, replace the copied API key with instance principals or another approved workload identity pattern, store secrets in OCI Vault, and add OCI Logging, audit review, budgets, and lifecycle policies.
 

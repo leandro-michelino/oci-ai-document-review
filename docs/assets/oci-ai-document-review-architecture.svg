@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1360" height="1600" viewBox="0 0 1360 1600" role="img" aria-labelledby="title desc">
   <title id="title">OCI AI Document Review Architecture</title>
-  <desc id="desc">Architecture diagram showing a business user uploading documents to a Streamlit portal, a background worker queue, OCI Object Storage, local text extraction or Document Understanding, OCI Generative AI, dashboard queue, and human review workflow.</desc>
+  <desc id="desc">Architecture diagram showing a business user uploading documents to a Streamlit portal, a background worker queue, OCI Object Storage, local text extraction or Document Understanding OCR with text-only fallback, OCI Generative AI, compliance risk overlay, dashboard queue with fragment refresh, and human review workflow.</desc>
   <defs>
     <style>
       .title { font: 700 30px Arial, sans-serif; fill: #111827; }
@@ -20,7 +20,7 @@
   </defs>
 
   <rect width="1360" height="1600" fill="#ffffff"/>
-  <text x="680" y="52" text-anchor="middle" class="title">OCI AI Document Review - architecture</text>
+  <text x="680" y="52" text-anchor="middle" class="title">OCI AI Document Review v0.3.0 - architecture</text>
 
   <g transform="translate(520 80)">
     <rect class="human" width="320" height="88" rx="16"/>
@@ -33,7 +33,7 @@
   <g transform="translate(400 205)">
     <rect class="app" width="560" height="112" rx="16"/>
     <text x="280" y="42" text-anchor="middle" class="node-title" fill="#352b85">Streamlit web portal</text>
-    <text x="280" y="78" text-anchor="middle" class="node-sub" fill="#4d48c9">Upload, dashboard, actions page</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub" fill="#4d48c9">Upload, dashboard, actions, settings</text>
   </g>
 
   <path class="link" d="M680 317 V354"/>
@@ -60,7 +60,7 @@
   <path class="link" d="M680 650 H1120 V700"/>
   <path class="arrow" d="M1120 699 l-9 -15 h18z"/>
   <text x="384" y="638" text-anchor="middle" class="label">Text-native and text PDFs</text>
-  <text x="912" y="638" text-anchor="middle" class="label">Images / scanned</text>
+  <text x="912" y="638" text-anchor="middle" class="label">Images / scanned PDFs</text>
 
   <g transform="translate(60 700)">
     <rect class="local" width="360" height="112" rx="16"/>
@@ -71,7 +71,7 @@
   <g transform="translate(940 700)">
     <rect class="oci" width="360" height="112" rx="16"/>
     <text x="180" y="42" text-anchor="middle" class="node-title" fill="#00594d">Doc Understanding</text>
-    <text x="180" y="78" text-anchor="middle" class="node-sub" fill="#006b5a">OCR and key values</text>
+    <text x="180" y="78" text-anchor="middle" class="node-sub" fill="#006b5a">OCR, rich extraction, fallback</text>
   </g>
 
   <circle class="dot" cx="680" cy="876" r="7"/>
@@ -82,7 +82,7 @@
   <g transform="translate(380 916)">
     <rect class="genai" width="600" height="112" rx="16"/>
     <text x="300" y="42" text-anchor="middle" class="node-title" fill="#824400">OCI Generative AI</text>
-    <text x="300" y="78" text-anchor="middle" class="node-sub" fill="#824400">Cohere - review - risk flags - confidence</text>
+    <text x="300" y="78" text-anchor="middle" class="node-sub" fill="#824400">Cohere - review - fields - risk</text>
   </g>
 
   <path class="link" d="M680 1028 V1065"/>
@@ -90,8 +90,8 @@
 
   <g transform="translate(400 1065)">
     <rect class="human" width="560" height="112" rx="16"/>
-    <text x="280" y="42" text-anchor="middle" class="node-title">Local JSON metadata</text>
-    <text x="280" y="78" text-anchor="middle" class="node-sub">Reports, workflow, audit, retries</text>
+    <text x="280" y="42" text-anchor="middle" class="node-title">Compliance + metadata</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub">Risk overlay, reports, audit</text>
   </g>
 
   <path class="link" d="M680 1177 V1214"/>
@@ -100,7 +100,7 @@
   <g transform="translate(400 1214)">
     <rect class="app" width="560" height="112" rx="16"/>
     <text x="280" y="42" text-anchor="middle" class="node-title" fill="#352b85">Dashboard queue</text>
-    <text x="280" y="78" text-anchor="middle" class="node-sub" fill="#4d48c9">Metrics, search, lifecycle view</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub" fill="#4d48c9">URL state, fragments, split tables</text>
   </g>
 
   <path class="link" d="M680 1326 V1363"/>
@@ -108,8 +108,8 @@
 
   <g transform="translate(400 1363)">
     <rect class="human" width="560" height="112" rx="16"/>
-    <text x="280" y="42" text-anchor="middle" class="node-title">Workflow and decision</text>
-    <text x="280" y="78" text-anchor="middle" class="node-sub">Assign - SLA - approve - retry</text>
+    <text x="280" y="42" text-anchor="middle" class="node-title">Actions review</text>
+    <text x="280" y="78" text-anchor="middle" class="node-sub">Assign - SLA - decide - next item</text>
   </g>
 
   <text x="680" y="1518" text-anchor="middle" class="footer">Infra as Code: Terraform - Ansible</text>

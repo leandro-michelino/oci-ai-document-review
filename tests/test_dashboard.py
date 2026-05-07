@@ -27,6 +27,13 @@ from src.models import (
 )
 
 
+def query_value(params: dict, key: str) -> str | None:
+    value = params.get(key)
+    if isinstance(value, list):
+        return value[0] if value else None
+    return value
+
+
 def make_record(
     document_id: str,
     name: str,
@@ -285,6 +292,7 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
                 app = button.click().run()
                 break
         assert app.session_state["page"] == "Dashboard"
+        assert query_value(app.query_params, "page") == "Dashboard"
         app = app.run()
         assert app.session_state["page"] == "Dashboard"
 
@@ -320,5 +328,11 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
                 app = button.click().run()
                 break
         assert app.session_state["page"] == "Settings"
+        assert query_value(app.query_params, "page") == "Settings"
+
+        refreshed = AppTest.from_file("app.py", default_timeout=5)
+        refreshed.query_params["page"] = "Dashboard"
+        refreshed = refreshed.run()
+        assert refreshed.session_state["page"] == "Dashboard"
     finally:
         get_config.cache_clear()

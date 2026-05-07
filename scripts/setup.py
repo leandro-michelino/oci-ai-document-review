@@ -4,9 +4,10 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import os
+import subprocess
 import urllib.request
 from dataclasses import dataclass
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 from pathlib import Path
 
 try:
@@ -21,6 +22,7 @@ except Exception:  # pragma: no cover - fallback before dependencies are install
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BUCKET = "doc-review-input"
+DEFAULT_MODEL = "cohere.command-r-plus-08-2024"
 SUPPORTED_CHAT_MODEL_PREFIXES = ("cohere.",)
 
 
@@ -41,11 +43,30 @@ class UI:
             print(message)
 
     def banner(self) -> None:
-        text = "OCI AI Document Review Portal setup"
+        text = (
+            "OCI AI Document Review Portal setup\n"
+            "Customer-friendly guided configuration for v0.3.0"
+        )
         if self.console and Panel:
-            self.console.print(Panel.fit(text, subtitle="live GenAI region discovery"))
+            self.console.print(Panel.fit(text, subtitle="no cloud resources created"))
         else:
             print(f"\n{text}\n")
+
+    def section(self, title: str, detail: str | None = None) -> None:
+        if self.console:
+            self.console.rule(f"[bold]{title}[/bold]")
+            if detail:
+                self.console.print(detail)
+            return
+        print(f"\n== {title} ==")
+        if detail:
+            print(detail)
+
+    def success(self, message: str) -> None:
+        self.print(f"[green]{message}[/green]" if self.console else message)
+
+    def warning(self, message: str) -> None:
+        self.print(f"[yellow]{message}[/yellow]" if self.console else message)
 
     def show_regions(self, regions: list[GenAIRegion]) -> None:
         if self.console and Table:
@@ -62,35 +83,129 @@ class UI:
         for index, region in enumerate(regions, start=1):
             print(f"{index}. {region.name}: {', '.join(region.models[:5])}")
 
+    def show_summary(self, values: dict[str, str]) -> None:
+        if self.console and Table:
+            table = Table(title="Configuration to write")
+            table.add_column("Setting")
+            table.add_column("Value")
+            for key, value in values.items():
+                table.add_row(key, value)
+            self.console.print(table)
+            return
+        print("\nConfiguration to write:")
+        for key, value in values.items():
+            print(f"- {key}: {value}")
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Configure the OCI document review portal."
+        description="Customer-friendly setup wizard for the OCI document review portal."
     )
-    parser.add_argument("--config-file", default="~/.oci/config")
-    parser.add_argument("--profile", default="DEFAULT")
+    parser.add_argument("--config-file", default=os.getenv("OCI_CONFIG_FILE"))
+    parser.add_argument("--profile", default=os.getenv("OCI_PROFILE"))
     parser.add_argument("--compartment-id", default=os.getenv("OCI_COMPARTMENT_ID"))
     parser.add_argument(
         "--parent-compartment-id", default=os.getenv("OCI_PARENT_COMPARTMENT_ID")
     )
-    parser.add_argument("--bucket-name", default=DEFAULT_BUCKET)
+    parser.add_argument("--bucket-name", default=os.getenv("OCI_BUCKET_NAME"))
     parser.add_argument("--home-region", default=os.getenv("OCI_HOME_REGION"))
+    parser.add_argument("--runtime-region", default=os.getenv("OCI_REGION"))
     parser.add_argument("--allowed-ingress-cidr", default=None)
     parser.add_argument("--ssh-public-key-path", default="~/.ssh/id_rsa.pub")
     parser.add_argument("--instance-shape", default="VM.Standard.A1.Flex")
     parser.add_argument("--instance-ocpus", default="1")
     parser.add_argument("--instance-memory-gbs", default="6")
     parser.add_argument("--preferred-region", default=os.getenv("GENAI_REGION"))
+    parser.add_argument("--preferred-model", default=os.getenv("GENAI_MODEL_ID"))
+    parser.add_argument("--genai-temperature", default="0.2")
+    parser.add_argument("--genai-max-tokens", default="3000")
+    parser.add_argument("--document-ai-timeout-seconds", default="180")
+    parser.add_argument("--document-ai-retry-attempts", default="2")
+    parser.add_argument("--stale-processing-minutes", default="12")
+    parser.add_argument("--max-parallel-jobs", default="2")
+    parser.add_argument("--max-document-chars", default="50000")
+    parser.add_argument("--max-upload-mb", default="10")
+    parser.add_argument("--app-title", default="OCI AI Document Review Portal")
+    parser.add_argument("--generate-ssh-key", action="store_true")
     parser.add_argument("--non-interactive", action="store_true")
+    parser.add_argument("--yes", action="store_true", help="Skip final confirmation.")
     parser.add_argument("--skip-write", action="store_true")
     args = parser.parse_args()
-    if not args.compartment_id:
-        parser.error("--compartment-id or OCI_COMPARTMENT_ID is required")
-    if not args.parent_compartment_id:
-        parser.error("--parent-compartment-id or OCI_PARENT_COMPARTMENT_ID is required")
-    if not args.home_region:
-        parser.error("--home-region or OCI_HOME_REGION is required")
+    args.config_file = args.config_file or "~/.oci/config"
+    args.profile = args.profile or "DEFAULT"
+    args.bucket_name = args.bucket_name or DEFAULT_BUCKET
+    args.preferred_model = args.preferred_model or DEFAULT_MODEL
+    if args.non_interactive:
+        require_non_interactive_values(args, parser)
     return args
+
+
+def require_non_interactive_values(
+    args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> None:
+    required = {
+        "--compartment-id or OCI_COMPARTMENT_ID": args.compartment_id,
+        "--parent-compartment-id or OCI_PARENT_COMPARTMENT_ID": (
+            args.parent_compartment_id
+        ),
+        "--home-region or OCI_HOME_REGION": args.home_region,
+    }
+    missing = [name for name, value in required.items() if not value]
+    if missing:
+        parser.error("Missing required non-interactive value(s): " + ", ".join(missing))
+
+
+def ask(
+    prompt: str,
+    default: str | None = None,
+    required: bool = True,
+    secret: bool = False,
+) -> str:
+    while True:
+        suffix = f" [{default}]" if default else ""
+        if secret:
+            import getpass
+
+            value = getpass.getpass(f"{prompt}{suffix}: ").strip()
+        else:
+            value = input(f"{prompt}{suffix}: ").strip()
+        if not value and default is not None:
+            return default
+        if value or not required:
+            return value
+        print("This value is required.")
+
+
+def confirm(prompt: str, default: bool = True) -> bool:
+    label = "Y/n" if default else "y/N"
+    answer = input(f"{prompt} [{label}]: ").strip().lower()
+    if not answer:
+        return default
+    return answer in {"y", "yes"}
+
+
+def choose_from_list(
+    label: str,
+    options: list[str],
+    default: str | None = None,
+    non_interactive: bool = False,
+) -> str:
+    if not options:
+        raise SystemExit(f"No options available for {label}.")
+    if non_interactive:
+        return default if default in options else options[0]
+    default_index = options.index(default) + 1 if default in options else 1
+    print("")
+    for index, option in enumerate(options, start=1):
+        marker = " (default)" if index == default_index else ""
+        print(f"{index}. {option}{marker}")
+    answer = ask(f"Select {label}", default=str(default_index))
+    if answer in options:
+        return answer
+    try:
+        return options[int(answer) - 1]
+    except (ValueError, IndexError) as exc:
+        raise SystemExit(f"Invalid {label} selection.") from exc
 
 
 def load_oci(args: argparse.Namespace):
@@ -101,10 +216,24 @@ def load_oci(args: argparse.Namespace):
             "The OCI SDK is not installed. Run: python -m pip install -r requirements.txt"
         ) from exc
 
-    config = oci.config.from_file(
-        str(Path(args.config_file).expanduser()), args.profile
-    )
+    config_path = Path(args.config_file).expanduser()
+    if not config_path.exists():
+        raise SystemExit(
+            f"OCI config file was not found at {config_path}. Run `oci setup config` "
+            "or provide --config-file."
+        )
+    config = oci.config.from_file(str(config_path), args.profile)
     return oci, config
+
+
+def validate_oci_config(config: dict) -> None:
+    required = ("user", "tenancy", "fingerprint", "key_file", "region")
+    missing = [key for key in required if not config.get(key)]
+    if missing:
+        raise SystemExit(f"OCI profile is missing: {', '.join(missing)}")
+    key_file = Path(config["key_file"]).expanduser()
+    if not key_file.exists():
+        raise SystemExit(f"OCI API key file was not found at {key_file}.")
 
 
 def subscribed_regions(oci, config: dict) -> list[str]:
@@ -191,23 +320,12 @@ def choose_region(
             return by_name[preferred]
         return regions[0]
 
-    default_index = next(
-        (
-            index
-            for index, region in enumerate(regions, start=1)
-            if region.name == preferred
-        ),
-        1,
+    selected = choose_from_list(
+        "GenAI region",
+        [region.name for region in regions],
+        default=preferred if preferred in by_name else regions[0].name,
     )
-    answer = input(f"Select GenAI region [default {default_index}]: ").strip()
-    if not answer:
-        return regions[default_index - 1]
-    if answer in by_name:
-        return by_name[answer]
-    try:
-        return regions[int(answer) - 1]
-    except (ValueError, IndexError) as exc:
-        raise SystemExit("Invalid region selection.") from exc
+    return by_name[selected]
 
 
 def supported_chat_models(models: list[str]) -> list[str]:
@@ -226,21 +344,179 @@ def choose_model(region: GenAIRegion, preferred: str, non_interactive: bool) -> 
             f"CohereChatRequest. Region {region.name} has chat models, but none with "
             "a supported model id prefix."
         )
-    if non_interactive:
-        return preferred if preferred in models else models[0]
-    print("\nAvailable chat models:")
-    for index, name in enumerate(models, start=1):
-        print(f"{index}. {name}")
-    default_index = 1
-    if preferred in models:
-        default_index = models.index(preferred) + 1
-    answer = input(f"Select model [default {default_index}]: ").strip()
-    if not answer:
-        return models[default_index - 1]
+    return choose_from_list(
+        "GenAI model",
+        models,
+        default=preferred if preferred in models else models[0],
+        non_interactive=non_interactive,
+    )
+
+
+def prompt_for_oci_profile(args: argparse.Namespace, ui: UI) -> tuple[object, dict]:
+    if args.non_interactive:
+        oci, config = load_oci(args)
+        validate_oci_config(config)
+        return oci, config
+
+    ui.section(
+        "1. OCI Credentials",
+        "Use an existing OCI CLI/API-key profile. No key is generated or committed.",
+    )
+    while True:
+        args.config_file = ask("OCI config file", args.config_file)
+        args.profile = ask("OCI profile", args.profile)
+        try:
+            oci, config = load_oci(args)
+            validate_oci_config(config)
+        except SystemExit as exc:
+            ui.warning(str(exc))
+            if not confirm("Try a different OCI config/profile?", default=True):
+                raise
+            continue
+        ui.success("OCI profile loaded successfully.")
+        ui.print(f"Tenancy: {config['tenancy']}")
+        ui.print(f"User: {config['user']}")
+        ui.print(f"Profile region: {config['region']}")
+        return oci, config
+
+
+def prompt_for_compartments(
+    args: argparse.Namespace, config: dict, subscribed: list[str], ui: UI
+) -> None:
+    if args.non_interactive:
+        validate_ocid(args.parent_compartment_id, "parent compartment")
+        validate_ocid(args.compartment_id, "project compartment")
+        validate_region(args.home_region, subscribed, "home/IAM region")
+        args.runtime_region = args.runtime_region or config["region"]
+        validate_region(args.runtime_region, subscribed, "runtime region")
+        if args.allowed_ingress_cidr:
+            args.allowed_ingress_cidr = normalize_cidr(args.allowed_ingress_cidr)
+        return
+
+    ui.section(
+        "2. Project Compartment",
+        "Provide the customer compartment where Terraform will create the MVP resources.",
+    )
+    args.parent_compartment_id = ask(
+        "Parent compartment OCID", args.parent_compartment_id
+    )
+    args.compartment_id = ask("Project compartment OCID", args.compartment_id)
+    validate_ocid(args.parent_compartment_id, "parent compartment")
+    validate_ocid(args.compartment_id, "project compartment")
+
+    ui.section(
+        "3. Regions",
+        "Runtime region hosts compute, networking, Object Storage, and Document Understanding.",
+    )
+    args.home_region = choose_from_list(
+        "home/IAM region",
+        subscribed,
+        default=(
+            args.home_region if args.home_region in subscribed else config["region"]
+        ),
+    )
+    args.runtime_region = choose_from_list(
+        "runtime region",
+        subscribed,
+        default=(
+            args.runtime_region
+            if args.runtime_region in subscribed
+            else config["region"]
+        ),
+    )
+
+
+def prompt_for_runtime(
+    args: argparse.Namespace, ui: UI, discovered_namespace: str
+) -> str:
+    if args.non_interactive:
+        return discovered_namespace
+
+    ui.section(
+        "4. Storage, Network, And Runtime",
+        "These values control bucket naming, browser/SSH access, VM size, and processing limits.",
+    )
+    args.bucket_name = ask("Object Storage bucket name", args.bucket_name)
+    os_namespace = ask("Object Storage namespace", discovered_namespace)
+    args.allowed_ingress_cidr = prompt_for_ingress_cidr(args.allowed_ingress_cidr, ui)
+    args.ssh_public_key_path = prompt_for_ssh_key(args, ui)
+    args.instance_shape = ask("Compute shape", args.instance_shape)
+    args.instance_ocpus = ask("Compute OCPUs", args.instance_ocpus)
+    args.instance_memory_gbs = ask("Compute memory GB", args.instance_memory_gbs)
+    args.max_upload_mb = ask("Max upload size MB", args.max_upload_mb)
+    args.max_parallel_jobs = ask("Parallel processing jobs", args.max_parallel_jobs)
+    args.document_ai_timeout_seconds = ask(
+        "Document Understanding timeout seconds", args.document_ai_timeout_seconds
+    )
+    args.document_ai_retry_attempts = ask(
+        "Document Understanding retry attempts", args.document_ai_retry_attempts
+    )
+    return os_namespace
+
+
+def prompt_for_ingress_cidr(value: str | None, ui: UI) -> str:
+    if value:
+        return normalize_cidr(value)
     try:
-        return models[int(answer) - 1]
-    except (ValueError, IndexError) as exc:
-        raise SystemExit("Invalid model selection.") from exc
+        discovered = discover_current_ip_cidr()
+    except SystemExit as exc:
+        ui.warning(str(exc))
+        discovered = None
+    if discovered and confirm(
+        f"Use current public IP for SSH and portal access ({discovered})?",
+        default=True,
+    ):
+        return discovered
+    manual = ask("Allowed ingress CIDR, for example 203.0.113.10/32")
+    return normalize_cidr(manual)
+
+
+def prompt_for_ssh_key(args: argparse.Namespace, ui: UI) -> str:
+    path = Path(ask("SSH public key path", args.ssh_public_key_path)).expanduser()
+    if path.exists():
+        return str(path)
+    private_key = path.with_suffix("") if path.suffix == ".pub" else path
+    if args.generate_ssh_key or confirm(
+        f"SSH public key does not exist at {path}. Generate {private_key}?",
+        default=True,
+    ):
+        generate_ssh_key(private_key)
+        ui.success(f"Generated SSH key pair: {private_key} and {private_key}.pub")
+        return str(Path(f"{private_key}.pub"))
+    raise SystemExit("SSH public key is required for Terraform compute provisioning.")
+
+
+def generate_ssh_key(private_key: Path) -> None:
+    private_key.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["ssh-keygen", "-t", "rsa", "-b", "4096", "-f", str(private_key), "-N", ""],
+        check=True,
+    )
+
+
+def validate_ocid(value: str, label: str) -> None:
+    if not value.startswith("ocid1."):
+        raise SystemExit(f"The {label} OCID should start with `ocid1.`.")
+
+
+def validate_region(value: str, subscribed: list[str], label: str) -> None:
+    if value not in subscribed:
+        choices = ", ".join(subscribed) or "none"
+        raise SystemExit(
+            f"The {label} `{value}` is not in the READY subscribed regions: {choices}."
+        )
+
+
+def normalize_cidr(value: str) -> str:
+    try:
+        network = ip_network(value, strict=False)
+    except ValueError as exc:
+        raise SystemExit(f"Invalid CIDR: {value}") from exc
+    return str(network)
+
+
+def validate_cidr(value: str) -> None:
+    normalize_cidr(value)
 
 
 def write_env(
@@ -261,18 +537,18 @@ GENAI_REGION={genai_region}
 OCI_NAMESPACE={os_namespace}
 OCI_BUCKET_NAME={args.bucket_name}
 GENAI_MODEL_ID={model_id}
-GENAI_TEMPERATURE=0.2
-GENAI_MAX_TOKENS=3000
-DOCUMENT_AI_TIMEOUT_SECONDS=180
-DOCUMENT_AI_RETRY_ATTEMPTS=2
-STALE_PROCESSING_MINUTES=12
-MAX_PARALLEL_JOBS=2
-MAX_DOCUMENT_CHARS=50000
-MAX_UPLOAD_MB=10
+GENAI_TEMPERATURE={args.genai_temperature}
+GENAI_MAX_TOKENS={args.genai_max_tokens}
+DOCUMENT_AI_TIMEOUT_SECONDS={args.document_ai_timeout_seconds}
+DOCUMENT_AI_RETRY_ATTEMPTS={args.document_ai_retry_attempts}
+STALE_PROCESSING_MINUTES={args.stale_processing_minutes}
+MAX_PARALLEL_JOBS={args.max_parallel_jobs}
+MAX_DOCUMENT_CHARS={args.max_document_chars}
+MAX_UPLOAD_MB={args.max_upload_mb}
 LOCAL_METADATA_DIR=data/metadata
 LOCAL_REPORTS_DIR=data/reports
 LOCAL_UPLOADS_DIR=data/uploads
-APP_TITLE="OCI AI Document Review Portal"
+APP_TITLE="{args.app_title}"
 LOG_LEVEL=INFO
 """
     (PROJECT_ROOT / ".env").write_text(env, encoding="utf-8")
@@ -318,47 +594,108 @@ def discover_current_ip_cidr() -> str:
         ) from exc
 
 
+def summary_values(
+    args: argparse.Namespace,
+    runtime_region: str,
+    genai_region: str,
+    model_id: str,
+    os_namespace: str,
+) -> dict[str, str]:
+    return {
+        "OCI profile": f"{args.config_file} [{args.profile}]",
+        "Project compartment": args.compartment_id,
+        "Parent compartment": args.parent_compartment_id,
+        "Home region": args.home_region,
+        "Runtime region": runtime_region,
+        "GenAI region": genai_region,
+        "GenAI model": model_id,
+        "Object Storage namespace": os_namespace,
+        "Bucket": args.bucket_name,
+        "Allowed ingress CIDR": args.allowed_ingress_cidr or "(auto-discovered)",
+        "SSH public key": args.ssh_public_key_path,
+        "Compute": (
+            f"{args.instance_shape}, {args.instance_ocpus} OCPU, "
+            f"{args.instance_memory_gbs} GB"
+        ),
+        "Processing": (
+            f"{args.max_parallel_jobs} workers, {args.max_upload_mb} MB upload limit"
+        ),
+    }
+
+
 def main() -> None:
     args = parse_args()
     ui = UI()
     ui.banner()
-    oci, config = load_oci(args)
-    os_namespace = namespace(oci, config)
 
+    oci, config = prompt_for_oci_profile(args, ui)
+    subscribed = subscribed_regions(oci, config)
+    if not subscribed:
+        raise SystemExit("No READY subscribed OCI regions were found for this tenancy.")
+    prompt_for_compartments(args, config, subscribed, ui)
+
+    os_namespace = namespace(oci, config)
+    os_namespace = prompt_for_runtime(args, ui, os_namespace)
+
+    ui.section(
+        "5. Generative AI",
+        "Setup probes subscribed regions and only offers supported Cohere chat models.",
+    )
     genai_regions = discover_genai_regions(oci, config, args.compartment_id, ui)
     selected_region = choose_region(
         genai_regions, args.preferred_region, args.non_interactive, ui
     )
     selected_model = choose_model(
         selected_region,
-        preferred="cohere.command-r-plus-08-2024",
+        preferred=args.preferred_model,
         non_interactive=args.non_interactive,
     )
+
+    runtime_region = args.runtime_region or selected_region.name
+    values = summary_values(
+        args=args,
+        runtime_region=runtime_region,
+        genai_region=selected_region.name,
+        model_id=selected_model,
+        os_namespace=os_namespace,
+    )
+    ui.show_summary(values)
+
+    if not args.skip_write and not (args.yes or args.non_interactive):
+        if not confirm("Write .env and terraform/terraform.tfvars?", default=True):
+            raise SystemExit("Setup cancelled before writing files.")
 
     if not args.skip_write:
         write_env(
             args=args,
-            oci_region=selected_region.name,
+            oci_region=runtime_region,
             genai_region=selected_region.name,
             model_id=selected_model,
             os_namespace=os_namespace,
         )
         write_tfvars(
             args=args,
-            region=selected_region.name,
+            region=runtime_region,
             genai_region=selected_region.name,
             os_namespace=os_namespace,
         )
 
     ui.print("")
+    ui.print(f"Selected runtime region: {runtime_region}")
     ui.print(f"Selected GenAI region: {selected_region.name}")
     ui.print(f"Selected GenAI model: {selected_model}")
     if args.skip_write:
         ui.print("Skipped writing files. No OCI resources were created.")
-    else:
-        ui.print(
-            "Wrote .env and terraform/terraform.tfvars. No OCI resources were created."
-        )
+        return
+
+    ui.success("Wrote .env and terraform/terraform.tfvars.")
+    ui.print("No OCI resources were created by setup.")
+    ui.print("")
+    ui.print("Next steps:")
+    ui.print("1. Review .env and terraform/terraform.tfvars")
+    ui.print("2. Run: cd terraform && terraform plan")
+    ui.print("3. Run from repo root: ./scripts/deploy.sh")
+    ui.print("4. Open Settings in the portal and run OCI Preflight")
 
 
 if __name__ == "__main__":

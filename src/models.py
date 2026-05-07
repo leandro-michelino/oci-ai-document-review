@@ -114,6 +114,7 @@ class ExtractionResult(BaseModel):
     text: str
     tables: list[Any] = Field(default_factory=list)
     key_values: dict[str, Any] = Field(default_factory=dict)
+    source: str | None = None
 
 
 class DocumentRecord(BaseModel):

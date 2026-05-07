@@ -4,6 +4,8 @@ This guide explains how to deploy, operate, and use the OCI AI Document Review P
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
+Current project version: `v0.3.0`
+
 The repository does not include GitHub Actions or CI deployment workflows. Terraform and Ansible are run locally from your laptop with your existing OCI config and policies.
 
 ## What The Platform Deploys
@@ -103,27 +105,40 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-Run the setup wizard:
+Run the guided setup wizard:
+
+```bash
+python scripts/setup.py
+```
+
+The wizard asks for the required customer values and writes local `.env` plus `terraform/terraform.tfvars`. It validates your OCI profile, validates required OCIDs, checks subscribed regions, discovers the Object Storage namespace, normalizes ingress CIDR values, and probes OCI Generative AI before asking you to choose a model.
+
+For a repeatable install, pass values explicitly:
 
 ```bash
 python scripts/setup.py \
   --compartment-id ocid1.compartment.oc1..exampleproject \
   --parent-compartment-id ocid1.compartment.oc1..exampleparent \
-  --home-region your-home-region
+  --home-region your-home-region \
+  --runtime-region your-runtime-region \
+  --allowed-ingress-cidr 203.0.113.10/32
 ```
 
 The setup wizard:
 
 ```text
 1. Reads your local OCI config.
-2. Fetches subscribed OCI regions.
-3. Probes each region for active OCI Generative AI chat models.
-4. Shows only supported GenAI regions for this app.
-5. Writes a supported Cohere chat model id.
-6. Writes local .env and terraform/terraform.tfvars.
+2. Validates required compartment OCIDs.
+3. Fetches subscribed OCI regions.
+4. Separates runtime region from GenAI region selection.
+5. Discovers the Object Storage namespace.
+6. Probes each region for active OCI Generative AI chat models.
+7. Shows only supported GenAI regions for this app.
+8. Writes a supported Cohere chat model id.
+9. Writes local .env and terraform/terraform.tfvars.
 ```
 
-If setup cannot discover your current public IP, it stops instead of writing an open ingress CIDR. Re-run it with `--allowed-ingress-cidr` set to a trusted CIDR such as your current public IP with `/32`.
+If setup cannot discover your current public IP, it stops instead of writing an open ingress CIDR. Re-run it with `--allowed-ingress-cidr` set to a trusted CIDR such as your current public IP with `/32`. If you pass a single host IP, setup normalizes it to `/32`.
 
 ## Deploy From Laptop
 
@@ -247,7 +262,7 @@ Recommended processing flow:
 7. Choose the next action shown by the app:
    View Dashboard, Open Actions, or Upload Another.
 8. Use Dashboard to watch the queue while the worker pool runs the live steps:
-   Object Storage upload, local text extraction for text-native files, Document Understanding only for images or image-only PDFs, GenAI analysis, metadata/report save.
+   Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance risk overlay, metadata/report save.
 9. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables.
 10. Click Open next to a document.
 11. Use the Actions page to review the executive summary, key points, risks, recommendations, and supporting details.
@@ -260,11 +275,13 @@ Recommended processing flow:
 18. Download Markdown or JSON results from the Downloads section.
 ```
 
-Processing fails clearly if a required live service step fails. For example, if local extraction or Document Understanding returns no extractable text, the app records a failed status instead of sending empty content to GenAI.
+Processing fails clearly if a required live service step fails. For example, if local extraction and Document Understanding OCR return no extractable text, the app records a failed status instead of sending empty content to GenAI.
 
 Workflow data is stored in the same local JSON metadata record as the processing result. The app records assignee, SLA due date, workflow status, comments, audit events, parent document id for retry children, retry count, and retry history. This phase intentionally keeps the MVP on local JSON metadata; it does not introduce database persistence, user authentication, or role-based approval routing.
 
-Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Password-protected, very large, low-resolution, or heavily compressed image PDFs may still return little text or fail.
+Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. The app first tries rich OCR/table/key-value extraction, then falls back to text-only OCR if the rich mode fails. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Password-protected, very large, low-resolution, or heavily compressed image PDFs may still return little text or fail.
+
+Expense-like documents that mention public-sector cues are flagged for compliance attention after GenAI analysis. The overlay adds a high-risk `Public-sector expense compliance review` note and forces human review. Treat this as a demo control for reviewer routing, not as a final compliance determination.
 
 Document Understanding calls are bounded by runtime settings:
 
@@ -295,6 +312,8 @@ Dashboard
   - Provides Upload and Actions shortcuts for common navigation.
   - Shows split queue tables for Processing, Ready, Failed, and Reviewed documents.
   - Opens each document in Actions from the Open button at the start of its row.
+  - Keeps the route in the browser URL with `?page=Dashboard`.
+  - Refreshes Dashboard components with a Streamlit fragment instead of full browser reloads.
 
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
@@ -302,6 +321,7 @@ Actions
   - Shows the Decision panel for approve or reject.
   - Keeps analysis details, file and processing details, extracted text, and downloads in expanders.
   - Requires comments before rejecting a document.
+  - After approval or rejection, selects the next action item when one exists.
 ```
 
 ## Operating The VM
@@ -480,8 +500,9 @@ Selected GenAI region has active supported Cohere chat models.
 Uploaded file is supported and below MAX_UPLOAD_MB.
 Settings -> OCI Preflight passes.
 Text-native files and PDFs with selectable text extract locally.
-Images and image-only PDFs extract text with Document Understanding.
+Images and image-only PDFs extract text with Document Understanding, with text-only OCR fallback if rich extraction fails.
 Generative AI receives extracted content only after extraction succeeds.
+Public-sector expense risk overlay runs after GenAI analysis and before metadata/report save.
 ```
 
 ### Recreate Infrastructure

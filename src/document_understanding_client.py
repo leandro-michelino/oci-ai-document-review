@@ -27,12 +27,34 @@ class DocumentUnderstandingClient:
                 return self._extract_document_inline(object_name)
             except Exception as exc:
                 last_error = str(exc).strip() or exc.__class__.__name__
+                try:
+                    return self._extract_document_inline(
+                        object_name, rich_features=False
+                    )
+                except Exception as fallback_exc:
+                    fallback_error = (
+                        str(fallback_exc).strip() or fallback_exc.__class__.__name__
+                    )
+                    last_error = (
+                        f"{last_error}; text-only OCR fallback failed: "
+                        f"{fallback_error}"
+                    )
                 if attempt < self.config.document_ai_retry_attempts:
                     time.sleep(min(2**attempt, 10))
         raise RuntimeError(f"OCI Document Understanding failed: {last_error}")
 
-    def _extract_document_inline(self, object_name: str) -> ExtractionResult:
+    def _extract_document_inline(
+        self, object_name: str, rich_features: bool = True
+    ) -> ExtractionResult:
         models = self.oci.ai_document.models
+        features = [models.DocumentTextExtractionFeature()]
+        if rich_features:
+            features.extend(
+                [
+                    models.DocumentTableExtractionFeature(),
+                    models.DocumentKeyValueExtractionFeature(),
+                ]
+            )
         details = models.AnalyzeDocumentDetails(
             compartment_id=self.config.oci_compartment_id,
             document=models.ObjectStorageDocumentDetails(
@@ -41,18 +63,19 @@ class DocumentUnderstandingClient:
                 bucket_name=self.config.oci_bucket_name,
                 object_name=object_name,
             ),
-            features=[
-                models.DocumentTextExtractionFeature(),
-                models.DocumentTableExtractionFeature(),
-                models.DocumentKeyValueExtractionFeature(),
-            ],
+            features=features,
         )
         response = self.client.analyze_document(analyze_document_details=details)
         result = response.data
         return ExtractionResult(
             text=self._extract_text(result),
-            tables=self._extract_tables(result),
-            key_values=self._extract_key_values(result),
+            tables=self._extract_tables(result) if rich_features else [],
+            key_values=self._extract_key_values(result) if rich_features else {},
+            source=(
+                "OCI Document Understanding"
+                if rich_features
+                else "OCI Document Understanding text-only OCR fallback"
+            ),
         )
 
     def list_recent_work_requests(self) -> int:

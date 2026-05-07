@@ -2,6 +2,8 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
+Current project version: `v0.3.0`
+
 ## End-to-End MVP Flow
 
 Rendered share-ready diagram:
@@ -20,56 +22,73 @@ docs/assets/oci-ai-document-review-architecture.svg
 +-------+-------+
         |
         v
-+-----------------------+
-| Streamlit Web Portal  |
-+-------+---------------+
-        |
-        v
-+-----------------------+
-| Upload Document       |
-+-------+---------------+
-        |
-        v
-+-----------------------+
-| Background Worker     |
-| Queue, Parallel Jobs  |
-+-------+---------------+
-        |
-        v
-+-----------------------+
-| OCI Object Storage    |
-| Private Bucket        |
-+-------+---------------+
-        |
-        v
-+----------------------------+
-| Local Text or OCI Document |
-| Understanding Extraction   |
-+-------+--------------------+
-        |
-        v
-+-----------------------+
-| OCI Generative AI     |
-| Type, Summary, Risks  |
-+-------+---------------+
-        |
-        v
-+----------------------------+
-| Local JSON Metadata        |
-| Report, Workflow, Audit    |
-+------------+---------------+
-        |
-        v
-+-----------------------+
-| Dashboard Queue       |
-| Next Action + Tables  |
-+-------+---------------+
-        |
-        v
-+-----------------------+
-| Actions Review        |
-| Type, Workflow, Decide|
-+-----------------------+
++--------------------------+
+| Streamlit Web Portal     |
+| Upload / Dashboard /     |
+| Actions / Settings       |
++------------+-------------+
+             |
+             v
++--------------------------+
+| Background Worker Pool   |
+| Queue, Parallel Jobs     |
++------------+-------------+
+             |
+             v
++--------------------------+
+| OCI Object Storage       |
+| Private Original Files   |
++------------+-------------+
+             |
+             +---------------------------+----------------------------+
+             |                                                        |
+             | text files / PDFs with selectable text                  | images / scanned PDFs
+             v                                                        v
++--------------------------+                    +----------------------------+
+| Local Text Extraction    |                    | OCI Document Understanding |
+| No DU Call               |                    | OCR + Rich Extraction      |
++------------+-------------+                    +-------------+--------------+
+             |                                                |
+             |                                                v
+             |                                  +----------------------------+
+             |                                  | DU Text-Only OCR Fallback  |
+             |                                  | When Rich Extraction Fails |
+             |                                  +-------------+--------------+
+             |                                                |
+             +---------------------------+--------------------+
+                                         |
+                                         v
+                    +----------------------------+
+                    | OCI Generative AI          |
+                    | Type, Summary, Fields,     |
+                    | Risks, Recommendations     |
+                    +-------------+--------------+
+                                  |
+                                  v
+                    +----------------------------+
+                    | Compliance Risk Overlay    |
+                    | Public-Sector Expense Flag |
+                    +-------------+--------------+
+                                  |
+                                  v
+                    +----------------------------+
+                    | Local JSON Metadata        |
+                    | Report, Workflow, Audit    |
+                    +-------------+--------------+
+                                  |
+                                  v
+                    +----------------------------+
+                    | Dashboard Queue            |
+                    | URL State + Fragment       |
+                    | Refresh + Split Tables     |
+                    +-------------+--------------+
+                                  |
+                                  v
+                    +----------------------------+
+                    | Actions Review             |
+                    | Type, Workflow, Decide     |
+                    | Next-In-Line Routing       |
+                    +----------------------------+
 ```
 
 ## Deployed Runtime Flow
@@ -95,10 +114,16 @@ docs/assets/oci-ai-document-review-architecture.svg
                  |    Uploaded originals
                  |
                  +--> Document Understanding OCR
-                 |    Images / image-only PDFs
+                 |    Images / scanned PDFs
+                 |
+                 +--> DU text-only OCR fallback
+                 |    Used when table/key-value extraction fails
                  |
                  +--> Generative AI
                  |    Structured review
+                 |
+                 +--> Compliance risk overlay
+                 |    Public-sector expense attention flag
                  |
                  +--> Local JSON metadata
                       Reports, workflow, audit, retries
@@ -139,12 +164,18 @@ docs/assets/oci-ai-document-review-architecture.svg
            |
            +-----------------------------+
            |                             |
-           | text-native / text PDFs     | images / image-only PDFs
+           | text-native / text PDFs     | images / scanned PDFs
            v                             v
 +----------------------+     +----------------------------+
 | Local Text Extract   |     | Document Understanding     |
-| TXT / CSV / PDF text |     | Text, Tables, Key Values   |
+| TXT / CSV / PDF text |     | OCR, Tables, Key Values    |
 +----------+-----------+     +----------+-----------------+
+           |                             |
+           |                             v
+           |                  +----------------------------+
+           |                  | Text-Only OCR Fallback     |
+           |                  | If Rich Extraction Fails   |
+           |                  +----------+-----------------+
            |                             |
            +-------------+---------------+
                          |
@@ -164,6 +195,12 @@ docs/assets/oci-ai-document-review-architecture.svg
            |
            v
 +----------------------------+
+| Compliance Overlay         |
+| Public-Sector Expense Risk |
++----------+-----------------+
+           |
+           v
++----------------------------+
 | Metadata + Report          |
 | JSON + Markdown + Audit    |
 +----------+-----------------+
@@ -171,13 +208,15 @@ docs/assets/oci-ai-document-review-architecture.svg
            v
 +----------------------------+
 | Dashboard Queue            |
-| Ready / Failed / Reviewed  |
+| Processing / Ready /       |
+| Failed / Reviewed          |
 +----------+-----------------+
            |
            v
 +----------------------------+
 | Actions Review             |
 | Workflow / Type / Approve  |
+| Next-In-Line Navigation    |
 +----------------------------+
 ```
 
@@ -218,6 +257,37 @@ docs/assets/oci-ai-document-review-architecture.svg
                                | Markdown / JSON Downloads  |
                                | Updated From Latest State  |
                                +----------------------------+
+```
+
+## Dashboard Refresh Flow
+
+```text
++----------------------+
+| Browser On Dashboard |
++----------+-----------+
+           |
+           | ?page=Dashboard keeps route stable on browser refresh
+           v
++----------------------+
+| Static Page Shell    |
+| Header + Sidebar     |
++----------+-----------+
+           |
+           | Streamlit fragment reruns every 10 seconds
+           v
++----------------------+
+| Dashboard Components |
+| Metrics, Next Action,|
+| Search, Split Tables |
++----------+-----------+
+           |
+           | reads latest local JSON metadata
+           v
++----------------------+
+| Updated Queue State  |
+| Processing -> Ready  |
+| Failed -> Retry      |
++----------------------+
 ```
 
 ## Preflight Flow
@@ -271,12 +341,24 @@ docs/assets/oci-ai-document-review-architecture.svg
 | No DU Call           |      | No DU Call           |      | Understanding OCR    |
 +----------+-----------+      +----------+-----------+      +----------+-----------+
            |                             |                             |
+           |                             |                             v
+           |                             |                  +----------------------+
+           |                             |                  | Text-Only OCR        |
+           |                             |                  | Fallback if Needed   |
+           |                             |                  +----------+-----------+
+           |                             |                             |
            +-------------+---------------+---------------+-------------+
                          |
                          v
               +----------------------+
               | OCI Generative AI    |
               | Structured Review    |
+              +----------------------+
+                         |
+                         v
+              +----------------------+
+              | Compliance Overlay   |
+              | Public-Sector Expense|
               +----------------------+
 ```
 
@@ -403,6 +485,7 @@ docs/assets/oci-ai-document-review-architecture.svg
                                       +----------------------------+
                                       | Streamlit + Worker Pool    |
                                       | Object Storage / DU / GenAI|
+                                      | Compliance Overlay         |
                                       +----------------------------+
 ```
 

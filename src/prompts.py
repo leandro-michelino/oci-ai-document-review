@@ -37,6 +37,8 @@ Rules:
 - If a field is not present, return null.
 - Use concise business language.
 - Identify risks only when supported by the document text.
+- Flag public-sector, government, ministry, municipality, state-owned entity, or
+  public official expense references as compliance attention risks.
 - Always include a human_review_required boolean.
 - Return JSON only. Do not include markdown.
 
@@ -74,7 +76,9 @@ Analyze the invoice text and return a strict JSON object matching this schema:
 {schema}
 
 Focus on supplier, customer, invoice number, invoice date, due date, PO number,
-total amount, currency, tax, payment terms, and potential anomalies.
+total amount, currency, tax, payment terms, and potential anomalies. Flag
+public-sector, government, ministry, municipality, state-owned entity, or public
+official expense references as compliance attention risks.
 
 Rules:
 - Do not invent values.

@@ -1,8 +1,106 @@
 # OCI AI Document Review Portal
 
+## Architecture
+
+![OCI AI Document Review architecture](docs/assets/oci-ai-document-review-architecture.png)
+
+```text
++---------------+
+| Business User |
++-------+-------+
+        |
+        v
++--------------------------+
+| Streamlit Web Portal     |
+| Upload, Dashboard,       |
+| Actions, Settings        |
++------------+-------------+
+             |
+             v
++--------------------------+
+| Local Metadata + Uploads |
+| JSON records, reports,   |
+| retry working copies     |
++------------+-------------+
+             |
+             v
++--------------------------+
+| Background Worker Pool   |
+| async processing, stale   |
+| run detection, retries    |
++------------+-------------+
+             |
+             v
++--------------------------+
+| OCI Object Storage       |
+| private original files    |
++------------+-------------+
+             |
+             +----------------------------+-----------------------------+
+             |                                                          |
+             | text files / PDFs with selectable text                    | images / scanned PDFs
+             v                                                          v
++---------------------------+                         +-------------------------------+
+| Local Text Extraction     |                         | OCI Document Understanding    |
+| direct content for GenAI  |                         | OCR + rich extraction attempt |
++------------+--------------+                         +---------------+---------------+
+             |                                                        |
+             |                                                        v
+             |                                      +-------------------------------+
+             |                                      | Text-only OCR Fallback        |
+             |                                      | used when DU table/KV fails   |
+             |                                      +---------------+---------------+
+             |                                                      |
+             +-------------------------------+----------------------+
+                                             |
+                                             v
+                         +-------------------------------+
+                         | OCI Generative AI             |
+                         | classification, summary,      |
+                         | fields, risks, recommendations|
+                         +---------------+---------------+
+                                         |
+                                         v
+                         +-------------------------------+
+                         | Compliance Risk Overlay       |
+                         | public-sector expense flag    |
+                         | and human-review enforcement  |
+                         +---------------+---------------+
+                                         |
+                                         v
+                         +-------------------------------+
+                         | Dashboard Queue               |
+                         | URL-backed page state, split  |
+                         | tables, search, row Open      |
+                         +---------------+---------------+
+                                         |
+                                         v
+                         +-------------------------------+
+                         | Actions Review                |
+                         | approve/reject, next-in-line  |
+                         | routing, SLA, audit, retry    |
+                         +-------------------------------+
+```
+
+More ASCII flows are in `docs/architecture_flows.md`.
+
+## Overview
+
 A deployed Oracle Cloud Infrastructure MVP that turns uploaded business documents into structured AI review reports using Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI.
 
+Current version: `v0.3.0`
+
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+
+## Versioning
+
+The project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
+
+- `MAJOR`: production-breaking architecture or data model changes.
+- `MINOR`: visible workflow, cloud integration, or capability changes.
+- `PATCH`: bug fixes, documentation updates, and small UX refinements.
+
+The current source-of-truth version is `src/version.py`, and release notes are tracked in `CHANGELOG.md`.
 
 ## What This Project Does
 
@@ -14,16 +112,18 @@ Users upload a document in the web portal. The platform then:
 1. Saves the upload locally and creates an UPLOADED metadata record.
 2. Queues the document in a background worker pool so the browser does not wait on OCI processing.
 3. Stores the original file in a private OCI Object Storage bucket.
-4. Extracts text locally for text-native files or with OCI Document Understanding for images and image-only PDFs.
-5. Normalizes extraction output into text and JSON-safe plain data.
-6. Sends the extracted content to OCI Generative AI for structured review.
-7. Auto-detects the document type when `Auto-detect` was selected during upload.
-8. Creates a JSON metadata record and a Markdown report.
-9. Shows the document in a clean Dashboard queue.
-10. Opens the Actions page for AI review, human decision, lifecycle details, and downloads.
-11. Lets a reviewer assign ownership, set an SLA, add workflow comments, and inspect the audit trail.
-12. Lets failed documents be retried from the preserved local working copy.
-13. Lets a reviewer correct the document type, then approve or reject the document.
+4. Extracts text locally for text-native files and PDFs with selectable text.
+5. Uses OCI Document Understanding only for images, scanned PDFs, or image-only PDFs.
+6. Falls back to DU text-only OCR when rich table/key-value extraction fails.
+7. Sends the extracted content to OCI Generative AI for structured review.
+8. Applies deterministic compliance attention for public-sector expense signals.
+9. Auto-detects the document type when `Auto-detect` was selected during upload.
+10. Creates a JSON metadata record and a Markdown report.
+11. Shows the document in a clean Dashboard queue.
+12. Opens the Actions page for AI review, human decision, lifecycle details, and downloads.
+13. Lets a reviewer assign ownership, set an SLA, add workflow comments, and inspect the audit trail.
+14. Lets failed documents be retried from the preserved local working copy.
+15. Lets a reviewer correct the document type, then approve or reject the document.
 ```
 
 The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
@@ -52,10 +152,16 @@ Background worker pool accepts the job
 Original file uploaded to OCI Object Storage
   |
   v
-Text is extracted locally or with OCI Document Understanding
+Text is extracted locally or with OCI Document Understanding OCR
+  |
+  v
+DU text-only OCR fallback is used when rich extraction fails
   |
   v
 OCI Generative AI creates structured review
+  |
+  v
+Public-sector expense cues are flagged for compliance attention
   |
   v
 Auto-detected document type is applied when requested
@@ -76,7 +182,7 @@ Reviewer assigns owner, SLA, workflow status, or comments
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, escalation, waiting-for-information follow-up, or a failed-processing fix. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, split tables for Processing, Ready, Failed, and Reviewed documents, and an `Open` action directly in front of each file. The Actions page is where review work happens. It prioritizes documents that need approval, rejection, escalation, waiting-for-information follow-up, or a failed-processing fix. Documents that are ready for review show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata. Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense cues are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Field Reference
 
@@ -87,7 +193,7 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | Status | Processing state for the document lifecycle, from upload through approval or failure. |
 | Stage | Simplified queue state shown in the Dashboard: `Queued`, `Processing`, `Ready`, `Reviewed`, or `Failed`. |
 | Review | Human review decision state: `PENDING`, `APPROVED`, or `REJECTED`. |
-| Risk | Highest AI risk-note severity for the document, with note counts and supporting evidence shown in the Dashboard and Analysis details. `NONE` means no risk note was returned. |
+| Risk | Highest AI or compliance risk-note severity for the document, with note counts and supporting evidence shown in the Dashboard and Analysis details. `NONE` means no risk note was returned. Public-sector expense cues are raised as compliance attention. |
 | Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
 | Action | The next human or operational step for the selected document. |
 | Workflow | Human workflow state for assignment, SLA tracking, escalation, retry planning, and closure. |
@@ -126,68 +232,6 @@ Parent: ocid1.compartment.oc1..exampleparent
 
 Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and ingress CIDR in local files only.
 
-## Architecture
-
-![OCI AI Document Review architecture](docs/assets/oci-ai-document-review-architecture.png)
-
-```text
-+---------------+
-| Business User |
-+-------+-------+
-        |
-        v
-+----------------------+
-| Python Web Portal    |
-+-------+--------------+
-        |
-        v
-+----------------------+
-| Background Worker    |
-| Queue                |
-+-------+--------------+
-        |
-        v
-+----------------------+
-| OCI Object Storage   |
-+-------+--------------+
-        |
-        +----------------------+----------------------+
-        |                                             |
-        | text files / PDFs with text                 | images / image-only PDFs
-        v                                             v
-+----------------------+                 +----------------------------+
-| Local Text Extract   |                 | OCI Document Understanding |
-| Direct to GenAI      |                 | OCR, Tables, Key Values    |
-+----------+-----------+                 +----------+-----------------+
-           |                                        |
-           +--------------------+-------------------+
-                                |
-                                v
-              +-----------------------------+
-              | OCI Generative AI           |
-              +-------------+---------------+
-                            |
-                            v
-              +-----------------------------+
-              | Local JSON Metadata         |
-              | Reports, Workflow, Audit    |
-              +-------------+---------------+
-                            |
-                            v
-              +-----------------------------+
-              | Dashboard Queue             |
-              | Split Tables + Next Action  |
-              +-------------+---------------+
-                            |
-                            v
-              +-----------------------------+
-              | Actions Review              |
-              | Decision + Workflow         |
-              +-----------------------------+
-```
-
-More ASCII flows are in `docs/architecture_flows.md`.
-
 ## Platform Usage
 
 Detailed Terraform outputs, Ansible output, deployment flow, operations commands, and portal usage instructions are in `docs/platform_usage.md`.
@@ -209,8 +253,10 @@ Uploaded file
   -> background worker queue
   -> private Object Storage bucket
   -> local text extraction OR OCI Document Understanding using ObjectStorageDocumentDetails
+  -> DU text-only OCR fallback when rich table/key-value extraction fails
   -> JSON-safe extraction result conversion when Document Understanding is used
   -> OCI Generative AI Cohere chat model
+  -> compliance risk overlay for public-sector expense signals
   -> automatic document type label when Auto-detect was selected
   -> local metadata JSON
   -> Markdown report
@@ -250,22 +296,31 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-Run the setup wizard with your own local values:
+Run the customer-friendly setup wizard:
+
+```bash
+python scripts/setup.py
+```
+
+The wizard prompts for your OCI config/profile, compartment OCIDs, home region, runtime region, Object Storage bucket, ingress CIDR, SSH key, VM size, processing limits, and GenAI model. It validates the OCI profile and API key, reads subscribed regions, discovers the Object Storage namespace, probes supported OCI Generative AI chat models, and writes local `.env` plus `terraform/terraform.tfvars`. It does not create OCI resources.
+
+For repeatable automation, pass the required values explicitly:
 
 ```bash
 python scripts/setup.py \
   --compartment-id ocid1.compartment.oc1..exampleproject \
   --parent-compartment-id ocid1.compartment.oc1..exampleparent \
-  --home-region your-home-region
+  --home-region your-home-region \
+  --runtime-region your-runtime-region \
+  --allowed-ingress-cidr 203.0.113.10/32
 ```
 
-The wizard does four important things before showing region choices:
+The setup wizard keeps the runtime region and GenAI region separate:
 
-- Fetches the OCI regions subscribed in your tenancy.
-- Probes each subscribed region for active OCI Generative AI chat models.
-- Shows only supported GenAI regions and writes the selected region to `.env`.
-- Writes a Cohere chat model id that matches the app runtime.
-- Writes `allowed_ingress_cidr` from your current public IP, or stops and asks you to pass `--allowed-ingress-cidr` explicitly if IP discovery fails.
+- Runtime region hosts compute, networking, Object Storage, and Document Understanding.
+- GenAI region is selected only from discovered supported chat-model regions.
+- If `--runtime-region` is omitted in non-interactive setup, the OCI profile region is used.
+- `allowed_ingress_cidr` is normalized to CIDR form, such as `203.0.113.10/32`.
 
 ## Prepared Infrastructure
 
@@ -273,13 +328,13 @@ Terraform files are ready under `terraform/`.
 
 This repository is designed for local laptop deployment. It does not include GitHub Actions or any Git-based deployment automation. Your local OCI config, API keys, `.env`, Terraform state, and real `terraform.tfvars` are ignored and must not be committed. The Terraform provider lock file is tracked so provider resolution stays consistent across machines.
 
-Create local variables from the sample:
+The setup wizard is the recommended way to create local variables. For manual recovery or advanced edits, you can copy the sample:
 
 ```bash
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 ```
 
-Then edit `terraform/terraform.tfvars` with your own compartment OCIDs, namespace, ingress CIDR, and SSH public key path.
+Then edit `terraform/terraform.tfvars` with your own compartment OCIDs, namespace, regions, ingress CIDR, and SSH public key path.
 
 ```bash
 cd terraform

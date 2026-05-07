@@ -9,13 +9,58 @@ from src.document_understanding_client import DocumentUnderstandingClient
 from src.genai_client import GenAIClient
 from src.logger import get_logger
 from src.metadata_store import MetadataStore
-from src.models import DocumentRecord, DocumentType, ExtractionResult, ProcessingStatus
+from src.models import (
+    DocumentRecord,
+    DocumentType,
+    ExtractionResult,
+    ProcessingStatus,
+    RiskNote,
+)
 from src.object_storage_client import ObjectStorageClient
 from src.prompts import build_prompt
 from src.report_generator import generate_markdown_report
 from src.text_extraction import extract_text_locally
 
 logger = get_logger(__name__)
+
+PUBLIC_SECTOR_TERMS = (
+    "public sector",
+    "government",
+    "ministry",
+    "municipality",
+    "municipal",
+    "state-owned",
+    "state owned",
+    "public authority",
+    "public official",
+    "civil servant",
+    "department of",
+    "embassy",
+    "police",
+    "military",
+    "army",
+    "council",
+)
+EXPENSE_TERMS = (
+    "invoice",
+    "receipt",
+    "expense",
+    "reimbursement",
+    "payment due",
+    "total",
+    "vat",
+    "tax",
+    "gratuity",
+    "meal",
+    "lunch",
+    "dinner",
+    "restaurant",
+    "hotel",
+    "travel",
+    "beverage",
+    "food",
+)
+PUBLIC_SECTOR_EXPENSE_RISK = "Public-sector expense compliance review"
 
 
 def create_document_id() -> str:
@@ -71,6 +116,57 @@ def error_message(exc: Exception) -> str:
     root = root_exception(exc)
     message = str(root).strip()
     return message or root.__class__.__name__
+
+
+def matched_terms(text: str, terms: tuple[str, ...]) -> list[str]:
+    normalized = text.lower()
+    return [term for term in terms if term in normalized]
+
+
+def apply_compliance_attention(
+    record: DocumentRecord, extracted_text: str
+) -> DocumentRecord:
+    if record.analysis is None:
+        return record
+    public_matches = matched_terms(extracted_text, PUBLIC_SECTOR_TERMS)
+    if not public_matches:
+        return record
+
+    detected_type = detected_document_type(record.analysis.document_class)
+    expense_matches = matched_terms(extracted_text, EXPENSE_TERMS)
+    is_expense = (
+        record.document_type == DocumentType.INVOICE
+        or detected_type == DocumentType.INVOICE
+        or bool(expense_matches)
+    )
+    if not is_expense:
+        return record
+
+    if not any(
+        note.risk == PUBLIC_SECTOR_EXPENSE_RISK for note in record.analysis.risk_notes
+    ):
+        evidence_parts = [f"public-sector cue: {', '.join(public_matches[:3])}"]
+        if expense_matches:
+            evidence_parts.append(f"expense cue: {', '.join(expense_matches[:3])}")
+        record.analysis.risk_notes.append(
+            RiskNote(
+                risk=PUBLIC_SECTOR_EXPENSE_RISK,
+                severity="HIGH",
+                evidence=(
+                    "Potential public-sector related expense. "
+                    + "; ".join(evidence_parts)
+                    + "."
+                ),
+            )
+        )
+    recommendation = (
+        "Route to compliance review before approval because the expense appears "
+        "connected to a public-sector entity or official."
+    )
+    if recommendation not in record.analysis.recommendations:
+        record.analysis.recommendations.append(recommendation)
+    record.analysis.human_review_required = True
+    return record
 
 
 class DocumentProcessor:
@@ -151,7 +247,9 @@ class DocumentProcessor:
                     f"attempts {self.config.document_ai_retry_attempts})"
                 )
                 extraction = self.document_ai.extract_document(object_name)
-                record.extraction_source = "OCI Document Understanding"
+                record.extraction_source = (
+                    extraction.source or "OCI Document Understanding"
+                )
             if not extraction.text.strip():
                 raise ValueError(
                     "No extractable text was found. Try a text-based file or a clearer PDF/image."
@@ -171,8 +269,9 @@ class DocumentProcessor:
             analysis = self.genai.analyze_document(prompt)
             if record.document_type == DocumentType.AUTO_DETECT:
                 record.document_type = detected_document_type(analysis.document_class)
-            record.status = ProcessingStatus.AI_ANALYZED
             record.analysis = analysis
+            apply_compliance_attention(record, extraction.text)
+            record.status = ProcessingStatus.AI_ANALYZED
             self.store.save(record)
             progress("Generated structured analysis with OCI Generative AI")
 

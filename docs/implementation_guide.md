@@ -4,6 +4,8 @@ This project is deployed from a local laptop. It does not use GitHub Actions or 
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
+Current project version: `v0.3.0`
+
 ## Local Preparation
 
 ```bash
@@ -14,20 +16,28 @@ pip install -r requirements-dev.txt
 
 ## Setup Wizard
 
-Run setup with your own compartment values:
+Run the guided setup wizard:
+
+```bash
+python scripts/setup.py
+```
+
+The wizard prompts for customer-specific values, validates the OCI profile and API key, discovers subscribed regions, reads the Object Storage namespace, probes supported OCI Generative AI chat models, and writes both `.env` and `terraform/terraform.tfvars`. It does not create OCI resources.
+
+For repeatable automation, provide the required values explicitly:
 
 ```bash
 python scripts/setup.py \
   --compartment-id ocid1.compartment.oc1..exampleproject \
   --parent-compartment-id ocid1.compartment.oc1..exampleparent \
-  --home-region your-home-region
+  --home-region your-home-region \
+  --runtime-region your-runtime-region \
+  --allowed-ingress-cidr 203.0.113.10/32
 ```
 
-The wizard writes both `.env` and `terraform/terraform.tfvars`. It does not create OCI resources.
+Before showing GenAI choices, setup reads your OCI subscriptions and probes OCI Generative AI for active supported chat models. The app currently uses OCI SDK `CohereChatRequest`, so setup writes a Cohere chat model id.
 
-Before showing region choices, it reads your OCI subscriptions and probes OCI Generative AI for active supported chat models. The app currently uses OCI SDK `CohereChatRequest`, so setup writes a Cohere chat model id.
-
-The wizard also writes a narrow `allowed_ingress_cidr`. If automatic public IP discovery fails, setup stops and asks for an explicit `--allowed-ingress-cidr` instead of falling back to open ingress.
+The wizard keeps runtime and GenAI region selection separate. Runtime region hosts compute, networking, Object Storage, and Document Understanding. GenAI region is selected only from discovered supported chat-model regions. In non-interactive mode, setup validates the supplied OCIDs and subscribed regions; if `--runtime-region` is omitted, it uses the OCI profile region. The wizard also writes a narrow `allowed_ingress_cidr`; host IPs are normalized to `/32`, and setup never falls back to open ingress.
 
 ## Review And Deploy
 
@@ -102,17 +112,22 @@ Streamlit upload
   -> metadata status UPLOADED
   -> background worker pool
   -> Object Storage put_object
-  -> local extraction for text files and text PDFs OR Document Understanding for images and image-only PDFs
+  -> local extraction for text files and PDFs with selectable text
+  -> Document Understanding OCR for images, scanned PDFs, and image-only PDFs
+  -> DU text-only OCR fallback when rich table/key-value extraction fails
   -> JSON-safe extraction result conversion when Document Understanding is used
   -> GenAI CohereChatRequest
+  -> compliance risk overlay for public-sector expense signals
+  -> automatic document type label when Auto-detect was selected
   -> metadata JSON
   -> Markdown report
-  -> Dashboard queue
+  -> Dashboard queue with URL-backed page state and fragment refresh
   -> Actions page
   -> workflow status, assignee, SLA, comments, audit trail, retry history
+  -> approve or reject, then move to the next action item when available
 ```
 
-The app records progress only after each service step completes. If local extraction or Document Understanding returns no extractable text, processing fails with a clear error.
+The app records progress only after each service step completes. If local extraction and Document Understanding OCR return no extractable text, processing fails with a clear error instead of sending empty content to GenAI.
 
 Document Understanding calls use a bounded timeout and retry configuration:
 
@@ -123,9 +138,13 @@ STALE_PROCESSING_MINUTES=12
 MAX_PARALLEL_JOBS=2
 ```
 
-Scanned PDFs and PDFs that contain page images use OCR. They need more time than text-based PDFs and can fail if the scan is low quality, rotated, password-protected, too large, or above the upload limit.
+Scanned PDFs and PDFs that contain page images use OCR. The app first tries rich Document Understanding extraction for OCR, tables, and key-values. If that rich extraction fails but text-only OCR succeeds, the app still sends the OCR text to GenAI and records the source as `OCI Document Understanding text-only OCR fallback`. Scanned files need more time than text-based PDFs and can fail if the scan is low quality, rotated, password-protected, too large, or above the upload limit.
 
 Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run remains in an active stage beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
+
+The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh stays on the Dashboard instead of returning to Upload. The Dashboard body runs inside a Streamlit fragment and refreshes every 10 seconds while the session is active. That updates metrics and split queue tables without using a full browser reload.
+
+After GenAI returns structured analysis, the app applies a deterministic compliance overlay. Expense-like documents that mention public-sector cues such as government, ministry, municipality, state-owned entity, public official, embassy, police, or department are flagged with a high-risk `Public-sector expense compliance review` note and forced into human review. This is an MVP simulation aid, not a final compliance decision.
 
 ## Document Lifecycle Workflow
 
@@ -204,7 +223,8 @@ Then on the portal:
 8. For a failed document, confirm Retry Processing creates a child record and the original shows retry history.
 9. Confirm the reviewer can correct the document type if needed.
 10. Confirm JSON and Markdown downloads are available and include workflow metadata.
-11. Confirm approve or reject updates the review state and closes the workflow.
+11. Confirm approve or reject updates the review state, closes the workflow, and moves to the next action item when one exists.
+12. Upload or simulate a public-sector expense and confirm a high compliance attention risk is added.
 ```
 
 ## Local App Run
