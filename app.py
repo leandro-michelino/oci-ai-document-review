@@ -1062,13 +1062,17 @@ def dashboard_page(config, store):
     ]
     st.dataframe(
         filtered[display_columns],
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         column_config={
             "Name": st.column_config.TextColumn("Name", width="medium"),
             "Stage": st.column_config.TextColumn(
                 "Stage",
                 help=FIELD_HELP["Stage"],
+                width="small",
+            ),
+            "Uploaded": st.column_config.TextColumn(
+                "Uploaded",
                 width="small",
             ),
             "Type": st.column_config.TextColumn(
@@ -1092,6 +1096,7 @@ def dashboard_page(config, store):
                 min_value=0,
                 max_value=100,
                 format="%d%%",
+                width="small",
             ),
         },
     )
