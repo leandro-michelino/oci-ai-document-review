@@ -231,7 +231,7 @@ This estimate is not an official Oracle quote and may not be realistic for your 
 
 ## Setup
 
-Create and activate a Python 3.11+ virtual environment:
+### 1. Create the virtual environment
 
 ```bash
 python3.11 -m venv .venv
@@ -239,32 +239,102 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-Run the customer-friendly setup wizard:
+### 2. Run the setup wizard
+
+`scripts/setup.py` is the only step that collects your environment-specific values. It reads your existing OCI CLI profile, probes live OCI services, and writes the two local files that Terraform and the app need. It does not create any OCI resources.
 
 ```bash
 python scripts/setup.py
 ```
 
-The wizard prompts for your OCI config/profile, compartment OCIDs, home region, runtime region, Object Storage bucket, ingress CIDR, SSH key, VM size, processing limits, and GenAI model. It validates the OCI profile and API key, reads subscribed regions, discovers the Object Storage namespace, probes supported OCI Generative AI chat models, and writes local `.env` plus `terraform/terraform.tfvars`. It does not create OCI resources.
+The wizard walks through five steps:
 
-For repeatable automation, pass the required values explicitly:
+```text
+Step 1 — OCI Credentials
+  Reads ~/.oci/config (or --config-file) and validates the API key.
+  Confirms tenancy, user, and profile region before continuing.
+
+Step 2 — Project Compartment
+  Asks for the parent compartment OCID and the project compartment OCID.
+
+Step 3 — Regions
+  Lists your READY subscribed OCI regions.
+  Selects the home/IAM region and the runtime region separately.
+
+Step 4 — Storage, Network, and Runtime
+  Object Storage bucket name and namespace (auto-discovered from OCI).
+  Allowed ingress CIDR (auto-discovers your current public IP as /32).
+  SSH public key path (offers to generate an RSA key pair if none exists).
+  Compute shape, OCPU count, and memory.
+  Processing limits: upload size, parallel jobs, DU timeout and retries.
+
+Step 5 — Generative AI
+  Probes all subscribed regions in parallel for active Cohere chat models.
+  Shows only supported GenAI regions for this app.
+  Prompts you to select a region and a model.
+```
+
+After you confirm, the wizard writes:
+
+```text
+.env                        Runtime configuration for the Streamlit app
+terraform/terraform.tfvars  Infrastructure variables for Terraform
+```
+
+Neither file is committed to Git. Both are in `.gitignore`.
+
+### Setup flags
+
+| Flag | Default | Purpose |
+| --- | --- | --- |
+| `--config-file` | `~/.oci/config` | OCI config file path |
+| `--profile` | `DEFAULT` | OCI config profile name |
+| `--compartment-id` | — | Project compartment OCID |
+| `--parent-compartment-id` | — | Parent compartment OCID |
+| `--home-region` | — | Home/IAM region |
+| `--runtime-region` | OCI profile region | Region for compute, Object Storage, and DU |
+| `--allowed-ingress-cidr` | auto-discovered `/32` | Trusted CIDR for SSH and portal access |
+| `--ssh-public-key-path` | `~/.ssh/id_rsa.pub` | Public key deployed to the VM |
+| `--generate-ssh-key` | `false` | Generate an RSA key pair if none exists |
+| `--instance-shape` | `VM.Standard.A1.Flex` | Compute shape |
+| `--instance-ocpus` | `1` | OCPU count |
+| `--instance-memory-gbs` | `6` | Memory in GB |
+| `--max-parallel-jobs` | `2` | Background worker thread count |
+| `--max-upload-mb` | `10` | Maximum upload size in MB |
+| `--max-document-chars` | `50000` | Maximum extracted characters sent to GenAI |
+| `--non-interactive` | `false` | Skip all prompts (requires compartment and regions) |
+| `--yes` | `false` | Skip the final write confirmation |
+
+### Non-interactive mode
+
+For repeatable or automated setups, pass all required values as flags:
 
 ```bash
 python scripts/setup.py \
   --compartment-id ocid1.compartment.oc1..exampleproject \
   --parent-compartment-id ocid1.compartment.oc1..exampleparent \
-  --home-region your-home-region \
-  --runtime-region your-runtime-region \
-  --allowed-ingress-cidr 203.0.113.10/32
+  --home-region us-ashburn-1 \
+  --runtime-region us-ashburn-1 \
+  --allowed-ingress-cidr 203.0.113.10/32 \
+  --non-interactive
 ```
 
-The setup wizard keeps the runtime region and GenAI region separate:
+### After the wizard finishes
 
-- Runtime region hosts compute, networking, Object Storage, and Document Understanding.
-- GenAI region is selected only from discovered supported chat-model regions.
-- If `--runtime-region` is omitted in non-interactive setup, the OCI profile region is used.
-- `allowed_ingress_cidr` is normalized to CIDR form, such as `203.0.113.10/32`.
-- Explicit open ingress such as `0.0.0.0/0` is rejected by both setup and Terraform validation.
+The wizard prints these next steps on completion:
+
+```text
+1. Review .env and terraform/terraform.tfvars
+2. cd terraform && terraform plan
+3. ./scripts/deploy.sh
+4. Open Settings in the portal and run OCI Preflight
+```
+
+Ingress CIDR notes:
+
+- A single host IP such as `203.0.113.10` is automatically normalized to `203.0.113.10/32`.
+- Open ingress such as `0.0.0.0/0` is rejected by setup and again by Terraform variable validation.
+- If setup cannot reach the IP-discovery service, re-run with `--allowed-ingress-cidr` set explicitly.
 
 ## Infrastructure
 
