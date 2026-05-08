@@ -11,6 +11,7 @@ from app import (
     dashboard_metrics_html,
     display_error_message,
     file_size_label,
+    filter_dashboard_status,
     filter_queue_rows,
     format_compliance_evidence,
     next_action,
@@ -342,6 +343,59 @@ def test_filter_queue_rows_uses_simple_review_views():
     ].tolist() == ["doc-4"]
 
 
+def test_dashboard_status_filter_targets_decisions_and_actions():
+    approved = make_record(
+        "doc-approved", "approved.pdf", status=ProcessingStatus.APPROVED
+    )
+    approved.review_status = ReviewStatus.APPROVED
+    rejected = make_record(
+        "doc-rejected", "rejected.pdf", status=ProcessingStatus.REJECTED
+    )
+    rejected.review_status = ReviewStatus.REJECTED
+    failed = make_record("doc-failed", "failed.pdf", status=ProcessingStatus.FAILED)
+    retry_planned = make_record(
+        "doc-retry", "retry.pdf", status=ProcessingStatus.FAILED
+    )
+    retry_planned.workflow_status = WorkflowStatus.RETRY_PLANNED
+    compliance = make_record(
+        "doc-compliance",
+        "receipt.pdf",
+        risks=[
+            RiskNote(
+                risk="Public-sector expense compliance review",
+                severity="HIGH",
+                evidence="knowledge-base match",
+            )
+        ],
+    )
+    df = pd.DataFrame(
+        [
+            record_to_row(record)
+            for record in [approved, rejected, failed, retry_planned, compliance]
+        ]
+    )
+
+    assert filter_dashboard_status(df, "Reviewed")["Document ID"].tolist() == [
+        "doc-approved",
+        "doc-rejected",
+    ]
+    assert filter_queue_rows(df, view="All", query="", status_filter="Approved")[
+        "Document ID"
+    ].tolist() == ["doc-approved"]
+    assert filter_queue_rows(df, view="All", query="", status_filter="Rejected")[
+        "Document ID"
+    ].tolist() == ["doc-rejected"]
+    assert filter_queue_rows(df, view="All", query="", status_filter="Fix and retry")[
+        "Document ID"
+    ].tolist() == ["doc-failed"]
+    assert filter_queue_rows(df, view="All", query="", status_filter="Retry planned")[
+        "Document ID"
+    ].tolist() == ["doc-retry"]
+    assert filter_queue_rows(
+        df, view="All", query="", status_filter="Compliance review"
+    )["Document ID"].tolist() == ["doc-compliance"]
+
+
 def test_queue_view_frames_splits_dashboard_sections():
     ready = make_record("doc-1", "ready.pdf")
     processing = make_record(
@@ -360,6 +414,10 @@ def test_queue_view_frames_splits_dashboard_sections():
     assert sections["Ready"]["Document ID"].tolist() == ["doc-1"]
     assert sections["Failed"]["Document ID"].tolist() == ["doc-3"]
     assert sections["Reviewed"]["Document ID"].tolist() == ["doc-4"]
+
+    approved_sections = queue_view_frames(df, query="", status_filter="Approved")
+    assert approved_sections["Reviewed"]["Document ID"].tolist() == ["doc-4"]
+    assert approved_sections["Ready"].empty
 
 
 def test_actions_prioritize_user_work():

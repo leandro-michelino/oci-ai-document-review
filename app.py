@@ -44,6 +44,18 @@ RISK_SEVERITY_LABELS = {
 READY_FOR_DECISION = {"REVIEW_REQUIRED"}
 ACTIVE_STATUSES = {"UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"}
 QUEUE_SECTION_VIEWS = ["Processing", "Ready", "Failed", "Reviewed"]
+DASHBOARD_STATUS_FILTERS = [
+    "All",
+    "Needs decision",
+    "Compliance review",
+    "Fix and retry",
+    "Retry planned",
+    "Processing",
+    "Failed",
+    "Approved",
+    "Rejected",
+    "Reviewed",
+]
 DASHBOARD_REFRESH_SECONDS = 10
 CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
 CONTACT_MESSAGE = "In case of any question, get in touch."
@@ -1362,8 +1374,35 @@ def record_to_row(record):
     }
 
 
-def filter_queue_rows(df: pd.DataFrame, view: str, query: str) -> pd.DataFrame:
+def filter_dashboard_status(
+    df: pd.DataFrame, status_filter: str = "All"
+) -> pd.DataFrame:
+    if status_filter == "Needs decision":
+        return df[df["Stage"] == "Ready"]
+    if status_filter == "Compliance review":
+        return df[df["Action"] == "Compliance review"]
+    if status_filter == "Fix and retry":
+        return df[df["Action"] == "Fix and retry"]
+    if status_filter == "Retry planned":
+        return df[df["Action"] == "Retry planned"]
+    if status_filter == "Processing":
+        return df[df["Status"].isin(ACTIVE_STATUSES)]
+    if status_filter == "Failed":
+        return df[df["Status"] == "FAILED"]
+    if status_filter == "Approved":
+        return df[df["Review"] == "APPROVED"]
+    if status_filter == "Rejected":
+        return df[df["Review"] == "REJECTED"]
+    if status_filter == "Reviewed":
+        return df[df["Review"].isin(["APPROVED", "REJECTED"])]
+    return df
+
+
+def filter_queue_rows(
+    df: pd.DataFrame, view: str, query: str, status_filter: str = "All"
+) -> pd.DataFrame:
     filtered = df.copy()
+    filtered = filter_dashboard_status(filtered, status_filter)
     if view == "Ready":
         filtered = filtered[filtered["Stage"] == "Ready"]
     elif view == "Processing":
@@ -1381,9 +1420,16 @@ def filter_queue_rows(df: pd.DataFrame, view: str, query: str) -> pd.DataFrame:
     return filtered.sort_values("Uploaded Sort", ascending=False)
 
 
-def queue_view_frames(df: pd.DataFrame, query: str) -> dict[str, pd.DataFrame]:
+def queue_view_frames(
+    df: pd.DataFrame, query: str, status_filter: str = "All"
+) -> dict[str, pd.DataFrame]:
     return {
-        view: filter_queue_rows(df=df, view=view, query=query)
+        view: filter_queue_rows(
+            df=df,
+            view=view,
+            query=query,
+            status_filter=status_filter,
+        )
         for view in QUEUE_SECTION_VIEWS
     }
 
@@ -2325,30 +2371,46 @@ def render_dashboard_live_content(config, store) -> None:
         render_dashboard_refresh_note(len(active_runs))
 
     st.markdown("### Work queues")
-    search_cols = st.columns([1.25, 0.35, 0.35], vertical_alignment="bottom")
+    search_cols = st.columns([1.05, 0.5, 0.3, 0.3], vertical_alignment="bottom")
     search = search_cols[0].text_input(
         "Search documents",
         placeholder="Name, reference, status, action, or summary",
         help="Search applies to every queue section below.",
         key="dashboard_search",
     )
-    if search_cols[1].button(
+    status_filter = search_cols[1].selectbox(
+        "Status filter",
+        DASHBOARD_STATUS_FILTERS,
+        key="dashboard_status_filter",
+        help="Filter queue cards by decision, processing state, or next action.",
+    )
+    if search_cols[2].button(
         "Upload",
         key="dashboard_upload_action",
         width="stretch",
     ):
         open_page_from_dashboard(PAGE_UPLOAD)
-    if search_cols[2].button(
+    if search_cols[3].button(
         "Actions",
         key="dashboard_actions_action",
         width="stretch",
     ):
         open_page_from_dashboard(PAGE_DETAIL)
 
-    sections = queue_view_frames(df=df, query=search)
-    filtered = filter_queue_rows(df=df, view="All", query=search)
+    sections = queue_view_frames(
+        df=df,
+        query=search,
+        status_filter=status_filter,
+    )
+    filtered = filter_queue_rows(
+        df=df,
+        view="All",
+        query=search,
+        status_filter=status_filter,
+    )
 
-    st.caption(f"Showing {len(filtered)} of {len(df)} documents")
+    filter_label = "" if status_filter == "All" else f" | Filter: {status_filter}"
+    st.caption(f"Showing {len(filtered)} of {len(df)} documents{filter_label}")
     render_queue_section("Processing", sections["Processing"])
     render_ready_queue_band(sections["Ready"])
     section_cols = st.columns(2, gap="large")
