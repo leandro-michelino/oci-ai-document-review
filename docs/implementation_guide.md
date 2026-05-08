@@ -219,6 +219,34 @@ Failed-document retry creates a new child document id, copies the preserved loca
 
 Markdown reports are refreshed from the latest metadata when workflow fields, comments, retries, review status, or document type change.
 
+## Next Phase: Customer Document Chatbot
+
+A future implementation can add a read-only chatbot that lets customers ask questions about the documents they uploaded. Example questions:
+
+```text
+What is the status of my file?
+Why was my receipt rejected?
+Who is reviewing my contract?
+When is the SLA due?
+What documents failed and need retry?
+What risks were found in my invoice?
+```
+
+Recommended implementation shape:
+
+```text
+Customer question
+  -> authenticated customer/session context
+  -> document lookup by allowed document ids, file names, or references
+  -> retrieval from metadata, audit events, workflow comments, extracted summary, and report text
+  -> OCI Generative AI response with strict grounding instructions
+  -> answer with cited document id, status, action, reviewer decision, and next step
+```
+
+The chatbot should be grounded in application records only. It should not search the internet, expose raw provider errors, disclose another customer document, or change approval state. Actions such as approve, reject, retry, assignment, and SLA changes should remain in the reviewer workflow until explicit role-based authorization is added.
+
+For the MVP repository, the bot can read the existing JSON metadata and Markdown reports. For the enterprise phase, move the same data into Autonomous Database and add an access-control layer keyed by customer, tenant, project, or case id.
+
 ## Preflight
 
 Open `Settings` and run `OCI Preflight` after deployment. It uses the same runtime credentials as processing and verifies:

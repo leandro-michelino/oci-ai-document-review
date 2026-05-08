@@ -602,25 +602,30 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 | or Streamlit            |
 +-------+-----------------+
         |
+        +---------------------------+
+        |                           |
+        v                           v
++-------------------------+   +-------------------------+
+| Review UI               |   | Customer Chatbot        |
+| Upload / Dashboard /    |   | Status, rejection, SLA, |
+| Actions                 |   | retry, risk questions   |
++-------+-----------------+   +------------+------------+
+        |                                  |
+        +----------------------+-----------+
+                               |
         v
 +-------------------------+
 | Backend Processor       |
 | Python / API            |
 +-------+-----------------+
         |
-        +----------------------+----------------------+
-        |                      |                      |
-        v                      v                      v
-+-------------------+  +---------------------+  +-------------------+
-| Object Storage    |  | Document             |  | Generative AI     |
-| Original Files    |  | Understanding        |  | Analysis          |
-+-------------------+  +---------------------+  +-------------------+
-        |                      |                      |
-        +----------------------+----------------------+
-                               |
-                               v
-                    +-----------------------+
-                    | Autonomous Database   |
-                    | Metadata and Review   |
-                    +-----------------------+
+        +----------------------+----------------------+----------------------+
+        |                      |                      |                      |
+        v                      v                      v                      v
++-------------------+  +---------------------+  +-------------------+  +-----------------------+
+| Object Storage    |  | Document             |  | Generative AI     |  | Autonomous Database   |
+| Original Files    |  | Understanding        |  | Analysis + Chat   |  | Metadata, Review, ACL |
++-------------------+  +---------------------+  +-------------------+  +-----------------------+
 ```
+
+The Phase 2 chatbot should be read-only and grounded in stored metadata, audit events, workflow comments, extracted summaries, generated reports, and review decisions. It should answer customer questions about status, rejection reason, retry instructions, owner, SLA, and risk summaries, while enforcing document-level authorization.

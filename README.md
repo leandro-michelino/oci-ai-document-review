@@ -12,7 +12,7 @@ The image above is the share-ready reference architecture. Terminal-friendly ASC
 
 OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI to convert uploaded documents into structured review summaries, risk notes, recommendations, workflow metadata, and downloadable reports.
 
-The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, and Functions.
+The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, Functions, and a customer document-status chatbot.
 
 Current version: `v0.3.0`
 
@@ -413,6 +413,13 @@ The current source-of-truth version is `src/version.py`, and release notes are t
 
 - Add Autonomous Database for metadata
 - Add APEX or Visual Builder as enterprise frontend
+- Add a customer document chatbot for status, rejection reason, retry, owner, SLA, and risk-summary questions
 - Add OCI Events and Functions for automatic processing
 - Add OCI Vault for secrets
 - Add OCI Logging for operational visibility
+
+### Next Phase: Customer Document Chatbot
+
+A future phase can add a read-only chatbot so customers can ask natural-language questions about uploaded documents, such as `What is the status of my file?`, `Why was it rejected?`, `Who is reviewing it?`, or `What should I upload again?`.
+
+The chatbot should answer from trusted application data only: local or database-backed metadata, audit events, workflow comments, generated reports, extracted summaries, and approval/rejection decisions. It should not make final approval decisions or invent missing information. In the enterprise version, this assistant should sit behind authentication and authorization so each customer only sees documents they are allowed to access.
