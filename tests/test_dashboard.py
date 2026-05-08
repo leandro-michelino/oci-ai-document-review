@@ -136,10 +136,10 @@ def test_format_compliance_evidence_summarizes_catalog_details():
     summary = format_compliance_evidence(evidence)
 
     assert summary == (
-        'Public-sector cue matched: Government keyword (term "gov", keyword); '
-        'Ministry keyword (term "department of", keyword). '
-        "Expense context found: receipt, expense, reimbursement. "
-        "Evidence source: Object Storage: compliance/public_sector_entities.csv."
+        "Compliance knowledge base matched public-sector context: "
+        "government or public-sector reference; ministry or department reference. "
+        "Expense cues found: receipt, expense, reimbursement. "
+        "Review before approval."
     )
 
 

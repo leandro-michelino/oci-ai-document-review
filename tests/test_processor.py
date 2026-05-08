@@ -2,14 +2,18 @@ from types import SimpleNamespace
 
 from src.models import (
     DocumentAnalysis,
+    DocumentRecord,
     DocumentType,
     ExtractionResult,
     ProcessingStatus,
+    RiskNote,
 )
 from src.processor import (
     DocumentProcessor,
     GENAI_SAFETY_REVIEW_MESSAGE,
     GENAI_SAFETY_REVIEW_RISK,
+    PUBLIC_SECTOR_EXPENSE_RISK,
+    apply_compliance_attention,
     detected_document_type,
     error_message,
     fallback_safety_analysis,
@@ -387,6 +391,44 @@ def test_processor_flags_public_sector_expense_from_business_reference(
     assert "knowledge-base" in record.analysis.risk_notes[-1].evidence
     assert "matched term: gov" in record.analysis.risk_notes[-1].evidence
     assert "receipt" in record.analysis.risk_notes[-1].evidence
+
+
+def test_compliance_attention_ignores_generic_travel_guidance():
+    record = DocumentRecord(
+        document_id="doc-guidance",
+        document_name="travel-guidance.txt",
+        document_type=DocumentType.COMPLIANCE,
+        analysis=DocumentAnalysis(
+            document_class="COMPLIANCE",
+            executive_summary=(
+                "The document mentions government websites and regulations that may "
+                "require review for public-sector travel guidelines."
+            ),
+            confidence_score=0.82,
+            risk_notes=[
+                RiskNote(
+                    risk="Compliance Attention",
+                    severity="MEDIUM",
+                    evidence=(
+                        "The document mentions government websites and regulations, "
+                        "which may require review."
+                    ),
+                )
+            ],
+        ),
+    )
+
+    apply_compliance_attention(
+        record,
+        (
+            "Government travel policy and department of finance reimbursement "
+            "guidelines for employees."
+        ),
+    )
+
+    assert all(
+        note.risk != PUBLIC_SECTOR_EXPENSE_RISK for note in record.analysis.risk_notes
+    )
 
 
 def test_detected_document_type_handles_unknown_and_aliases():

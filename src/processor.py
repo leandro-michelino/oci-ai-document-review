@@ -54,6 +54,22 @@ EXPENSE_TERMS = (
     "beverage",
     "food",
 )
+EXPENSE_DOCUMENT_TERMS = (
+    "invoice",
+    "receipt",
+    "payment due",
+    "total",
+    "vat",
+    "tax",
+    "gratuity",
+    "meal",
+    "lunch",
+    "dinner",
+    "restaurant",
+    "hotel",
+    "beverage",
+    "food",
+)
 PUBLIC_SECTOR_EXPENSE_RISK = "Public-sector expense compliance review"
 
 
@@ -186,10 +202,11 @@ def apply_compliance_attention(
 
     detected_type = detected_document_type(record.analysis.document_class)
     expense_matches = matched_terms(context, EXPENSE_TERMS)
+    expense_document_matches = matched_terms(context, EXPENSE_DOCUMENT_TERMS)
     is_expense = (
         record.document_type == DocumentType.INVOICE
         or detected_type == DocumentType.INVOICE
-        or bool(expense_matches)
+        or bool(expense_document_matches)
     )
     if not is_expense:
         return record

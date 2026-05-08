@@ -987,6 +987,23 @@ def parse_key_value_segments(value: str) -> dict[str, str]:
     return parsed
 
 
+def compliance_entity_label(entity: str | None, term: str | None) -> str:
+    normalized_entity = (entity or "").strip()
+    normalized_term = (term or "").strip()
+    generic_labels = {
+        "government keyword": "government or public-sector reference",
+        "public sector keyword": "public-sector reference",
+        "ministry keyword": "ministry or department reference",
+        "municipality keyword": "municipality or council reference",
+        "state-owned entity keyword": "state-owned entity reference",
+        "public official keyword": "public official reference",
+        "embassy keyword": "embassy reference",
+        "security forces keyword": "security-force reference",
+    }
+    label = generic_labels.get(normalized_entity.lower(), normalized_entity)
+    return label or normalized_term or "public-sector reference"
+
+
 def format_compliance_evidence(evidence: str) -> str | None:
     if "public-sector match:" not in evidence:
         return None
@@ -1016,18 +1033,13 @@ def format_compliance_evidence(evidence: str) -> str | None:
         fields = parse_key_value_segments(raw_match)
         entity = fields.get("entity")
         term = fields.get("matched term")
-        entity_type = fields.get("type")
         country = fields.get("country")
         if not entity and not term:
             continue
         qualifiers = []
-        if term:
-            qualifiers.append(f'term "{term}"')
-        if entity_type:
-            qualifiers.append(entity_type)
         if country and country.lower() != "global":
             qualifiers.append(country)
-        detail = entity or term or ""
+        detail = compliance_entity_label(entity, term)
         if qualifiers:
             detail = f"{detail} ({', '.join(qualifiers)})"
         matches.append(detail)
@@ -1035,12 +1047,14 @@ def format_compliance_evidence(evidence: str) -> str | None:
     summary_parts = []
     if matches:
         summary_parts.append(
-            "Public-sector cue matched: " + "; ".join(matches[:3]) + "."
+            "Compliance knowledge base matched public-sector context: "
+            + "; ".join(dict.fromkeys(matches[:3]))
+            + "."
         )
     if expense_cues:
-        summary_parts.append(f"Expense context found: {expense_cues}.")
+        summary_parts.append(f"Expense cues found: {expense_cues}.")
     if source:
-        summary_parts.append(f"Evidence source: {source}.")
+        summary_parts.append("Review before approval.")
     if summary_parts:
         return " ".join(summary_parts)
     return None
