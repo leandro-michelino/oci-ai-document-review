@@ -256,6 +256,39 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
               +----------------------------+
 ```
 
+## Dashboard Filter Flow
+
+```text
++---------------------------+
+| Dashboard Work Queues     |
+| Search + Status Filter    |
++-------------+-------------+
+              |
+              v
++---------------------------+
+| Queue Row Metadata        |
+| status, review, action,   |
+| workflow, SLA, risk       |
++-------------+-------------+
+              |
+              +-----------------------+-----------------------+-----------------------+
+              |                       |                       |                       |
+              v                       v                       v                       v
++---------------------+   +---------------------+   +---------------------+   +---------------------+
+| Processing Filter   |   | Decision Filter     |   | Follow-Up Filter    |   | Reviewed Filter     |
+| active statuses     |   | needs/compliance    |   | failed/retry        |   | approved/rejected   |
++----------+----------+   +----------+----------+   +----------+----------+   +----------+----------+
+           |                         |                         |                         |
+           +-------------------------+-------------------------+-------------------------+
+                                     |
+                                     v
+                         +---------------------------+
+                         | Visible Queue Sections    |
+                         | Processing / Ready /      |
+                         | Failed / Reviewed         |
+                         +---------------------------+
+```
+
 ## Safety Filter Flow
 
 ```text
@@ -629,3 +662,45 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 ```
 
 The Phase 2 chatbot should be read-only and grounded in stored metadata, audit events, workflow comments, extracted summaries, generated reports, and review decisions. It should answer customer questions about status, rejection reason, retry instructions, owner, SLA, and risk summaries, while enforcing document-level authorization.
+
+## Phase 2 Customer Chatbot Flow
+
+```text
++---------------------------+
+| Customer                  |
+| "What is my file status?" |
++-------------+-------------+
+              |
+              v
++---------------------------+
+| Authenticated Chat UI     |
+| customer/session context  |
++-------------+-------------+
+              |
+              v
++---------------------------+
+| Document Access Filter    |
+| customer, tenant, case id |
++-------------+-------------+
+              |
+              v
++---------------------------+
+| Retrieval                 |
+| metadata, audit events,   |
+| comments, reports,        |
+| extracted summaries       |
++-------------+-------------+
+              |
+              v
++---------------------------+
+| OCI Generative AI         |
+| grounded answer only      |
++-------------+-------------+
+              |
+              v
++---------------------------+
+| Customer Answer           |
+| status, rejection reason, |
+| owner, SLA, retry step    |
++---------------------------+
+```

@@ -394,6 +394,7 @@ The app supports:
 - Local JSON metadata
 - Approve and reject review actions
 - Dashboard queue view with metrics, next-action guidance, search, split queue tables, shortcuts, and per-row Open actions
+- Dashboard status filters for queue, approval, rejection, retry, failed, processing, and compliance-review states
 - Actions page for prioritized approvals, source-document download, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document
 - Field guide with `?` explanations for review and file metadata fields

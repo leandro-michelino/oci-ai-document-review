@@ -267,7 +267,7 @@ Recommended processing flow:
    View Dashboard, Open Actions, or Upload Another.
 8. Use Dashboard to watch the queue while the worker pool runs the live steps:
    Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
-9. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables.
+9. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
 10. Click Open next to a document.
 11. Use the Actions page to review the executive summary, key points, risks, recommendations, and supporting details.
 12. Use the Workflow panel to set the workflow status, assignee, and SLA due date.

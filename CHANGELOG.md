@@ -32,6 +32,8 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - The compliance KB is read from `compliance/public_sector_entities.csv` in Object Storage, seeded from `data/compliance/public_sector_entities.csv` when missing.
 - Dashboard and Actions risk display uses a green signal for no-risk documents and severity labels for actionable risks: `Risk Small`, `Risk Medium`, and `Risk High`.
 - Actions now shows a reviewer-friendly Risk review panel with summarized compliance evidence instead of raw catalog details.
+- Dashboard work queues now include a status filter for Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, and Retry planned states.
+- Future phase documentation now includes a read-only customer document chatbot grounded in metadata, audit events, workflow comments, reports, summaries, and reviewer decisions.
 - Dashboard Ready work is presented as a horizontal middle band, while Failed and Reviewed stay in the paired queue layout.
 - README architecture design appears near the beginning of the document.
 - Documentation, ASCII architecture flows, and the rendered architecture image reflect the current v0.3.0 runtime path.
