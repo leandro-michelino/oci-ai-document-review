@@ -46,14 +46,14 @@ ACTIVE_STATUSES = {"UPLOADED", "PROCESSING", "EXTRACTED", "AI_ANALYZED"}
 QUEUE_SECTION_VIEWS = ["Processing", "Ready", "Failed", "Reviewed"]
 DASHBOARD_STATUS_FILTERS = [
     "All",
-    "Needs decision",
-    "Compliance review",
-    "Fix and retry",
-    "Retry planned",
-    "Processing",
-    "Failed",
     "Approved",
+    "Compliance review",
+    "Failed",
+    "Fix and retry",
+    "Needs decision",
+    "Processing",
     "Rejected",
+    "Retry planned",
     "Reviewed",
 ]
 DASHBOARD_REFRESH_SECONDS = 10
@@ -186,10 +186,25 @@ def utc_start_of_day(value: date | None) -> datetime | None:
 
 
 def review_document_type_options(current: DocumentType) -> list[DocumentType]:
-    options = [item for item in DocumentType if item != DocumentType.AUTO_DETECT]
+    options = sorted(
+        (item for item in DocumentType if item != DocumentType.AUTO_DETECT),
+        key=document_type_label,
+    )
     if current == DocumentType.AUTO_DETECT:
         return [DocumentType.AUTO_DETECT, *options]
     return options
+
+
+def upload_document_type_options() -> list[str]:
+    options = [
+        DocumentType.AUTO_DETECT,
+        *review_document_type_options(DocumentType.CONTRACT),
+    ]
+    return [item.value for item in options]
+
+
+def workflow_status_options() -> list[WorkflowStatus]:
+    return sorted(WorkflowStatus, key=workflow_status_label)
 
 
 def apply_theme() -> None:
@@ -1922,7 +1937,7 @@ def render_review_action_panel(config, store, record, key_prefix: str) -> None:
 
 
 def workflow_option_index(record) -> int:
-    options = list(WorkflowStatus)
+    options = workflow_status_options()
     try:
         return options.index(record.workflow_status)
     except ValueError:
@@ -2063,7 +2078,7 @@ def render_workflow_panel(config, store, record, key_prefix: str) -> None:
     if record.parent_document_id:
         st.caption(f"Retry of document `{record.parent_document_id}`")
 
-    options = list(WorkflowStatus)
+    options = workflow_status_options()
     selected_status = st.selectbox(
         "Workflow status",
         options,
@@ -2232,7 +2247,7 @@ def upload_page(config, store):
     with st.container(border=True):
         document_type = st.selectbox(
             "Document type",
-            [item.value for item in DocumentType],
+            upload_document_type_options(),
             format_func=document_type_label,
             help=FIELD_HELP["Document type"],
             key="upload_document_type",

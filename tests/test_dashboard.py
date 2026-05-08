@@ -5,11 +5,13 @@ import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 from app import (
+    DASHBOARD_STATUS_FILTERS,
     action_badge,
     action_tone,
     backfill_compliance_attention,
     dashboard_metrics_html,
     display_error_message,
+    document_type_label,
     file_size_label,
     filter_dashboard_status,
     filter_queue_rows,
@@ -25,6 +27,9 @@ from app import (
     source_download_mime,
     source_download_name,
     sort_action_records,
+    upload_document_type_options,
+    workflow_status_label,
+    workflow_status_options,
 )
 from src.models import (
     DocumentAnalysis,
@@ -167,6 +172,28 @@ def test_action_badges_use_decision_colors():
     assert action_tone("Fix and retry") == "state-bad"
     assert action_tone("Retry planned") == "state-warn"
     assert 'class="badge state-good"' in action_badge("Approved")
+
+
+def test_dropdown_options_are_alphabetized_with_defaults_first():
+    assert DASHBOARD_STATUS_FILTERS == [
+        "All",
+        "Approved",
+        "Compliance review",
+        "Failed",
+        "Fix and retry",
+        "Needs decision",
+        "Processing",
+        "Rejected",
+        "Retry planned",
+        "Reviewed",
+    ]
+    document_labels = [
+        document_type_label(item) for item in upload_document_type_options()
+    ]
+    assert document_labels[0] == "Auto-detect"
+    assert document_labels[1:] == sorted(document_labels[1:])
+    workflow_labels = [workflow_status_label(item) for item in workflow_status_options()]
+    assert workflow_labels == sorted(workflow_labels)
 
 
 def test_howto_panel_html_is_not_indented_as_markdown_code():
