@@ -106,7 +106,7 @@ Text-native files and PDFs with selectable text go directly to GenAI after local
 
 ## Compliance Knowledge Base
 
-The compliance router uses a curated CSV/JSON knowledge base instead of asking GenAI to search the internet. The default Object Storage object is:
+The compliance router uses a curated CSV/JSON knowledge base instead of asking GenAI to search the internet. The catalog supports `LOW`, `MEDIUM`, and `HIGH` severity levels, which the UI presents as `Risk Small`, `Risk Medium`, and `Risk High`. The default Object Storage object is:
 
 ```text
 compliance/public_sector_entities.csv
@@ -118,7 +118,7 @@ If that object is missing, the app seeds it from:
 data/compliance/public_sector_entities.csv
 ```
 
-During processing and backfill, the app checks extracted text, file name, business reference, notes, and selected AI fields against the catalog. Matching expense-like documents receive a `Public-sector expense compliance review` risk note with auditable evidence that includes the source object, matched term, entity type, country, source, and source date. Those documents stay in the Ready queue and appear in Actions as `Compliance review`.
+During processing and backfill, the app checks extracted text, file name, business reference, notes, and selected AI fields against the catalog. Matching expense-like documents receive a `Public-sector expense compliance review` risk note with auditable evidence that includes the source object, matched term, entity type, country, source, and source date. Lower-signal cues such as routine permit fees can be `LOW`, generic public-sector cues can be `MEDIUM`, and stronger cues such as public officials, facilitation payments, political contributions, sanctions, conflicts of interest, and sole-source exceptions can be `HIGH`. Those documents stay in the Ready queue and appear in Actions as `Compliance review`.
 
 If OCI Generative AI blocks a prompt with the service content safety filter, the app no longer exposes the raw provider JSON to the reviewer. It creates a manual-review analysis with `Risk High`, explains that automatic AI analysis was blocked, keeps the extracted text preview available for review, and sanitizes existing metadata/report display paths so stored provider JSON is replaced with the reviewer-safe message.
 

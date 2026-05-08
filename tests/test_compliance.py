@@ -21,3 +21,16 @@ Zimbabwe Schools Examination Council,ZIMSEC|Zimbabwe Schools Examination Council
 def test_compliance_term_matching_avoids_partial_words():
     assert term_matches("lunch with gov customer", "gov")
     assert not term_matches("governance review", "gov")
+
+
+def test_default_catalog_has_small_medium_and_high_risk_categories():
+    from collections import Counter
+
+    from src.compliance import load_local_compliance_catalog
+
+    catalog = load_local_compliance_catalog()
+    counts = Counter(entity.risk_level for entity in catalog.entities)
+
+    assert counts["LOW"] >= 1
+    assert counts["MEDIUM"] >= 1
+    assert counts["HIGH"] >= 1

@@ -259,7 +259,7 @@ def test_compliance_backfill_updates_existing_metadata(tmp_path):
     updated = store.load("doc-existing-gov")
 
     assert updated.analysis.human_review_required is True
-    assert updated.analysis.risk_notes[-1].severity == "HIGH"
+    assert updated.analysis.risk_notes[-1].severity == "MEDIUM"
     assert "knowledge-base" in updated.analysis.risk_notes[-1].evidence
     assert "matched term: gov" in updated.analysis.risk_notes[-1].evidence
     assert "Public-sector expense compliance review" in report_path.read_text(

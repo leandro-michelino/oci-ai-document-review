@@ -151,7 +151,7 @@ The Actions page includes a Source document section before the AI review area. I
 
 After GenAI returns structured analysis, the app applies a deterministic compliance overlay. It checks extracted text, file name, business reference, notes, and selected AI fields against the curated entity catalog configured by `COMPLIANCE_ENTITIES_OBJECT_NAME`, defaulting to `compliance/public_sector_entities.csv` in Object Storage. If the object is missing, the app seeds it from the bundled `data/compliance/public_sector_entities.csv` file and falls back locally if Object Storage cannot be reached.
 
-Expense-like documents that match public-sector entries such as `gov`, ministries, municipalities, state agencies, public officials, or named entities such as ZIMSEC are flagged with a `Public-sector expense compliance review` note. The evidence records the knowledge-base source, matched term, entity type, country, source, and source date. These documents show as `Compliance review` in the Actions queue with severity-labeled risk badges such as `Risk Small`, `Risk Medium`, and `Risk High`. This is a reviewer-routing control for the MVP, not a final compliance determination.
+Expense-like documents that match public-sector entries such as `gov`, ministries, municipalities, state agencies, public officials, or named entities such as ZIMSEC are flagged with a `Public-sector expense compliance review` note. The evidence records the knowledge-base source, matched term, entity type, country, source, and source date. The catalog supports `LOW`, `MEDIUM`, and `HIGH` values so lower-signal entries show as `Risk Small`, broader public-sector cues show as `Risk Medium`, and stronger cues such as public officials, facilitation payments, political contributions, sanctions, conflicts of interest, or sole-source exceptions show as `Risk High`. These documents show as `Compliance review` in the Actions queue. This is a reviewer-routing control for the MVP, not a final compliance determination.
 
 OCI Generative AI content-safety failures are normalized through `src/safety_messages.py`. New worker failures, existing metadata loads, preflight display, JSON downloads, and regenerated Markdown reports replace raw provider JSON with a reviewer-safe explanation.
 
@@ -284,7 +284,7 @@ Then on the portal:
 10. Confirm the reviewer can correct the document type if needed.
 11. Confirm JSON and Markdown downloads are available and include workflow metadata.
 12. Confirm approve or reject updates the review state, closes the workflow, and moves to the next action item when one exists.
-13. Upload or simulate a public-sector expense and confirm a high compliance attention risk is added.
+13. Upload or simulate a public-sector expense and confirm the correct small, medium, or high compliance attention risk is added.
 ```
 
 ## Local App Run

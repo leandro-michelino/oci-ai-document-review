@@ -387,7 +387,7 @@ def test_processor_flags_public_sector_expense_from_business_reference(
     )
 
     assert record.analysis.human_review_required is True
-    assert record.analysis.risk_notes[-1].severity == "HIGH"
+    assert record.analysis.risk_notes[-1].severity == "MEDIUM"
     assert "knowledge-base" in record.analysis.risk_notes[-1].evidence
     assert "matched term: gov" in record.analysis.risk_notes[-1].evidence
     assert "receipt" in record.analysis.risk_notes[-1].evidence
