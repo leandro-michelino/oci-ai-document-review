@@ -2548,15 +2548,31 @@ def settings_page(config):
 
 
 def render_howto_step(number: int, title: str, body: str) -> str:
-    return f"""
-    <div class="howto-step">
-      <div class="howto-number">{number}</div>
-      <div>
-        <div class="howto-title">{escape(title)}</div>
-        <div class="howto-copy">{escape(body)}</div>
-      </div>
-    </div>
-    """
+    return (
+        '<div class="howto-step">'
+        f'<div class="howto-number">{number}</div>'
+        "<div>"
+        f'<div class="howto-title">{escape(title)}</div>'
+        f'<div class="howto-copy">{escape(body)}</div>'
+        "</div>"
+        "</div>"
+    )
+
+
+def render_howto_panel(
+    title: str, intro: str, steps: list[tuple[str, str]]
+) -> str:
+    step_html = "".join(
+        render_howto_step(index, step_title, body)
+        for index, (step_title, body) in enumerate(steps, start=1)
+    )
+    return (
+        '<div class="howto-panel">'
+        f"<h3>{escape(title)}</h3>"
+        f"<p>{escape(intro)}</p>"
+        f"{step_html}"
+        "</div>"
+    )
 
 
 def howto_page(config, store):
@@ -2603,34 +2619,30 @@ def howto_page(config, store):
         ),
     ]
 
-    st.markdown(
-        f"""
-        <div class="howto-grid">
-          <div class="howto-panel">
-            <h3>For uploaders</h3>
-            <p>Use this path when you are submitting a document for AI-assisted review.</p>
-            {"".join(render_howto_step(index, title, body) for index, (title, body) in enumerate(uploader_steps, start=1))}
-          </div>
-          <div class="howto-panel">
-            <h3>For approvers</h3>
-            <p>Use this path when you are making the final human decision.</p>
-            {"".join(render_howto_step(index, title, body) for index, (title, body) in enumerate(approver_steps, start=1))}
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    howto_html = (
+        '<div class="howto-grid">'
+        + render_howto_panel(
+            "For uploaders",
+            "Use this path when you are submitting a document for AI-assisted review.",
+            uploader_steps,
+        )
+        + render_howto_panel(
+            "For approvers",
+            "Use this path when you are making the final human decision.",
+            approver_steps,
+        )
+        + "</div>"
     )
+    st.markdown(howto_html, unsafe_allow_html=True)
 
     st.markdown("### Queue states")
     st.markdown(
-        """
-        <div class="howto-status-grid">
-          <div class="howto-status"><strong>Queued / Processing</strong><span>The document is waiting for or running through OCR, extraction, GenAI, and compliance checks.</span></div>
-          <div class="howto-status"><strong>Ready</strong><span>The document needs a reviewer to inspect the results and approve or reject.</span></div>
-          <div class="howto-status"><strong>Failed</strong><span>The document needs an operational fix or retry before review can continue.</span></div>
-          <div class="howto-status"><strong>Reviewed</strong><span>The document has already been approved or rejected and stays available for audit.</span></div>
-        </div>
-        """,
+        '<div class="howto-status-grid">'
+        '<div class="howto-status"><strong>Queued / Processing</strong><span>The document is waiting for or running through OCR, extraction, GenAI, and compliance checks.</span></div>'
+        '<div class="howto-status"><strong>Ready</strong><span>The document needs a reviewer to inspect the results and approve or reject.</span></div>'
+        '<div class="howto-status"><strong>Failed</strong><span>The document needs an operational fix or retry before review can continue.</span></div>'
+        '<div class="howto-status"><strong>Reviewed</strong><span>The document has already been approved or rejected and stays available for audit.</span></div>'
+        "</div>",
         unsafe_allow_html=True,
     )
 

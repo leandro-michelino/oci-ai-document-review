@@ -19,6 +19,7 @@ from app import (
     queue_view_frames,
     record_to_row,
     reviewer_action_count,
+    render_howto_panel,
     risk_detail_label,
     source_download_mime,
     source_download_name,
@@ -165,6 +166,18 @@ def test_action_badges_use_decision_colors():
     assert action_tone("Fix and retry") == "state-bad"
     assert action_tone("Retry planned") == "state-warn"
     assert 'class="badge state-good"' in action_badge("Approved")
+
+
+def test_howto_panel_html_is_not_indented_as_markdown_code():
+    html = render_howto_panel(
+        "For approvers",
+        "Use this path for decisions.",
+        [("Open Actions", "Review the next item.")],
+    )
+
+    assert "\n" not in html
+    assert '<div class="howto-panel">' in html
+    assert "<pre" not in html
 
 
 def test_display_error_message_hides_raw_genai_safety_json():
