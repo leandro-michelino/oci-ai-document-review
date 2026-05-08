@@ -738,6 +738,23 @@ def badge(label: str, tone: str) -> str:
     return f'<span class="badge {tone}">{escape(label)}</span>'
 
 
+def action_tone(action: str) -> str:
+    normalized = action.strip().lower()
+    if normalized == "approved":
+        return "state-good"
+    if normalized in {"rejected", "fix and retry"}:
+        return "state-bad"
+    if normalized in {"retry planned", "compliance review", "approve or reject"}:
+        return "state-warn"
+    if normalized in {"processing", "wait for processing"}:
+        return "state-info"
+    return "state-info"
+
+
+def action_badge(action: str) -> str:
+    return badge(action, action_tone(action))
+
+
 def help_dot(label: str) -> str:
     help_text = FIELD_HELP.get(label)
     if not help_text:
@@ -1604,7 +1621,7 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
             row_cols[2].caption(f"{confidence_text} confidence")
             row_cols[3].markdown(
                 f"""
-                <div class="queue-title">{escape(row["Action"])}</div>
+                <div class="queue-title">{action_badge(row["Action"])}</div>
                 <div class="queue-action">{escape(row["Workflow"])} | {escape(row["SLA"])}</div>
                 """,
                 unsafe_allow_html=True,

@@ -5,6 +5,8 @@ import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 from app import (
+    action_badge,
+    action_tone,
     backfill_compliance_attention,
     dashboard_metrics_html,
     display_error_message,
@@ -155,6 +157,14 @@ def test_dashboard_metrics_html_stays_in_one_html_block():
     assert html.count('class="dashboard-card') == 2
     assert "&lt;action&gt;" in html
     assert "Ready &amp; waiting" in html
+
+
+def test_action_badges_use_decision_colors():
+    assert action_tone("Approved") == "state-good"
+    assert action_tone("Rejected") == "state-bad"
+    assert action_tone("Fix and retry") == "state-bad"
+    assert action_tone("Retry planned") == "state-warn"
+    assert 'class="badge state-good"' in action_badge("Approved")
 
 
 def test_display_error_message_hides_raw_genai_safety_json():
