@@ -15,6 +15,12 @@ Release notes summarize user-visible workflow, infrastructure, documentation, an
 - Added `--configure-only`, `--deploy-only`, and `--skip-checks` modes for split configuration, repeat deployment, and faster trusted reruns.
 - Updated setup documentation across README, implementation guide, platform usage guide, and Terraform README.
 
+### Dashboard Queues
+
+- Replaced separate multi-file group cards with group rows inside the same selectable queue table used by individual files.
+- Group rows show file count, stage summary, target action, highest risk, confidence range, SLA, owner, and the first target file.
+- `Review selected` now handles both individual file rows and multi-file group rows.
+
 ## v0.5.1 - 2026-05-09
 
 ### Cost Estimate

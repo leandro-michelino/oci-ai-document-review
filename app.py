@@ -1876,36 +1876,64 @@ def expense_group_file_list(records: list[DocumentRecord], limit: int = 4) -> st
     return ", ".join(names)
 
 
-def expense_row_file_table(rows: pd.DataFrame) -> pd.DataFrame:
-    table_rows = []
-    for _, row in rows.iterrows():
-        details = [str(row["Uploaded"]), str(row["Type"])]
-        if row["Status"] in ACTIVE_STATUSES:
-            details.append(f"Working for {row['Elapsed']}")
-        if row["Reference"]:
-            details.append(f"Ref: {row['Reference']}")
-        if row["Assignee"] != "Unassigned":
-            details.append(f"Owner: {row['Assignee']}")
-        table_rows.append(
-            {
-                "File": row["Name"],
-                "Stage": row["Stage"],
-                "Action": row["Action"],
-                "Risk": RISK_LABELS.get(row["Risk Level"], row["Risk Level"]),
-                "Details": " | ".join(details),
-            }
-        )
-    return pd.DataFrame(table_rows)
+def compact_value_label(values: pd.Series, empty: str = "-") -> str:
+    cleaned = [str(value) for value in values.tolist() if str(value)]
+    if not cleaned:
+        return empty
+    unique = list(dict.fromkeys(cleaned))
+    return unique[0] if len(unique) == 1 else "Mixed"
 
 
-def dashboard_file_table(rows: pd.DataFrame) -> pd.DataFrame:
+def confidence_range_label(values: pd.Series) -> str:
+    numbers = sorted({int(value) for value in values.tolist() if not pd.isna(value)})
+    if not numbers:
+        return "N/A"
+    if len(numbers) == 1:
+        return f"{numbers[0]}%"
+    return f"{numbers[0]}-{numbers[-1]}%"
+
+
+def highest_table_risk_label(values: pd.Series) -> str:
+    risk = max(
+        (str(value) for value in values.tolist()),
+        key=lambda value: RISK_ORDER.get(value, -1),
+        default="NONE",
+    )
+    return RISK_LABELS.get(risk, risk)
+
+
+def dashboard_queue_table(rows: pd.DataFrame) -> pd.DataFrame:
     table_rows = []
-    for _, row in rows.iterrows():
+    for reference, group_rows in expense_row_groups(rows):
+        if reference and len(group_rows) > 1:
+            target = expense_row_group_target(group_rows)
+            table_rows.append(
+                {
+                    "Item": reference,
+                    "Files": f"{len(group_rows)} files",
+                    "Expense": reference,
+                    "Uploaded": group_rows["Uploaded"].max(),
+                    "Type": compact_value_label(group_rows["Type"]),
+                    "Stage": expense_row_stage_summary(group_rows),
+                    "Action": target["Action"],
+                    "Risk": highest_table_risk_label(group_rows["Risk Level"]),
+                    "Confidence": confidence_range_label(group_rows["Confidence"]),
+                    "SLA": compact_value_label(group_rows["SLA"]),
+                    "Owner": compact_value_label(group_rows["Assignee"]),
+                    "Details": f"Starts with {target['Name']}",
+                    "Document ID": target["Document ID"],
+                    "Row Type": "Group",
+                }
+            )
+            continue
+
+        row = group_rows.iloc[0]
         confidence = row["Confidence"]
         confidence_text = "N/A" if pd.isna(confidence) else f"{int(confidence)}%"
         table_rows.append(
             {
-                "File": row["Name"],
+                "Item": row["Name"],
+                "Files": "1 file",
                 "Expense": row["Expense Name or Reference"] or "-",
                 "Uploaded": row["Uploaded"],
                 "Type": row["Type"],
@@ -1915,7 +1943,9 @@ def dashboard_file_table(rows: pd.DataFrame) -> pd.DataFrame:
                 "Confidence": confidence_text,
                 "SLA": row["SLA"],
                 "Owner": row["Assignee"],
+                "Details": row["Summary"],
                 "Document ID": row["Document ID"],
+                "Row Type": "File",
             }
         )
     return pd.DataFrame(table_rows)
@@ -1985,68 +2015,20 @@ def expense_row_group_target(rows: pd.DataFrame) -> pd.Series:
     return min((row for _, row in rows.iterrows()), key=priority)
 
 
-def expense_row_group_header(reference: str, rows: pd.DataFrame) -> str:
-    file_word = "file" if len(rows) == 1 else "files"
-    return f"""
-    <div class="expense-group-card">
-      <div class="expense-group-head">
-        <div>
-          <div class="expense-group-label">Expense name or reference</div>
-          <div class="expense-group-title">{escape(reference)}</div>
-        </div>
-        <span class="badge state-info">{len(rows)} {file_word}</span>
-      </div>
-      <div class="expense-file-list">
-        {escape(expense_row_stage_summary(rows))}. Expand the file list only when you need the details.
-      </div>
-    </div>
-    """
-
-
-def render_compact_expense_row_group(
-    view: str, reference: str, group_rows: pd.DataFrame, key_prefix: str
-) -> None:
-    target = expense_row_group_target(group_rows)
-    target_document_id = target["Document ID"]
-    with st.container(border=True):
-        st.markdown(
-            expense_row_group_header(reference, group_rows),
-            unsafe_allow_html=True,
-        )
-        action_cols = st.columns([0.34, 1.66], vertical_alignment="center")
-        if action_cols[0].button(
-            "Review",
-            type="primary" if view == "Ready" else "secondary",
-            key=f"{key_prefix}_review_group_{view}_{target_document_id}",
-            help=f"Review {reference} in Actions",
-            width="stretch",
-        ):
-            open_page_from_dashboard(PAGE_DETAIL, target_document_id)
-        action_cols[1].caption(
-            f"Starts with {target['Name']}. {expense_row_stage_summary(group_rows)}."
-        )
-
-        with st.expander(f"Show files ({len(group_rows)})", expanded=False):
-            st.dataframe(
-                expense_row_file_table(group_rows),
-                width="stretch",
-                hide_index=True,
-            )
-
-
-def render_dashboard_file_table(
+def render_dashboard_queue_table(
     view: str, rows: pd.DataFrame, key_prefix: str
 ) -> None:
     if rows.empty:
         return
-    table = dashboard_file_table(rows)
+    table = dashboard_queue_table(rows)
     state = st.dataframe(
         table,
         width="stretch",
         height=min(420, 48 + (len(table) + 1) * 35),
         hide_index=True,
         column_order=[
-            "File",
+            "Item",
+            "Files",
             "Expense",
             "Uploaded",
             "Type",
@@ -2056,6 +2038,7 @@ def render_dashboard_file_table(
             "Confidence",
             "SLA",
             "Owner",
+            "Details",
         ],
         key=f"{key_prefix}_{view.lower()}_file_table",
         on_select="rerun",
@@ -2072,7 +2055,8 @@ def render_dashboard_file_table(
         width="stretch",
     ):
         open_page_from_dashboard(PAGE_DETAIL, str(selected["Document ID"]))
-    review_cols[1].caption(f"Selected: {selected['File']}")
+    label = "group" if selected["Row Type"] == "Group" else "file"
+    review_cols[1].caption(f"Selected {label}: {selected['Item']}")
 
 
 def dashboard_focus_record(records: list[DocumentRecord]) -> DocumentRecord | None:
@@ -2368,23 +2352,11 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
         st.info(empty_messages.get(view, f"No {view.lower()} documents."))
         return
 
-    table_groups = []
-    for reference, group_rows in expense_row_groups(rows):
-        if reference and len(group_rows) > 1:
-            render_compact_expense_row_group(
-                view=view,
-                reference=reference,
-                group_rows=group_rows,
-                key_prefix="queue",
-            )
-            continue
-        table_groups.append(group_rows)
-    if table_groups:
-        render_dashboard_file_table(
-            view=view,
-            rows=pd.concat(table_groups, ignore_index=True),
-            key_prefix="queue",
-        )
+    render_dashboard_queue_table(
+        view=view,
+        rows=rows,
+        key_prefix="queue",
+    )
 
 
 def render_ready_queue_band(rows: pd.DataFrame) -> None:
@@ -2394,24 +2366,11 @@ def render_ready_queue_band(rows: pd.DataFrame) -> None:
         st.info("No documents are waiting for a decision.")
         return
 
-    with st.container(border=True):
-        table_groups = []
-        for reference, group_rows in expense_row_groups(rows):
-            if reference and len(group_rows) > 1:
-                render_compact_expense_row_group(
-                    view="Ready",
-                    reference=reference,
-                    group_rows=group_rows,
-                    key_prefix="ready",
-                )
-                continue
-            table_groups.append(group_rows)
-        if table_groups:
-            render_dashboard_file_table(
-                view="Ready",
-                rows=pd.concat(table_groups, ignore_index=True),
-                key_prefix="ready",
-            )
+    render_dashboard_queue_table(
+        view="Ready",
+        rows=rows,
+        key_prefix="ready",
+    )
 
 
 def rerun_dashboard_fragment() -> None:
@@ -3620,7 +3579,7 @@ def howto_page(config, store):
         ),
         (
             "Watch the queue",
-            "Use Dashboard to see expense groups, compact Review cards, collapsed file details, active processing time, ready reviews, failures, and reviewed items.",
+            "Use Dashboard to see expense groups and individual files in one table, plus active processing time, ready reviews, failures, and reviewed items.",
         ),
         (
             "Fix only failed items",

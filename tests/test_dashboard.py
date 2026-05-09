@@ -17,7 +17,7 @@ from app import (
     actions_summary_html,
     backfill_compliance_attention,
     dashboard_metrics_html,
-    dashboard_file_table,
+    dashboard_queue_table,
     detail_page,
     display_error_message,
     document_type_label,
@@ -27,7 +27,6 @@ from app import (
     expense_group_item_rows,
     expense_reference_file_card_html,
     expense_row_group_target,
-    expense_row_file_table,
     expense_reference_groups,
     expense_row_groups,
     file_size_label,
@@ -196,53 +195,32 @@ def test_expense_group_visual_helpers_summarize_files_and_statuses():
     assert "1 Ready" in badges
 
 
-def test_expense_row_file_table_keeps_dashboard_group_details_compact():
-    ready = make_record("doc-ready", "ready.pdf")
-    ready.job_description = "Client dinner May"
-    ready.analysis.risk_notes = [RiskNote(risk="Check policy", severity="LOW")]
-    failed = make_record(
-        "doc-failed", "failed.pdf", status=ProcessingStatus.FAILED
+def test_dashboard_queue_table_keeps_groups_and_files_together():
+    first = make_record("doc-1", "receipt-a.pdf")
+    first.job_description = "Client dinner May"
+    first.analysis.risk_notes = [RiskNote(risk="Policy check", severity="LOW")]
+    first.analysis.confidence_score = 0.85
+    second = make_record("doc-2", "receipt-b.pdf")
+    second.job_description = "Client dinner May"
+    second.status = ProcessingStatus.FAILED
+    second.analysis.confidence_score = 0.9
+    loose = make_record("doc-3", "single.pdf")
+
+    rows = pd.DataFrame(
+        [record_to_row(record) for record in [first, loose, second]]
     )
-    failed.job_description = "Client dinner May"
-    failed.assignee = "Finance"
-    rows = pd.DataFrame([record_to_row(record) for record in [ready, failed]])
 
-    table = expense_row_file_table(rows)
+    table = dashboard_queue_table(rows)
 
-    assert table.columns.tolist() == ["File", "Stage", "Action", "Risk", "Details"]
-    assert table["File"].tolist() == ["ready.pdf", "failed.pdf"]
-    assert table["Risk"].tolist() == ["Risk Small", "Risk None"]
-    assert "Owner: Finance" in table.loc[1, "Details"]
-
-
-def test_dashboard_file_table_keeps_single_file_queues_dense():
-    ready = make_record("doc-ready", "ready.pdf")
-    ready.job_description = "Client dinner May"
-    failed = make_record(
-        "doc-failed", "failed.pdf", status=ProcessingStatus.FAILED
-    )
-    failed.assignee = "Finance"
-    rows = pd.DataFrame([record_to_row(record) for record in [ready, failed]])
-
-    table = dashboard_file_table(rows)
-
-    assert table.columns.tolist() == [
-        "File",
-        "Expense",
-        "Uploaded",
-        "Type",
-        "Stage",
-        "Action",
-        "Risk",
-        "Confidence",
-        "SLA",
-        "Owner",
-        "Document ID",
-    ]
-    assert table["File"].tolist() == ["ready.pdf", "failed.pdf"]
-    assert table["Expense"].tolist() == ["Client dinner May", "-"]
-    assert table["Confidence"].tolist() == ["80%", "80%"]
-    assert table["Owner"].tolist() == ["Unassigned", "Finance"]
+    assert table["Row Type"].tolist() == ["Group", "File"]
+    assert table.loc[0, "Item"] == "Client dinner May"
+    assert table.loc[0, "Files"] == "2 files"
+    assert table.loc[0, "Stage"] == "1 Failed, 1 Ready"
+    assert table.loc[0, "Risk"] == "Risk Small"
+    assert table.loc[0, "Confidence"] == "85-90%"
+    assert table.loc[0, "Document ID"] == "doc-1"
+    assert table.loc[1, "Item"] == "single.pdf"
+    assert table.loc[1, "Files"] == "1 file"
 
 
 def test_expense_row_group_target_prefers_reviewable_file():
