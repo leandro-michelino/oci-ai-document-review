@@ -802,6 +802,24 @@ def test_upload_how_to_use_button_opens_guide(monkeypatch, tmp_path):
         get_config.cache_clear()
 
 
+def test_upload_page_uses_single_expense_reference_field(monkeypatch, tmp_path):
+    configure_streamlit_test_env(monkeypatch, tmp_path)
+
+    from src.config import get_config
+
+    get_config.cache_clear()
+    try:
+        app = AppTest.from_file("app.py", default_timeout=5).run()
+
+        assert [item.label for item in app.text_input] == []
+        assert [item.label for item in app.text_area] == [
+            "Expense name or reference",
+            "Notes",
+        ]
+    finally:
+        get_config.cache_clear()
+
+
 def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):
     configure_streamlit_test_env(monkeypatch, tmp_path)
 

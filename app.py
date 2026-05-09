@@ -116,7 +116,6 @@ STATE_TONE = {
 }
 FIELD_HELP = {
     "Action": "The next human or operational step for the selected document.",
-    "Business reference": "Optional user-provided reference, such as invoice number, case ID, or contract ID.",
     "Confidence": "AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness.",
     "Document ID": "Internal portal identifier created for this processing run.",
     "Document type": "Review category chosen during upload or detected by GenAI. Reviewers can correct it before approval.",
@@ -1223,7 +1222,6 @@ def render_file_information(record, compact: bool = False) -> None:
         ("Extension", file_extension(record)),
         ("MIME type", record.source_file_mime_type or "Not captured"),
         ("Expense name or reference", record.job_description or "Not provided"),
-        ("Business reference", record.business_reference or "Not provided"),
         (
             "Processed",
             (
@@ -3048,9 +3046,6 @@ def upload_page(config, store):
             help=FIELD_HELP["Document type"],
             key="upload_document_type",
         )
-        business_reference = st.text_input(
-            "Reference", placeholder="Optional", key="upload_business_reference"
-        )
         uploaded_files = st.file_uploader(
             "Files",
             type=ALLOWED_UPLOAD_EXTENSIONS,
@@ -3160,7 +3155,7 @@ def upload_page(config, store):
                 source_file_mime_type=uploaded.type or None,
                 status=ProcessingStatus.UPLOADED,
                 job_description=job_description_value,
-                business_reference=business_reference or None,
+                business_reference=None,
                 notes=notes or None,
             )
             store.save(record)
@@ -3170,7 +3165,7 @@ def upload_page(config, store):
                 document_id=document_id,
                 document_name=uploaded.name,
                 document_type=document_type_value,
-                business_reference=business_reference or None,
+                business_reference=None,
                 notes=notes or None,
                 job_description=job_description_value,
                 source_file_size_bytes=uploaded.size,
@@ -3539,7 +3534,7 @@ def howto_page(config, store):
     uploader_steps = [
         (
             "Choose the review type and context",
-            "Start in Upload, choose a document type or Auto-detect, then add an optional reference, expense name or reference, and notes.",
+            "Start in Upload, choose a document type or Auto-detect, then add an expense name or reference and optional notes.",
         ),
         (
             "Attach one to five files",

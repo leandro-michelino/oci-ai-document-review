@@ -174,7 +174,6 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | File size | Original upload size captured by the portal for new uploads. |
 | Expense name or reference | Shared expense name or reference for a multi-file upload batch, used to keep related files together. |
 | MIME type | Browser-reported file content type captured during upload. |
-| Business reference | Optional user-provided reference, such as invoice number, case ID, or contract ID. |
 | Document ID | Internal portal identifier created for this processing run. |
 | Report | Whether a Markdown review report exists on the VM. |
 | Text preview | Number of extracted characters stored for quick inspection in the portal. |
