@@ -456,3 +456,26 @@ def test_document_analysis_accepts_null_ai_lists():
     assert analysis.recommendations == []
     assert analysis.missing_information == []
     assert analysis.extracted_fields.parties == []
+
+
+def test_document_analysis_wraps_scalar_ai_list_fields():
+    analysis = DocumentAnalysis.model_validate(
+        {
+            "document_class": "INVOICE",
+            "executive_summary": "Summary",
+            "key_points": "One important point",
+            "risk_notes": {
+                "risk": "Unusual transaction",
+                "severity": "MEDIUM",
+                "evidence": "Single risk object returned by model",
+            },
+            "recommendations": "Review the transaction.",
+            "missing_information": "Approver name",
+            "confidence_score": 0.7,
+        }
+    )
+
+    assert analysis.key_points == ["One important point"]
+    assert analysis.risk_notes[0].risk == "Unusual transaction"
+    assert analysis.recommendations == ["Review the transaction."]
+    assert analysis.missing_information == ["Approver name"]

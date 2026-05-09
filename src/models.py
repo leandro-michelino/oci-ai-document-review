@@ -93,16 +93,23 @@ class DocumentAnalysis(BaseModel):
     confidence_score: float = Field(ge=0.0, le=1.0)
     human_review_required: bool = True
 
-    @field_validator(
-        "key_points",
-        "risk_notes",
-        "recommendations",
-        "missing_information",
-        mode="before",
-    )
+    @field_validator("key_points", "recommendations", "missing_information", mode="before")
     @classmethod
-    def none_to_empty_list(cls, value):
-        return [] if value is None else value
+    def text_to_list(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        return value
+
+    @field_validator("risk_notes", mode="before")
+    @classmethod
+    def risk_notes_to_list(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, dict):
+            return [value]
+        return value
 
     @field_validator("extracted_fields", mode="before")
     @classmethod
