@@ -81,7 +81,9 @@ ALLOWED_UPLOAD_EXTENSIONS = [
 OCI_OCR_EXTENSIONS = {"jpeg", "jpg", "png"}
 DASHBOARD_REFRESH_SECONDS = 10
 CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
-CONTACT_MESSAGE = "In case of any question, get in touch."
+CONTACT_MESSAGE = (
+    "For questions, new project ideas, or company needs, get in touch."
+)
 PAGE_UPLOAD = "Upload"
 PAGE_DASHBOARD = "Dashboard"
 PAGE_DETAIL = "Actions"
@@ -3748,7 +3750,6 @@ def main():
     page = st.session_state["page"]
     st.sidebar.divider()
     st.sidebar.metric("GenAI region", config.genai_region)
-    st.sidebar.caption("Deployment is managed from the local laptop.")
     st.sidebar.divider()
     st.sidebar.caption(CONTACT_TEXT)
     st.sidebar.caption(CONTACT_MESSAGE)
