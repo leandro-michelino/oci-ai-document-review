@@ -8,11 +8,16 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## v0.5.0 - 2026-05-09
+
 - Actions now has a visible `Select document group` control before the file selector, making grouped expense/reference submissions easier to review together.
 - Actions now shows the expanded AI review summary before the Decision panel, so approvers see the AI context before approving or rejecting.
 - Dashboard grouped uploads now show expanded file details as a compact table instead of stacked vertical cards.
 - Dashboard queue tabs now render individual files in compact selectable tables with a single `Review selected` action instead of tall stacked cards.
 - Added optional OCI Events and Functions automatic intake for Object Storage uploads under `incoming/`, with Function queue markers and a VM systemd importer feeding the existing processing workflow.
+- Added documentation release notes in `docs/release_notes.md`.
+- Updated the cost estimate for Document Understanding transaction pricing, current free-tier assumptions, and OCI Functions free-tier intake examples.
+- Tightened Terraform validation so automatic processing requires a valid tenancy OCID and an OCIR Function image.
 
 ## v0.4.0 - 2026-05-09
 

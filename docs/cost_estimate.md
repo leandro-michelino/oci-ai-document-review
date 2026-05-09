@@ -4,7 +4,7 @@ This document provides illustrative cost estimates for two deployment tiers of t
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.4.0`
+Current project version: `v0.5.0`
 
 ## Disclaimer
 
@@ -28,7 +28,7 @@ Current project version: `v0.4.0`
 | Load balancing            | None                       | OCI Load Balancer            |
 | Logging                   | journald on VM             | OCI Logging                  |
 | Automation                | Manual deploy.sh           | OCI Events + Functions       |
-| Approximate monthly range | $25 - $100                 | $1,500 - $3,500              |
+| Approximate monthly range | $25 - $100                 | $1,800 - $3,800              |
 +---------------------------+----------------------------+------------------------------+
 ```
 
@@ -113,7 +113,7 @@ The same document type produces very different cost profiles:
 1-page scan where DU rich fails -> Object Storage + DU rich attempt + DU OCR fallback + GenAI
 ```
 
-Document Understanding billing remains page-driven in the estimate. Chunking changes the number of API requests for scanned PDFs above OCI's synchronous per-request limits, not the number of source pages being OCR processed.
+Document Understanding billing is represented as transactions in this estimate. For planning, treat each processed source page and the selected DU feature tier as the cost drivers. Chunking changes the number of API requests for scanned PDFs above OCI's synchronous per-request limits, while the source pages and requested extraction feature tier determine the estimated DU transactions.
 
 ## Pricing References
 
@@ -128,6 +128,12 @@ https://www.oracle.com/cloud/costestimator/
 
 OCI Generative AI on-demand pricing:
 https://docs.oracle.com/en-us/iaas/Content/generative-ai/pay-on-demand.htm
+
+OCI Document Understanding pricing:
+https://www.oracle.com/artificial-intelligence/document-understanding/pricing/
+
+OCI Functions pricing:
+https://www.oracle.com/cloud/cloud-native/functions/pricing/
 
 OCI Always Free resource reference:
 https://docs.oracle.com/iaas/Content/FreeTier/resourceref.htm
@@ -149,9 +155,9 @@ Boot volume performance units       $0.0017 / GB-month
 Object Storage Standard             $0.0255 / GB-month
 Object Storage requests             $0.0034 / 10,000 requests
 
-Document Understanding (rich OCR)   $1.50 / 1,000 pages
-  First 1,000 pages per month       free
-Document Understanding (text OCR)   $1.50 / 1,000 pages
+Document Understanding extraction   $10.00 / 1,000 transactions
+  First 5,000 transactions/month    free
+Document Understanding text OCR     $1.00 / 1,000 transactions
 
 Generative AI (Cohere Command R+)   ~$2.50 / 1M characters (combined input/output)
   This is a simplified illustrative rate. Actual pricing differs for input and output tokens.
@@ -162,6 +168,8 @@ OCI Load Balancer (Flexible)        ~$18 / month minimum + bandwidth
 OCI Vault                           $1.50 / month per vault + $0.035 / month per key version
 OCI Logging                         $0.50 / GB ingested (after 10 GB free per month)
 OCI Functions                       $0.00002 / invocation + $0.00001417 / GB-second
+  First 2M invocations/month        free
+  First 400K GB-seconds/month       free
 ```
 
 ## Small Deployment Estimate
@@ -177,6 +185,7 @@ DU text-only fallback:    10% of scanned docs = 20 docs
 Average GenAI chars/doc:  20,000 characters (prompt + response)
 Object Storage stored:    25 GB
 Object Storage requests:  5,000 per month
+Automatic intake events:  Optional, 500 function invocations at 2s and 256 MB
 Compute:                  1 x VM.Standard.A1.Flex, 2 OCPU, 12 GB RAM
 Boot volume:              50 GB
 Always Free A1:           Assumed available (see note below)
@@ -214,15 +223,16 @@ All prices are illustrative. Replace with current Oracle price list values.
 | Boot volume VPUs (50 GB)    | 50 GB      | GB-month | $0.0017  | $0.09       |
 | Object Storage (25 GB)      | 25 GB      | GB-month | $0.0255  | $0.64       |
 | Object Storage requests     | 5,000 req  | 10K req  | $0.0034  | $0.00 **    |
-| DU rich extraction (600 pg) | 600 pages  | 1K pages | $1.50    | $0.90 ***   |
-| DU text-only fallback       | 60 pages   | 1K pages | $1.50    | $0.09       |
+| DU extraction (600 tx)      | 600 tx     | 1K tx    | $10.00   | $0.00 ***   |
+| DU text-only OCR fallback   | 60 tx      | 1K tx    | $1.00    | $0.00 ***   |
 | Generative AI (10M chars)   | 10 units   | 1M chars | $2.50    | $25.00      |
+| OCI Functions intake        | 500 inv    | month    | free tier| $0.00 ****  |
 | NAT Gateway                 | 730 h      | flat     | —        | ~$5.00      |
 | Public IP                   | 730 h      | flat     | —        | ~$3.00      |
 | Outbound data               | ~2 GB      | GB       | varies   | ~$1.00      |
 +-----------------------------+------------+----------+----------+-------------+
-| Total (with A1 Always Free) |            |          |          | ~$40/month  |
-| Total (without Always Free) |            |          |          | ~$68/month  |
+| Total (with A1 Always Free) |            |          |          | ~$36/month  |
+| Total (without Always Free) |            |          |          | ~$64/month  |
 +-----------------------------+------------+----------+----------+-------------+
 
 *   A1 Always Free: 3,000 OCPU-hours and 18,000 GB-hours per tenancy per month.
@@ -231,8 +241,11 @@ All prices are illustrative. Replace with current Oracle price list values.
 
 **  Requests cost is negligible at this volume.
 
-*** DU free tier: first 1,000 pages per month are free. At 600 pages this VM may
-    pay nothing in early months; above 1,000 pages the rate above applies.
+*** DU free tier: first 5,000 transactions per month are free. This estimate stays
+    inside that allowance if the tenancy has not already consumed it.
+
+**** Functions free tier: first 2M invocations and 400K GB-seconds per month are
+     free. This small-intake example stays inside that allowance.
 ```
 
 ### Range and Confidence
@@ -322,30 +335,32 @@ All prices are illustrative. Replace with current Oracle price list values.
 |   Object Storage requests (50K)          | 50K req    | 10K req  | $0.0034  | $0.02        |
 +------------------------------------------+------------+----------+----------+--------------+
 | AI Services                                                                                 |
-|   DU rich extraction (27,000 pages)      | 26 units * | 1K pages | $1.50    | $39.00       |
-|   DU text-only fallback (2,160 pages)    | 2.16 units | 1K pages | $1.50    | $3.24        |
+|   DU extraction (27,000 tx)              | 22 units * | 1K tx    | $10.00   | $220.00      |
+|   DU text-only OCR fallback (2,160 tx)   | 2.16 units | 1K tx    | $1.00    | $2.16        |
 |   Generative AI (450M chars)             | 450 units  | 1M chars | $2.50    | $1,125.00    |
 +------------------------------------------+------------+----------+----------+--------------+
 | Operations                                                                                  |
 |   OCI Vault (1 vault + 10 key versions)  | —          | month    | —        | ~$2.00       |
 |   OCI Logging (40 GB billed **)          | 40 GB      | GB       | $0.50    | $20.00       |
-|   OCI Functions (100K inv, 5s, 256MB)    | —          | month    | —        | ~$20.00      |
+|   OCI Functions (100K inv, 5s, 256MB)    | —          | month    | free tier| $0.00 ***    |
 +------------------------------------------+------------+----------+----------+--------------+
-| TOTAL                                    |            |          |          | ~$1,669/month|
+| TOTAL                                    |            |          |          | ~$1,829/month|
 +------------------------------------------+------------+----------+----------+--------------+
 
-*  DU free tier covers the first 1,000 pages per month. 27,000 - 1,000 = 26,000 pages billed.
+*  DU free tier covers the first 5,000 transactions per month. 27,000 - 5,000 = 22,000 extraction transactions billed.
 
 ** OCI Logging free tier: 10 GB per month. 50 GB - 10 GB = 40 GB billed.
+
+*** Functions free tier covers the first 2M invocations and 400K GB-seconds per month. 100K invocations at 5s and 256 MB is about 125K GB-seconds.
 ```
 
 ### Range and Confidence
 
 ```text
-Estimated monthly range:    $1,500 to $3,500
+Estimated monthly range:    $1,800 to $3,800
 Confidence:                 very low
-Primary driver:             Generative AI (accounts for ~65% of this estimate)
-Secondary driver:           Compute (accounts for ~20% of this estimate)
+Primary driver:             Generative AI (accounts for ~62% of this estimate)
+Secondary drivers:          Compute (~18%) and Document Understanding (~12%)
 Main uncertainties:
   - Actual GenAI character count per document (most sensitive variable)
   - Percentage of scanned documents that trigger DU
@@ -390,8 +405,10 @@ Object Storage cost
   + (object_storage_requests / 10000) x request_unit_price
 
 Document Understanding cost
-  = max(0, rich_extraction_pages - 1000) / 1000 x rich_du_page_price
-  + text_only_ocr_fallback_pages / 1000 x ocr_page_price
+  = max(0, extraction_transactions - 5000) / 1000
+  x extraction_transaction_price
+  + text_only_ocr_fallback_transactions / 1000
+  x ocr_transaction_price
 
 Generative AI cost
   = total_characters_per_month / 1_000_000 x genai_per_million_chars_price
@@ -408,8 +425,9 @@ OCI Logging cost (Enterprise)
   = max(0, ingested_gb - 10) x logging_gb_price
 
 OCI Functions cost (Enterprise)
-  = invocations x function_invocation_price
-  + invocations x duration_seconds x memory_gb x function_compute_price
+  = max(0, invocations - free_invocations) x function_invocation_price
+  + max(0, invocations x duration_seconds x memory_gb - free_gb_seconds)
+  x function_compute_price
 
 Network cost
   = public_ip_count x public_ip_monthly_price
@@ -437,13 +455,13 @@ Estimated monthly total
 ```text
 Documents:                500
 Text / selectable PDFs:   300  (60%)
-Scanned / image docs:     200  (40%), avg 3 pages each = 600 DU pages
-DU text-only fallback:    10% of 200 = 20 docs, 3 pages = 60 pages
+Scanned / image docs:     200  (40%), avg 3 pages each = 600 DU transactions
+DU text-only fallback:    10% of 200 = 20 docs, 3 pages = 60 OCR transactions
 GenAI chars per doc:      20,000
 
-DU rich extraction pages: 600
-DU pages after free tier: max(0, 600 - 1000) = 0 in first month; 600 after free tier expires
-DU fallback pages:        60
+DU extraction tx:         600
+DU tx after free tier:    max(0, 600 - 5000) = 0 if the tenancy allowance is unused
+DU OCR fallback tx:       60
 
 GenAI characters total:
   500 docs x 20,000 chars = 10,000,000 characters
@@ -452,7 +470,8 @@ GenAI cost estimate:
   10 units x $2.50 = $25.00
 
 DU cost estimate (after free tier):
-  (600 + 60) / 1,000 x $1.50 = $0.99
+  max(0, 600 - 5,000) / 1,000 x $10.00 = $0.00
+  60 / 1,000 x $1.00 = $0.06 if the free tier is already exhausted
 ```
 
 ### Example 2 - 15,000 Documents (Enterprise Deployment)
@@ -460,13 +479,13 @@ DU cost estimate (after free tier):
 ```text
 Documents:                15,000
 Text / selectable PDFs:   8,250  (55%)
-Scanned / image docs:     6,750  (45%), avg 4 pages each = 27,000 DU pages
-DU text-only fallback:    8% of 6,750 = 540 docs, 4 pages = 2,160 pages
+Scanned / image docs:     6,750  (45%), avg 4 pages each = 27,000 DU transactions
+DU text-only fallback:    8% of 6,750 = 540 docs, 4 pages = 2,160 OCR transactions
 GenAI chars per doc:      30,000
 
-DU rich extraction pages: 27,000
-DU pages after free tier: 27,000 - 1,000 = 26,000
-DU fallback pages:        2,160
+DU extraction tx:         27,000
+DU tx after free tier:    27,000 - 5,000 = 22,000
+DU OCR fallback tx:       2,160
 
 GenAI characters total:
   15,000 docs x 30,000 chars = 450,000,000 characters
@@ -475,7 +494,8 @@ GenAI cost estimate:
   450 units x $2.50 = $1,125.00
 
 DU cost estimate:
-  (26,000 + 2,160) / 1,000 x $1.50 = $42.24
+  22,000 / 1,000 x $10.00 = $220.00
+  2,160 / 1,000 x $1.00 = $2.16
 ```
 
 ### Example 3 - Reprocessing and Retry Impact
@@ -483,13 +503,13 @@ DU cost estimate:
 ```text
 If a failed scanned document is retried 3 times:
   Object Storage uploads: 3
-  DU rich extraction attempts: up to 3  (each attempt is billable)
-  DU text-only OCR fallback calls: up to 3 if rich extraction fails each time
+  DU extraction attempts: up to 3  (each attempt is billable)
+  DU text-only OCR fallback calls: up to 3 if extraction fails each time
   GenAI calls: only for attempts where extraction succeeds
 
 At the Enterprise tier, 100 retry events per month could add:
-  DU pages: 100 x 3 retries x 4 pages = 1,200 additional pages
-  DU cost: 1,200 / 1,000 x $1.50 = $1.80
+  DU extraction tx: 100 x 3 retries x 4 pages = 1,200 additional transactions
+  DU cost: 1,200 / 1,000 x $10.00 = $12.00 before unused free-tier credit
   GenAI (if extraction succeeds): 100 x $2.50 = $0.25 per million chars of retry content
 ```
 
@@ -529,7 +549,7 @@ Enterprise Tier
 ```text
 Both Tiers
   AI Services
-    - Document Understanding page counts and transaction tiers
+    - Document Understanding transaction counts, feature mix, and free-tier consumption
     - Generative AI character or token consumption by model
   Object Storage
     - Storage GB-month growth over time

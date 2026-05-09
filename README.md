@@ -6,7 +6,7 @@ The portal is a lightweight OCI-hosted document review workflow. It stores uploa
 
 ![OCI AI Document Review architecture](Architecture.png)
 
-The image above is the share-ready reference architecture. Terminal-friendly ASCII diagrams, sequence flows, lifecycle states, refresh behavior, and deployment flows are maintained in `docs/architecture_flows.md`.
+The image above is the share-ready reference architecture. Terminal-friendly ASCII diagrams, sequence flows, lifecycle states, refresh behavior, and deployment flows are maintained in `docs/architecture_flows.md`. Release notes are maintained in `CHANGELOG.md` and mirrored for readers in `docs/release_notes.md`.
 
 ## Overview
 
@@ -14,7 +14,7 @@ OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for 
 
 The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, Functions, and a customer document-status chatbot.
 
-Current version: `v0.4.0`
+Current version: `v0.5.0`
 
 Contact: Leandro Michelino | Oracle ACE | leandro.michelino@oracle.com.
 
@@ -248,7 +248,7 @@ Uploads are queued into a background worker pool. The browser returns immediatel
 
 ## Cost Estimate
 
-An illustrative cost estimate and pricing worksheet is available in `docs/cost_estimate.md`.
+An illustrative cost estimate and pricing worksheet is available in `docs/cost_estimate.md`. It includes Small and Enterprise examples, Document Understanding transaction assumptions, OCI Functions free-tier assumptions, and cost-control guidance.
 
 This estimate is not an official Oracle quote and may not be realistic for your tenancy, usage, region, discount terms, or free tier eligibility. Use the Oracle Cost Estimator and request a formal quote from your Oracle representative before using it for budgeting or production planning.
 
@@ -443,4 +443,4 @@ The project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - `MINOR`: visible workflow, cloud integration, or capability changes.
 - `PATCH`: bug fixes, documentation updates, and small UX refinements.
 
-The current source-of-truth version is `src/version.py`, and release notes are tracked in `CHANGELOG.md`.
+The current source-of-truth version is `src/version.py`. Release notes are tracked in `CHANGELOG.md` and summarized for documentation readers in `docs/release_notes.md`.

@@ -4,7 +4,7 @@ This directory prepares the OCI resources for the MVP.
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.4.0`
+Current project version: `v0.5.0`
 
 Deployment is intended to run from your laptop only. There are no GitHub Actions or CI deployment workflows in this repository.
 
@@ -36,7 +36,7 @@ Terraform does not deploy Streamlit application code. Application deployment is 
 
 The compliance knowledge-base CSV is not a Terraform resource. The app seeds it into the existing private bucket from `../data/compliance/public_sector_entities.csv` if `COMPLIANCE_ENTITIES_OBJECT_NAME` is missing at runtime. The lifecycle policy applies only to `documents/`, so the compliance KB under `compliance/` is not deleted by the document-retention rule.
 
-Automatic processing is optional because OCI Functions requires an OCIR image. Build and push `../functions/object_intake`, then set:
+Automatic processing is optional because OCI Functions requires an OCIR image and tenancy-scope IAM for the Function resource principal. Build and push `../functions/object_intake`, then set:
 
 ```hcl
 tenancy_id                          = "ocid1.tenancy.oc1..exampletenancy"
@@ -46,7 +46,7 @@ event_intake_incoming_prefix        = "incoming/"
 event_intake_queue_prefix           = "event-queue/"
 ```
 
-External systems then upload to `incoming/<expense-name-or-reference>/<file>`. The Function writes queue markers to `event-queue/`; the VM imports those markers and uses the normal processing workflow.
+Terraform validates that `tenancy_id` is a valid tenancy OCID and `automatic_processing_function_image` is populated when automatic processing is enabled. External systems then upload to `incoming/<expense-name-or-reference>/<file>`. The Function writes queue markers to `event-queue/`; the VM imports those markers and uses the normal processing workflow.
 
 Create or choose a project compartment before deployment:
 

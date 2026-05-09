@@ -4,7 +4,7 @@ This guide explains how to deploy, operate, and use the OCI AI Document Review P
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.4.0`
+Current project version: `v0.5.0`
 
 The repository does not include GitHub Actions or CI deployment workflows. Terraform and Ansible are run locally from your laptop with your existing OCI config and policies.
 
@@ -356,7 +356,7 @@ Dashboard
   - Opens the best next actionable file first when Review is clicked on a multi-file group.
   - Shows elapsed working time for active processing rows.
   - Shows Ready, Processing, Failed, and Reviewed as tabs below one search and status-filter area.
-  - Opens single files in Actions from the row action button.
+  - Opens selected files in Actions from the compact table `Review selected` action.
   - Keeps the route in the browser URL with `?page=Dashboard`.
   - Refreshes Dashboard components with a Streamlit fragment instead of full browser reloads.
   - Marks stale active records as failed during refresh so stuck uploads do not remain in Processing forever.
@@ -550,6 +550,7 @@ See:
 
 ```text
 docs/cost_estimate.md
+docs/release_notes.md
 ```
 
 The estimate is illustrative only. Request a formal quote from your Oracle representative before using it for budgeting or production planning.

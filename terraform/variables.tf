@@ -36,10 +36,19 @@ variable "tenancy_id" {
 
   validation {
     condition = (
-      var.tenancy_id == "" ||
-      can(regex("^ocid1\\.tenancy\\.", var.tenancy_id))
+      (
+        !var.enable_automatic_processing &&
+        (
+          var.tenancy_id == "" ||
+          can(regex("^ocid1\\.tenancy\\.", var.tenancy_id))
+        )
+      ) ||
+      (
+        var.enable_automatic_processing &&
+        can(regex("^ocid1\\.tenancy\\.", var.tenancy_id))
+      )
     )
-    error_message = "tenancy_id must be empty or a valid tenancy OCID."
+    error_message = "tenancy_id must be a valid tenancy OCID when enable_automatic_processing is true."
   }
 }
 
