@@ -137,7 +137,8 @@ The setup wizard:
 7. Shows only supported GenAI regions for this app.
 8. Writes a supported Cohere chat model id.
 9. Writes RETENTION_DAYS and Terraform retention_days.
-10. Writes local .env and terraform/terraform.tfvars.
+10. Optionally writes OCI Events and Functions intake settings.
+11. Writes local .env and terraform/terraform.tfvars.
 ```
 
 If setup cannot discover your current public IP, it stops instead of writing an open ingress CIDR. Re-run it with `--allowed-ingress-cidr` set to a trusted CIDR such as your current public IP with `/32`. If you pass a single host IP, setup normalizes it to `/32`. Explicit open ingress such as `0.0.0.0/0` is rejected.
@@ -363,6 +364,7 @@ Dashboard
 
 Automatic Object Storage intake
   - Enable with `enable_automatic_processing = true` and an OCIR image URI for `functions/object_intake`.
+  - Keep `tenancy_id` populated so Terraform can create the Function dynamic group.
   - Upload external documents to `incoming/<expense-name-or-reference>/<file>` or `incoming/<file>`.
   - OCI Events invokes the Function for Object Storage create events in the bucket.
   - The Function writes queue markers under `event-queue/`; it does not process documents directly.
@@ -542,7 +544,7 @@ Review Object Storage retention and lifecycle rules before production use. The d
 Add OCI Vault and instance principals for a production-grade deployment.
 ```
 
-## Cost Notes
+## Cost And Release Notes
 
 The deployment can create billable resources, including Compute, Boot Volume, Object Storage, NAT Gateway, Document Understanding, and Generative AI usage.
 

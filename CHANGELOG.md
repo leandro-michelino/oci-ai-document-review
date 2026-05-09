@@ -8,6 +8,8 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Reviewed Markdown documentation for v0.5.0 consistency, including automatic intake setup flags, Function README wiring, and current expense name/reference wording.
+
 ## v0.5.0 - 2026-05-09
 
 - Actions now has a visible `Select document group` control before the file selector, making grouped expense/reference submissions easier to review together.
@@ -64,7 +66,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - Future phase documentation now includes a read-only customer document chatbot grounded in metadata, audit events, workflow comments, reports, summaries, and reviewer decisions.
 - Dashboard Ready work is presented as a horizontal middle band, while Failed and Reviewed stay in the paired queue layout.
 - README architecture design appears near the beginning of the document.
-- Documentation, ASCII architecture flows, and the rendered architecture image reflect the current v0.3.0 runtime path.
+- Documentation, ASCII architecture flows, and the rendered architecture image reflected the runtime path at the time of the v0.3.0 release.
 
 ## v0.2.0
 

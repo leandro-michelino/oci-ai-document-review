@@ -12,7 +12,7 @@ The image above is the share-ready reference architecture. Terminal-friendly ASC
 
 OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI to convert uploaded documents into structured review summaries, receipt or invoice item details, risk notes, recommendations, workflow metadata, and downloadable reports. Uploaded document data is retained for 30 days by default across VM-local metadata, reports, preserved upload copies, and Object Storage document objects; the setup wizard can change that period for each deployment. The VM also installs a daily systemd retention timer.
 
-The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, Functions, and a customer document-status chatbot.
+The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, broader event automation, and a customer document-status chatbot.
 
 Current version: `v0.5.0`
 
@@ -299,6 +299,7 @@ Step 4 — Storage, Network, and Runtime
   Compute shape, OCPU count, and memory.
   Processing limits: upload size, parallel jobs, DU timeout and retries.
   Retention period for VM-local data and Object Storage document objects.
+  Optional OCI Events and Functions automatic intake settings.
 
 Step 5 — Generative AI
   Probes all subscribed regions in parallel for active Cohere chat models.
@@ -323,6 +324,7 @@ Neither file is committed to Git. Both are in `.gitignore`.
 | `--profile` | `DEFAULT` | OCI config profile name |
 | `--compartment-id` | — | Project compartment OCID |
 | `--parent-compartment-id` | — | Parent compartment OCID |
+| `--tenancy-id` | OCI profile tenancy | Tenancy OCID required for automatic processing IAM |
 | `--home-region` | — | Home/IAM region |
 | `--runtime-region` | OCI profile region | Region for compute, Object Storage, and DU |
 | `--allowed-ingress-cidr` | auto-discovered `/32` | Trusted CIDR for SSH and portal access |
@@ -335,6 +337,11 @@ Neither file is committed to Git. Both are in `.gitignore`.
 | `--max-upload-mb` | `10` | Maximum upload size in MB |
 | `--max-document-chars` | `50000` | Maximum extracted characters sent to GenAI |
 | `--retention-days` | `30` | Days to retain VM-local artifacts and Object Storage document objects |
+| `--enable-automatic-processing` | `false` | Enable Object Storage Events and OCI Functions intake |
+| `--automatic-processing-function-image` | — | OCIR image URI for `functions/object_intake` when automatic processing is enabled |
+| `--event-intake-incoming-prefix` | `incoming/` | Object Storage prefix watched for external uploads |
+| `--event-intake-queue-prefix` | `event-queue/` | Object Storage prefix where the Function writes queue markers |
+| `--event-intake-poll-seconds` | `60` | VM timer interval for importing Function queue markers |
 | `--non-interactive` | `false` | Skip all prompts (requires compartment and regions) |
 | `--yes` | `false` | Skip the final write confirmation |
 

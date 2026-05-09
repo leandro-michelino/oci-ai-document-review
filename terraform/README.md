@@ -74,6 +74,19 @@ python scripts/setup.py \
   --retention-days 30
 ```
 
+Optional automatic intake can also be configured from setup after the Function image is available:
+
+```bash
+python scripts/setup.py \
+  --compartment-id ocid1.compartment.oc1..exampleproject \
+  --parent-compartment-id ocid1.compartment.oc1..exampleparent \
+  --home-region your-home-region \
+  --runtime-region your-runtime-region \
+  --allowed-ingress-cidr 203.0.113.10/32 \
+  --enable-automatic-processing \
+  --automatic-processing-function-image <region-key>.ocir.io/<namespace>/<repo>:<tag>
+```
+
 Or copy the sample and edit it manually for recovery or advanced edits:
 
 ```bash

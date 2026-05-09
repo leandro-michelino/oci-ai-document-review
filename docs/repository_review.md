@@ -20,6 +20,7 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 - Tightened Terraform validation so automatic processing cannot be enabled without both a valid tenancy OCID and an OCIR image for `functions/object_intake`.
 - Updated release notes in `CHANGELOG.md` and `docs/release_notes.md` for `v0.5.0`.
 - Updated the cost estimate for Document Understanding transaction pricing, the 5,000 transactions/month free tier, and OCI Functions free-tier assumptions.
+- Reviewed all tracked Markdown files for v0.5.0 consistency, including automatic intake setup flags, Function README wiring, and expense name/reference terminology.
 - Updated `scripts/setup.py`, `.env.example`, Terraform examples, Ansible, and deploy automation so customers can choose retention days during setup and redeploy the same value to the VM.
 - Made Actions selection clearer by documenting and testing exact selected-file labeling with file name, document ID, expense/reference, stage, upload time, linked-file count, and current action.
 - Updated all user-facing documentation for the latest review UX: compact Dashboard expense groups, one `Review` action per multi-file group, collapsed `Show files` details, best-next-action routing, and the Actions Decision panel placed near the top.

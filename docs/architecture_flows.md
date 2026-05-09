@@ -32,7 +32,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
              v
 +--------------------------+
 | Local Working Copy       |
-| Expense Reference        |
+| Expense Name / Ref       |
 | Metadata                 |
 | Download + Retry         |
 | 30-Day Default Retention |
@@ -170,7 +170,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +----------------------+
 | Local Working Copy   |
 | data/uploads         |
-| Expense Reference    |
+| Expense Name / Ref   |
 +----------+-----------+
            |
            | one metadata record per file
@@ -285,7 +285,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
              v                            v                            |
 +--------------------------+  +----------------------------+           |
 | Single File              |  | Multiple Files             |           |
-| Expense Reference        |  | Expense Reference Required |           |
+| Expense Name / Ref       |  | Expense Name / Ref Needed  |           |
 | Optional                 |  | Before Queueing            |           |
 +------------+-------------+  +-------------+--------------+           |
              |                              |                          |
@@ -299,7 +299,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                             |
                             v
               +----------------------------+
-              | Shared Expense Reference   |
+              | Shared Expense Name / Ref  |
               | Stored On Each File        |
               +-------------+--------------+
                             |
