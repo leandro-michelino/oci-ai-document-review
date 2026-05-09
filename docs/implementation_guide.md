@@ -135,6 +135,22 @@ Streamlit upload
   -> approve or reject, then move to the next action item when available
 ```
 
+Optional automatic intake adds an Object Storage event path without replacing the Streamlit upload path:
+
+```text
+External upload to incoming/<expense-name-or-reference>/<file>
+  -> Object Storage object-created event
+  -> OCI Events rule
+  -> OCI Function functions/object_intake
+  -> JSON queue marker under event-queue/
+  -> VM systemd timer runs scripts/poll_event_queue.py
+  -> marker importer downloads the incoming object
+  -> one metadata record with document type Auto-detect
+  -> same background worker pool and review workflow as portal uploads
+```
+
+This keeps Dashboard and Actions consistent while avoiding direct writes from a Function to VM-local metadata.
+
 The app records progress only after each service step completes. If local extraction and Document Understanding OCR return no extractable text, processing fails with a clear error instead of sending empty content to GenAI.
 
 Document Understanding calls use a bounded timeout and retry configuration:
@@ -233,6 +249,12 @@ Markdown reports are refreshed from the latest metadata when workflow fields, co
 The default retention period is 30 days. `RETENTION_DAYS` controls local cleanup on the VM for `data/metadata`, `data/reports`, and `data/uploads`. Active records in `UPLOADED`, `PROCESSING`, `EXTRACTED`, or `AI_ANALYZED` are protected from local cleanup so in-flight work is not removed mid-processing. Closed, failed, approved, rejected, and review-required records expire from their `processed_at` timestamp when available, otherwise from `uploaded_at`. Cleanup runs when the app starts/renders and through the daily `oci-ai-document-review-retention.timer` systemd timer.
 
 Terraform configures `oci_objectstorage_object_lifecycle_policy.documents_retention` for the private bucket. It deletes only objects with the `documents/` prefix after `retention_days`, so the curated compliance knowledge base at `compliance/public_sector_entities.csv` remains available.
+
+## Automatic Object Intake
+
+Set `enable_automatic_processing = true` in `terraform/terraform.tfvars` only after building and pushing the `functions/object_intake` image to OCIR and setting `automatic_processing_function_image`. Terraform then enables Object Storage object events on the private bucket, creates the Functions application and function in the private subnet, creates an Events rule for Object Storage create events in the bucket, and creates the function resource-principal IAM dynamic group and policy.
+
+The Function filters for objects under `incoming/` and writes queue markers under `event-queue/`. Ansible enables `oci-ai-document-review-event-intake.timer` on the VM when Terraform reports automatic processing as enabled. The timer imports queue markers every `event_intake_poll_seconds` seconds. Objects outside `incoming/` are ignored by the Function, and generated queue markers are not processed as documents.
 
 ## Next Phase: Customer Document Chatbot
 

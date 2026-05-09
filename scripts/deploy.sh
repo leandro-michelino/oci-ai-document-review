@@ -51,6 +51,8 @@ MAX_PARALLEL_JOBS="$(env_value MAX_PARALLEL_JOBS)"
 MAX_DOCUMENT_CHARS="$(env_value MAX_DOCUMENT_CHARS)"
 MAX_UPLOAD_MB="$(env_value MAX_UPLOAD_MB)"
 COMPLIANCE_ENTITIES_OBJECT_NAME="$(env_value COMPLIANCE_ENTITIES_OBJECT_NAME)"
+EVENT_INTAKE_QUEUE_PREFIX="$(env_value EVENT_INTAKE_QUEUE_PREFIX)"
+EVENT_INTAKE_INCOMING_PREFIX="$(env_value EVENT_INTAKE_INCOMING_PREFIX)"
 
 export OCI_CONFIG_FILE="${OCI_CONFIG_FILE:-~/.oci/config}"
 export OCI_PROFILE="${OCI_PROFILE:-DEFAULT}"
@@ -123,6 +125,10 @@ PRIVATE_SUBNET_ID="$(terraform output -raw private_subnet_id)"
 IGW_ID="$(terraform output -raw internet_gateway_id)"
 NATGW_ID="$(terraform output -raw nat_gateway_id)"
 SGW_ID="$(terraform output -raw service_gateway_id)"
+AUTOMATIC_PROCESSING_ENABLED="$(terraform output -raw automatic_processing_enabled)"
+EVENT_INTAKE_POLL_SECONDS="$(terraform output -raw event_intake_poll_seconds)"
+TF_EVENT_INTAKE_QUEUE_PREFIX="$(terraform output -raw event_intake_queue_prefix)"
+TF_EVENT_INTAKE_INCOMING_PREFIX="$(terraform output -raw event_intake_incoming_prefix)"
 
 cat > "$INVENTORY" <<EOF
 [doc_review]
@@ -152,7 +158,11 @@ ansible-playbook -i "$INVENTORY" ansible/playbook.yml \
   -e "max_parallel_jobs=${MAX_PARALLEL_JOBS:-2}" \
   -e "max_document_chars=${MAX_DOCUMENT_CHARS:-50000}" \
   -e "max_upload_mb=${MAX_UPLOAD_MB:-10}" \
-  -e "compliance_entities_object_name=${COMPLIANCE_ENTITIES_OBJECT_NAME:-compliance/public_sector_entities.csv}"
+  -e "compliance_entities_object_name=${COMPLIANCE_ENTITIES_OBJECT_NAME:-compliance/public_sector_entities.csv}" \
+  -e "event_intake_enabled=$AUTOMATIC_PROCESSING_ENABLED" \
+  -e "event_intake_queue_prefix=${EVENT_INTAKE_QUEUE_PREFIX:-$TF_EVENT_INTAKE_QUEUE_PREFIX}" \
+  -e "event_intake_incoming_prefix=${EVENT_INTAKE_INCOMING_PREFIX:-$TF_EVENT_INTAKE_INCOMING_PREFIX}" \
+  -e "event_intake_poll_seconds=$EVENT_INTAKE_POLL_SECONDS"
 
 cat <<EOF
 
@@ -172,6 +182,7 @@ OCI Services
   Bucket:          $OCI_BUCKET_NAME
   Namespace:       $OCI_NAMESPACE
   Retention:       ${RETENTION_DAYS:-30} days
+  Event intake:    $AUTOMATIC_PROCESSING_ENABLED
 
 Network
   VCN:             $VCN_ID

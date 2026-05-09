@@ -43,6 +43,13 @@ class AppConfig(BaseSettings):
         default="compliance/public_sector_entities.csv",
         alias="COMPLIANCE_ENTITIES_OBJECT_NAME",
     )
+    event_intake_enabled: bool = Field(default=False, alias="EVENT_INTAKE_ENABLED")
+    event_intake_queue_prefix: str = Field(
+        default="event-queue/", alias="EVENT_INTAKE_QUEUE_PREFIX"
+    )
+    event_intake_incoming_prefix: str = Field(
+        default="incoming/", alias="EVENT_INTAKE_INCOMING_PREFIX"
+    )
     local_metadata_dir: Path = Field(
         default=Path("data/metadata"), alias="LOCAL_METADATA_DIR"
     )
@@ -74,6 +81,14 @@ class AppConfig(BaseSettings):
                 "COMPLIANCE_ENTITIES_OBJECT_NAME must be a relative Object Storage object name."
             )
         return cleaned
+
+    @field_validator("event_intake_queue_prefix", "event_intake_incoming_prefix")
+    @classmethod
+    def validate_object_prefix(cls, value: str) -> str:
+        cleaned = value.strip().lstrip("/")
+        if not cleaned or ".." in Path(cleaned).parts:
+            raise ValueError("Object Storage prefixes must be relative paths.")
+        return cleaned if cleaned.endswith("/") else f"{cleaned}/"
 
     @property
     def expanded_oci_config_file(self) -> str:

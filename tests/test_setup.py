@@ -79,6 +79,7 @@ def test_setup_summary_includes_retention_days():
         max_parallel_jobs="2",
         max_upload_mb="10",
         retention_days="30",
+        enable_automatic_processing=False,
     )
 
     values = summary_values(
@@ -90,6 +91,7 @@ def test_setup_summary_includes_retention_days():
     )
 
     assert values["Retention"] == "30 days"
+    assert values["Automatic processing"] == "disabled"
 
 
 def test_non_interactive_setup_validates_regions_and_uses_profile_runtime_region():

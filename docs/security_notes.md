@@ -59,3 +59,5 @@ For production, replace the copied API key with instance principals or another a
 ## Runtime Validation
 
 Use `Settings -> OCI Preflight` to validate live service access before processing documents. It checks Object Storage write/read/delete, Document Understanding API access, and Generative AI response with the same credentials used by processing.
+
+When optional OCI Events and Functions automatic intake is enabled, keep `incoming/` uploads restricted to trusted systems and users. The Function uses resource principals and should only receive the minimum Object Storage permissions required to read incoming objects and write queue markers. Queue markers under `event-queue/` contain object names and event identifiers, so treat them as operational metadata and keep the bucket private. The Function does not write VM-local metadata directly; the VM timer imports markers and applies the normal metadata, retention, review, and audit workflow.

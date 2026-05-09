@@ -1,0 +1,7 @@
+schema_version: 20180708
+name: doc-review-object-intake
+version: 0.0.1
+runtime: python3.11
+entrypoint: /python/bin/fdk /function/func.py handler
+memory: 256
+timeout: 30

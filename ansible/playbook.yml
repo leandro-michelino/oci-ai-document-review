@@ -108,6 +108,9 @@
           MAX_DOCUMENT_CHARS={{ max_document_chars | default('50000') }}
           MAX_UPLOAD_MB={{ max_upload_mb | default('10') }}
           COMPLIANCE_ENTITIES_OBJECT_NAME={{ compliance_entities_object_name | default('compliance/public_sector_entities.csv') }}
+          EVENT_INTAKE_ENABLED={{ event_intake_enabled | default('false') }}
+          EVENT_INTAKE_QUEUE_PREFIX={{ event_intake_queue_prefix | default('event-queue/') }}
+          EVENT_INTAKE_INCOMING_PREFIX={{ event_intake_incoming_prefix | default('incoming/') }}
           LOCAL_METADATA_DIR=data/metadata
           LOCAL_REPORTS_DIR=data/reports
           LOCAL_UPLOADS_DIR=data/uploads
@@ -231,6 +234,59 @@
         enabled: true
         daemon_reload: true
 
+    - name: Install Object Storage event intake service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/oci-ai-document-review-event-intake.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Import OCI Object Storage event queue markers
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          User={{ app_user }}
+          Group={{ app_user }}
+          WorkingDirectory={{ app_dir }}
+          EnvironmentFile={{ app_dir }}/.env
+          ExecStart={{ app_dir }}/.venv/bin/python scripts/poll_event_queue.py --limit 20
+      when: event_intake_enabled | default(false) | bool
+
+    - name: Install Object Storage event intake timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/oci-ai-document-review-event-intake.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Poll OCI Object Storage event queue markers
+
+          [Timer]
+          OnBootSec=1min
+          OnUnitActiveSec={{ event_intake_poll_seconds | default('60') }}s
+          Unit=oci-ai-document-review-event-intake.service
+
+          [Install]
+          WantedBy=timers.target
+      when: event_intake_enabled | default(false) | bool
+
+    - name: Enable Object Storage event intake timer
+      ansible.builtin.systemd_service:
+        name: oci-ai-document-review-event-intake.timer
+        state: started
+        enabled: true
+        daemon_reload: true
+      when: event_intake_enabled | default(false) | bool
+
+    - name: Stop Object Storage event intake timer when disabled
+      ansible.builtin.systemd_service:
+        name: oci-ai-document-review-event-intake.timer
+        state: stopped
+        enabled: false
+        daemon_reload: true
+      failed_when: false
+      when: not (event_intake_enabled | default(false) | bool)
+
     - name: Start portal service
       ansible.builtin.systemd_service:
         name: oci-ai-document-review
@@ -258,5 +314,6 @@
           - "Restart app: sudo systemctl restart oci-ai-document-review"
           - "Runtime config: {{ app_dir }}/.env"
           - "Retention days: {{ retention_days | default('30') }}"
+          - "Event intake: {{ event_intake_enabled | default('false') }}"
           - "Local metadata: {{ app_dir }}/data/metadata"
           - "Local reports: {{ app_dir }}/data/reports"

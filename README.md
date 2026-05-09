@@ -25,7 +25,6 @@ These items describe the next practical phases after the MVP. They are intention
 - Add Autonomous Database for metadata
 - Add APEX or Visual Builder as enterprise frontend
 - Add a customer document chatbot for status, rejection reason, retry, owner, SLA, and risk-summary questions
-- Add OCI Events and Functions for automatic processing
 - Add OCI Vault for secrets
 - Add OCI Logging for operational visibility
 
@@ -230,6 +229,8 @@ Uploaded file
   -> workflow assignment, comments, audit, retry, approval/rejection
 ```
 
+Automatic Object Storage intake can be enabled as an optional deployment path. In that mode, external systems upload files to `incoming/` in the private bucket. OCI Object Storage emits an event, OCI Events invokes the `functions/object_intake` Function, the Function writes a JSON marker under `event-queue/`, and a VM systemd timer imports those markers into the same local metadata and worker queue used by the web upload flow. The optional first path segment after `incoming/` becomes the expense name or reference, for example `incoming/client-dinner/receipt.pdf`.
+
 If local extraction or Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
 
 PDFs that contain scanned pages or embedded images are handled through OCI Document Understanding OCR. They can take much longer than PDFs with selectable text because OCI must read the pixels on each page. The app uses synchronous Document Understanding requests and automatically splits scanned PDFs into chunks when the page count or chunk file size is above the OCI per-request limits. Chunk object names are based on the original file name plus `_1`, `_2`, and so on, which makes service logs and Object Storage activity easier to trace back to the source document. Very large, low-quality, rotated, password-protected, image-heavy, or single-page scans above the OCI synchronous file-size limit may still fail or return little text. For best results, use clear scans, normal page orientation, and files below the configured upload limit.
@@ -419,6 +420,7 @@ The app supports:
 
 - One-to-five-file upload with required expense name or reference for multi-file submissions
 - Object Storage upload
+- Optional OCI Events and Functions automatic intake for objects uploaded under `incoming/`
 - Document Understanding extraction
 - GenAI JSON analysis
 - Background worker queue with parallel processing

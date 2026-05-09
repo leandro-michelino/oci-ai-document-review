@@ -18,6 +18,17 @@ compartment_id        = "ocid1.compartment.oc1..exampleproject"
 object_storage_namespace = "your_namespace"
 bucket_name              = "doc-review-input"
 
+# Optional automatic intake through Object Storage Events and OCI Functions.
+# Build and push functions/object_intake to OCIR, then set the image URI here.
+tenancy_id                            = "ocid1.tenancy.oc1..exampletenancy"
+enable_automatic_processing           = false
+automatic_processing_function_image   = ""
+event_intake_incoming_prefix          = "incoming/"
+event_intake_queue_prefix             = "event-queue/"
+event_intake_poll_seconds             = 60
+function_memory_in_mbs                = 256
+function_timeout_in_seconds           = 30
+
 # Uploaded document objects under documents/ are deleted after this many days.
 # The setup wizard also writes RETENTION_DAYS to the app .env for VM local data.
 retention_days = 30

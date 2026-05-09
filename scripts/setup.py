@@ -107,6 +107,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--parent-compartment-id", default=os.getenv("OCI_PARENT_COMPARTMENT_ID")
     )
+    parser.add_argument("--tenancy-id", default=os.getenv("OCI_TENANCY_ID"))
     parser.add_argument("--bucket-name", default=os.getenv("OCI_BUCKET_NAME"))
     parser.add_argument("--home-region", default=os.getenv("OCI_HOME_REGION"))
     parser.add_argument("--runtime-region", default=os.getenv("OCI_REGION"))
@@ -123,6 +124,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--document-ai-retry-attempts", default="2")
     parser.add_argument("--stale-processing-minutes", default="12")
     parser.add_argument("--retention-days", default=os.getenv("RETENTION_DAYS", "30"))
+    parser.add_argument("--enable-automatic-processing", action="store_true")
+    parser.add_argument(
+        "--automatic-processing-function-image",
+        default=os.getenv("AUTOMATIC_PROCESSING_FUNCTION_IMAGE", ""),
+    )
+    parser.add_argument("--event-intake-incoming-prefix", default="incoming/")
+    parser.add_argument("--event-intake-queue-prefix", default="event-queue/")
+    parser.add_argument("--event-intake-poll-seconds", default="60")
     parser.add_argument("--max-parallel-jobs", default="2")
     parser.add_argument("--max-document-chars", default="50000")
     parser.add_argument("--max-upload-mb", default="10")
@@ -144,8 +153,19 @@ def parse_args() -> argparse.Namespace:
     args.bucket_name = args.bucket_name or DEFAULT_BUCKET
     args.preferred_model = args.preferred_model or DEFAULT_MODEL
     validate_positive_integer(args.retention_days, "retention days")
+    validate_positive_integer(
+        args.event_intake_poll_seconds, "event intake poll seconds"
+    )
     if args.non_interactive:
         require_non_interactive_values(args, parser)
+        if (
+            args.enable_automatic_processing
+            and not args.automatic_processing_function_image
+        ):
+            parser.error(
+                "--automatic-processing-function-image is required with "
+                "--enable-automatic-processing"
+            )
     return args
 
 
@@ -465,6 +485,27 @@ def prompt_for_runtime(
         args.retention_days,
     )
     validate_positive_integer(args.retention_days, "retention days")
+    args.enable_automatic_processing = confirm(
+        "Enable OCI Events and Functions for automatic Object Storage intake?",
+        default=args.enable_automatic_processing,
+    )
+    if args.enable_automatic_processing:
+        args.automatic_processing_function_image = ask(
+            "OCIR image URI for functions/object_intake",
+            args.automatic_processing_function_image,
+        )
+        args.event_intake_incoming_prefix = ask(
+            "Incoming Object Storage prefix", args.event_intake_incoming_prefix
+        )
+        args.event_intake_queue_prefix = ask(
+            "Function queue marker prefix", args.event_intake_queue_prefix
+        )
+        args.event_intake_poll_seconds = ask(
+            "VM event-intake poll seconds", args.event_intake_poll_seconds
+        )
+        validate_positive_integer(
+            args.event_intake_poll_seconds, "event intake poll seconds"
+        )
     return os_namespace
 
 
@@ -574,6 +615,9 @@ MAX_PARALLEL_JOBS={args.max_parallel_jobs}
 MAX_DOCUMENT_CHARS={args.max_document_chars}
 MAX_UPLOAD_MB={args.max_upload_mb}
 COMPLIANCE_ENTITIES_OBJECT_NAME={args.compliance_entities_object_name}
+EVENT_INTAKE_ENABLED={str(args.enable_automatic_processing).lower()}
+EVENT_INTAKE_QUEUE_PREFIX={args.event_intake_queue_prefix}
+EVENT_INTAKE_INCOMING_PREFIX={args.event_intake_incoming_prefix}
 LOCAL_METADATA_DIR=data/metadata
 LOCAL_REPORTS_DIR=data/reports
 LOCAL_UPLOADS_DIR=data/uploads
@@ -596,8 +640,14 @@ genai_region = "{genai_region}"
 home_region = "{args.home_region}"
 compartment_id = "{args.compartment_id}"
 parent_compartment_id = "{args.parent_compartment_id}"
+tenancy_id = "{args.tenancy_id}"
 bucket_name = "{args.bucket_name}"
 object_storage_namespace = "{os_namespace}"
+enable_automatic_processing = {str(args.enable_automatic_processing).lower()}
+automatic_processing_function_image = "{args.automatic_processing_function_image}"
+event_intake_incoming_prefix = "{args.event_intake_incoming_prefix}"
+event_intake_queue_prefix = "{args.event_intake_queue_prefix}"
+event_intake_poll_seconds = {args.event_intake_poll_seconds}
 retention_days = {args.retention_days}
 allowed_ingress_cidr = "{allowed_ingress_cidr}"
 ssh_public_key_path = "{args.ssh_public_key_path}"
@@ -651,6 +701,9 @@ def summary_values(
             f"{args.max_parallel_jobs} workers, {args.max_upload_mb} MB upload limit"
         ),
         "Retention": f"{args.retention_days} days",
+        "Automatic processing": (
+            "enabled" if args.enable_automatic_processing else "disabled"
+        ),
     }
 
 
@@ -660,6 +713,7 @@ def main() -> None:
     ui.banner()
 
     oci, config = prompt_for_oci_profile(args, ui)
+    args.tenancy_id = args.tenancy_id or config["tenancy"]
     subscribed = subscribed_regions(oci, config)
     if not subscribed:
         raise SystemExit("No READY subscribed OCI regions were found for this tenancy.")

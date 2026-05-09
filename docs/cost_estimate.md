@@ -43,9 +43,15 @@ Compute
 
 Object Storage
   - Uploaded original documents in Standard tier
+  - Optional incoming/ uploads and event-queue/ markers for automatic intake
   - Compliance knowledge-base object
   - PUT, GET, DELETE, list, and metadata requests
   - Preflight temporary object write/read/delete
+
+Events and Functions
+  - Optional OCI Events delivery for Object Storage create events
+  - Optional OCI Functions invocations for intake marker creation
+  - VM polling reads and deletes event-queue/ markers
 
 Document Understanding
   - Rich OCR/table/key-value extraction for scanned PDFs and images

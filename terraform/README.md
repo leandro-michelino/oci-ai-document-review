@@ -23,6 +23,7 @@ Prepared resources:
 - Private Object Storage bucket for uploads
 - Object Storage lifecycle policy that deletes uploaded document objects under `documents/` after `retention_days`
 - Same private Object Storage bucket also stores the curated compliance KB object at `compliance/public_sector_entities.csv`
+- Optional Object Storage Events, OCI Functions, dynamic group, and policy for automatic intake from `incoming/`
 - VCN with public and private subnets
 - Security lists only, no NSGs
 - Public route table to Internet Gateway
@@ -31,9 +32,21 @@ Prepared resources:
 - Compute VM for the Streamlit app
 - Optional IAM policy for an existing admin group, disabled by default
 
-Terraform does not deploy application code. Application deployment is handled by `../scripts/deploy.sh` and `../ansible/playbook.yml` after Terraform creates or refreshes the infrastructure. Ansible writes `RETENTION_DAYS` to the VM and installs the daily local cleanup timer.
+Terraform does not deploy Streamlit application code. Application deployment is handled by `../scripts/deploy.sh` and `../ansible/playbook.yml` after Terraform creates or refreshes the infrastructure. Ansible writes `RETENTION_DAYS` to the VM and installs the daily local cleanup timer. When automatic processing is enabled, Ansible also installs `oci-ai-document-review-event-intake.timer` so the VM imports queue markers written by the Object Storage intake Function.
 
 The compliance knowledge-base CSV is not a Terraform resource. The app seeds it into the existing private bucket from `../data/compliance/public_sector_entities.csv` if `COMPLIANCE_ENTITIES_OBJECT_NAME` is missing at runtime. The lifecycle policy applies only to `documents/`, so the compliance KB under `compliance/` is not deleted by the document-retention rule.
+
+Automatic processing is optional because OCI Functions requires an OCIR image. Build and push `../functions/object_intake`, then set:
+
+```hcl
+tenancy_id                          = "ocid1.tenancy.oc1..exampletenancy"
+enable_automatic_processing         = true
+automatic_processing_function_image = "<region-key>.ocir.io/<namespace>/<repo>:<tag>"
+event_intake_incoming_prefix        = "incoming/"
+event_intake_queue_prefix           = "event-queue/"
+```
+
+External systems then upload to `incoming/<expense-name-or-reference>/<file>`. The Function writes queue markers to `event-queue/`; the VM imports those markers and uses the normal processing workflow.
 
 Create or choose a project compartment before deployment:
 

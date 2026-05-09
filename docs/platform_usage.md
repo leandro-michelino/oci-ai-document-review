@@ -192,6 +192,15 @@ ssh_command
 bucket_name
   Object Storage bucket for uploaded documents.
 
+automatic_processing_enabled
+  Whether Terraform enabled Object Storage Events and OCI Functions intake.
+
+event_intake_incoming_prefix
+  Object prefix external systems upload to for automatic intake.
+
+event_intake_queue_prefix
+  Object prefix where the Function writes queue markers for the VM.
+
 retention_days
   Days to keep VM-local data and uploaded Object Storage document objects.
 
@@ -351,6 +360,13 @@ Dashboard
   - Keeps the route in the browser URL with `?page=Dashboard`.
   - Refreshes Dashboard components with a Streamlit fragment instead of full browser reloads.
   - Marks stale active records as failed during refresh so stuck uploads do not remain in Processing forever.
+
+Automatic Object Storage intake
+  - Enable with `enable_automatic_processing = true` and an OCIR image URI for `functions/object_intake`.
+  - Upload external documents to `incoming/<expense-name-or-reference>/<file>` or `incoming/<file>`.
+  - OCI Events invokes the Function for Object Storage create events in the bucket.
+  - The Function writes queue markers under `event-queue/`; it does not process documents directly.
+  - The VM imports markers through `oci-ai-document-review-event-intake.timer` and sends files through the normal worker queue, Dashboard, and Actions flow.
 
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.

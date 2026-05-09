@@ -332,8 +332,8 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
               |                            |                            |
               v                            v                            |
 +----------------------------+  +----------------------------+          |
-| Single File Row            |  | Multi-File Expense Group   |          |
-| Row Action                 |  | Compact Summary Card       |          |
+| Selectable File Table      |  | Multi-File Expense Group   |          |
+| Review Selected Button     |  | Compact Summary Card       |          |
 +-------------+--------------+  +-------------+--------------+          |
               |                               |                         |
               |                               v                         |
@@ -356,6 +356,59 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                 | Decision Panel Near Top    |                          |
                 | Approve / Reject / Type    |                          |
                 +----------------------------+                          |
+```
+
+## OCI Events And Functions Intake Flow
+
+```text
++-----------------------------+
+| External System / Customer  |
+| uploads to incoming/        |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| OCI Object Storage          |
+| Private Bucket              |
+| object events enabled       |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| OCI Events Rule             |
+| Object Create In Bucket     |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| OCI Function                |
+| functions/object_intake     |
+| filters incoming/ prefix    |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| event-queue/*.json marker   |
+| bucket, object, event id    |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| VM systemd timer            |
+| poll_event_queue.py         |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| Existing Worker Queue       |
+| DU / GenAI / Compliance     |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| Dashboard + Actions         |
+| Human Approval Workflow     |
++-----------------------------+
 ```
 
 ## Dashboard Filter Flow
@@ -663,13 +716,13 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
            v                   v                   v                   v
 +----------------+  +----------------+  +----------------+  +----------------+
 | Compartment    |  | VCN / Subnet    |  | Compute VM     |  | Object Storage |
-|                |  |                |  | RETENTION_DAYS |  | Lifecycle      |
+| IAM Policies   |  | Function App    |  | RETENTION_DAYS |  | Events Enabled |
 +----------------+  +----------------+  +----------------+  +----------------+
                                            |
                                            v
                                 +---------------------+
                                 | Ansible             |
-                                | App Release + Config|
+                                | App Release + Timers|
                                 +----------+----------+
                                            |
                                            v

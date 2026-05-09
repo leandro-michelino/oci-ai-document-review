@@ -7,6 +7,8 @@ resource "oci_objectstorage_bucket" "documents" {
 
   versioning = "Disabled"
 
+  object_events_enabled = var.enable_automatic_processing
+
   freeform_tags = var.freeform_tags
 }
 

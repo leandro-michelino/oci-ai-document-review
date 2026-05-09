@@ -16,6 +16,7 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 - Added configurable retention with a 30-day default across VM-local metadata, Markdown reports, preserved upload copies, and Object Storage uploaded document objects.
 - Added a daily VM systemd timer for local retention cleanup so expiry is enforced even without a browser session.
 - Added an Object Storage lifecycle policy scoped to `documents/` so uploaded files expire without deleting the compliance knowledge base under `compliance/`.
+- Added optional OCI Events and Functions automatic intake: external uploads under `incoming/` create Object Storage events, invoke `functions/object_intake`, write queue markers under `event-queue/`, and are imported by a VM systemd timer into the existing worker queue.
 - Updated `scripts/setup.py`, `.env.example`, Terraform examples, Ansible, and deploy automation so customers can choose retention days during setup and redeploy the same value to the VM.
 - Made Actions selection clearer by documenting and testing exact selected-file labeling with file name, document ID, expense/reference, stage, upload time, linked-file count, and current action.
 - Updated all user-facing documentation for the latest review UX: compact Dashboard expense groups, one `Review` action per multi-file group, collapsed `Show files` details, best-next-action routing, and the Actions Decision panel placed near the top.

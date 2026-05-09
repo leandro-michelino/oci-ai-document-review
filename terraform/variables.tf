@@ -29,6 +29,75 @@ variable "bucket_name" {
   default     = "doc-review-input"
 }
 
+variable "tenancy_id" {
+  description = "Tenancy OCID used only when automatic processing creates a Functions dynamic group."
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      var.tenancy_id == "" ||
+      can(regex("^ocid1\\.tenancy\\.", var.tenancy_id))
+    )
+    error_message = "tenancy_id must be empty or a valid tenancy OCID."
+  }
+}
+
+variable "enable_automatic_processing" {
+  description = "Enable Object Storage events, OCI Functions, and VM queue import for incoming/ objects."
+  type        = bool
+  default     = false
+}
+
+variable "automatic_processing_function_image" {
+  description = "OCIR image URI for functions/object_intake. Required when enable_automatic_processing is true."
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      !var.enable_automatic_processing ||
+      length(trimspace(var.automatic_processing_function_image)) > 0
+    )
+    error_message = "automatic_processing_function_image is required when enable_automatic_processing is true."
+  }
+}
+
+variable "event_intake_incoming_prefix" {
+  description = "Object Storage prefix watched for automatic document intake."
+  type        = string
+  default     = "incoming/"
+}
+
+variable "event_intake_queue_prefix" {
+  description = "Object Storage prefix where the intake Function writes VM queue markers."
+  type        = string
+  default     = "event-queue/"
+}
+
+variable "event_intake_poll_seconds" {
+  description = "VM systemd timer interval for importing function queue markers."
+  type        = number
+  default     = 60
+
+  validation {
+    condition     = var.event_intake_poll_seconds >= 30
+    error_message = "event_intake_poll_seconds must be at least 30."
+  }
+}
+
+variable "function_memory_in_mbs" {
+  description = "Memory for the Object Storage intake function."
+  type        = number
+  default     = 256
+}
+
+variable "function_timeout_in_seconds" {
+  description = "Timeout for the Object Storage intake function."
+  type        = number
+  default     = 30
+}
+
 variable "retention_days" {
   description = "Number of days to retain uploaded document objects and local VM runtime artifacts."
   type        = number

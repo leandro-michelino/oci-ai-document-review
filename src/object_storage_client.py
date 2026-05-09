@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -41,6 +42,29 @@ class ObjectStorageClient:
             object_name=object_name,
         )
         return response.data.content.decode("utf-8")
+
+    def get_object_bytes(self, object_name: str) -> bytes:
+        response = self.client.get_object(
+            namespace_name=self.config.oci_namespace,
+            bucket_name=self.config.oci_bucket_name,
+            object_name=object_name,
+        )
+        return response.data.content
+
+    def download_file(self, object_name: str, file_path: Path) -> Path:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_bytes(self.get_object_bytes(object_name))
+        return file_path
+
+    def list_objects(self, prefix: str, limit: int = 100) -> list[str]:
+        response = self.client.list_objects(
+            namespace_name=self.config.oci_namespace,
+            bucket_name=self.config.oci_bucket_name,
+            prefix=prefix,
+            limit=limit,
+        )
+        objects: list[Any] = getattr(response.data, "objects", []) or []
+        return [item.name for item in objects if getattr(item, "name", None)]
 
     def put_text(self, object_name: str, content: str) -> str:
         self.client.put_object(
