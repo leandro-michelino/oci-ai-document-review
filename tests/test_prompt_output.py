@@ -40,3 +40,15 @@ def test_invoice_prompt_does_not_treat_vat_as_public_sector_evidence():
 
     assert "Do not treat VAT" in prompt
     assert "ordinary invoice tax fields" in prompt
+
+
+def test_invoice_prompt_requests_receipt_line_items():
+    prompt = build_prompt(
+        DocumentType.INVOICE,
+        "Receipt with pasta, water, and coffee.",
+        max_chars=1000,
+    )
+
+    assert "extracted_fields.line_items" in prompt
+    assert "what was consumed or purchased" in prompt
+    assert "Do not invent consumed items" in prompt

@@ -2155,10 +2155,14 @@ def render_analysis_overview(record) -> None:
     with col_left:
         st.markdown("### Key Points")
         if analysis.key_points:
-            for item in analysis.key_points[:5]:
+            for item in analysis.key_points[:8]:
                 st.write(f"- {item}")
         else:
             st.info("No key points found.")
+        if analysis.extracted_fields.line_items:
+            st.markdown("### Items / Services")
+            for item in analysis.extracted_fields.line_items[:8]:
+                st.write(f"- {item}")
     with col_right:
         st.markdown("### Recommendations")
         if analysis.recommendations:

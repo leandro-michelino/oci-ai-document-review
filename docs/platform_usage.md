@@ -269,7 +269,7 @@ Recommended processing flow:
    Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
 9. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
 10. Click Open next to a document.
-11. Use the Actions page to review the executive summary, key points, risks, recommendations, and supporting details.
+11. Use the Actions page to review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details.
 12. Use the Workflow panel to set the workflow status, assignee, and SLA due date.
 13. Add workflow comments when the reviewer needs extra context or follow-up.
 14. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
@@ -338,7 +338,7 @@ Dashboard
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
   - Shows a `Download Doc for Review` button when the VM still has the local working copy.
-  - Shows a focused AI review summary with key points and recommendations.
+  - Shows a focused AI review summary with key points, receipt or invoice items and services, and recommendations.
   - Shows the Decision panel for approve or reject.
   - Keeps analysis details, file and processing details, extracted text, and downloads in expanders.
   - Requires comments before rejecting a document.

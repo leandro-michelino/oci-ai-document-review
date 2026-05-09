@@ -10,7 +10,7 @@ The image above is the share-ready reference architecture. Terminal-friendly ASC
 
 ## Overview
 
-OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI to convert uploaded documents into structured review summaries, risk notes, recommendations, workflow metadata, and downloadable reports.
+OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI to convert uploaded documents into structured review summaries, receipt or invoice item details, risk notes, recommendations, workflow metadata, and downloadable reports.
 
 The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, Functions, and a customer document-status chatbot.
 
@@ -149,6 +149,7 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | Stage | Simplified queue state shown in the Dashboard: `Queued`, `Processing`, `Ready`, `Reviewed`, or `Failed`. |
 | Review | Human review decision state: `PENDING`, `APPROVED`, or `REJECTED`. |
 | Risk | Highest AI or compliance risk-note severity for the document, with note counts and supporting evidence shown in the Dashboard and Analysis details. Documents with no risk show only a small green signal; actionable risks use severity badges labeled `Risk Small`, `Risk Medium`, and `Risk High`, plus a reviewer-friendly Risk review panel that summarizes compliance matches and expense cues. Public-sector expense matches from the curated knowledge base are raised as compliance attention. |
+| Items / Services | Receipt or invoice line items, such as consumed food, purchased goods, services, quantities, or item amounts when visible in the document. The app does not invent items when the document does not show them. |
 | Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
 | Action | The next human or operational step for the selected document. |
 | Workflow | Human workflow state for assignment, SLA tracking, escalation, retry planning, and closure. |

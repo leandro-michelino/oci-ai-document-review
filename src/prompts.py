@@ -6,6 +6,7 @@ GENERAL_SCHEMA = """{
   "key_points": ["string"],
   "extracted_fields": {
     "parties": ["string"],
+    "line_items": ["string"],
     "document_date": "string or null",
     "effective_date": "string or null",
     "expiration_date": "string or null",
@@ -41,6 +42,11 @@ Rules:
   public official expense references as compliance attention risks.
 - Do not treat VAT, sales tax, tax rate, tax ID, country tax format, or ordinary
   invoice tax fields as public-sector or government evidence by themselves.
+- For invoices and receipts, extract visible purchased or consumed items,
+  services, quantities, and item amounts into extracted_fields.line_items and
+  summarize the most useful item details in key_points.
+- Do not invent consumed items or line items. If item details are not visible,
+  mention that in missing_information.
 - Always include a human_review_required boolean.
 - Return JSON only. Do not include markdown.
 
@@ -77,8 +83,10 @@ INVOICE_PROMPT = """You are an invoice processing assistant.
 Analyze the invoice text and return a strict JSON object matching this schema:
 {schema}
 
-Focus on supplier, customer, invoice number, invoice date, due date, PO number,
-total amount, currency, tax, payment terms, and potential anomalies. Flag
+Focus on supplier or merchant, customer, invoice number, invoice date, due date,
+PO number, purchased or consumed items, services, quantities, item amounts, total
+amount, currency, tax, payment terms, and potential anomalies. For receipts,
+describe what was consumed or purchased when the document shows it. Flag
 public-sector, government, ministry, municipality, state-owned entity, or public
 official expense references as compliance attention risks. Do not treat VAT,
 sales tax, tax rate, tax ID, country tax format, or ordinary invoice tax fields
@@ -86,7 +94,11 @@ as public-sector or government evidence by themselves.
 
 Rules:
 - Do not invent values.
+- Do not invent consumed items or line items.
 - If a field is not present, return null.
+- Put visible receipt or invoice item lines in extracted_fields.line_items.
+- Include one key point that summarizes the purchased or consumed items when
+  those item details are present.
 - Return JSON only.
 
 Extracted invoice content:

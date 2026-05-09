@@ -468,7 +468,7 @@ def test_document_analysis_accepts_null_ai_lists():
             "risk_notes": None,
             "recommendations": None,
             "missing_information": None,
-            "extracted_fields": {"parties": None},
+            "extracted_fields": {"parties": None, "line_items": None},
             "confidence_score": 0.7,
         }
     )
@@ -478,6 +478,7 @@ def test_document_analysis_accepts_null_ai_lists():
     assert analysis.recommendations == []
     assert analysis.missing_information == []
     assert analysis.extracted_fields.parties == []
+    assert analysis.extracted_fields.line_items == []
 
 
 def test_document_analysis_wraps_scalar_ai_list_fields():
@@ -486,6 +487,9 @@ def test_document_analysis_wraps_scalar_ai_list_fields():
             "document_class": "INVOICE",
             "executive_summary": "Summary",
             "key_points": "One important point",
+            "extracted_fields": {
+                "line_items": "Pasta, water, coffee - EUR 42",
+            },
             "risk_notes": {
                 "risk": "Unusual transaction",
                 "severity": "MEDIUM",
@@ -498,6 +502,7 @@ def test_document_analysis_wraps_scalar_ai_list_fields():
     )
 
     assert analysis.key_points == ["One important point"]
+    assert analysis.extracted_fields.line_items == ["Pasta, water, coffee - EUR 42"]
     assert analysis.risk_notes[0].risk == "Unusual transaction"
     assert analysis.recommendations == ["Review the transaction."]
     assert analysis.missing_information == ["Approver name"]
