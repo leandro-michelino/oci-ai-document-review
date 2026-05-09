@@ -431,6 +431,28 @@ def test_compliance_attention_ignores_generic_travel_guidance():
     )
 
 
+def test_compliance_attention_ignores_vat_without_public_sector_match():
+    record = DocumentRecord(
+        document_id="doc-vat",
+        document_name="expense-receipt.pdf",
+        document_type=DocumentType.INVOICE,
+        analysis=DocumentAnalysis(
+            document_class="INVOICE",
+            executive_summary="Receipt with VAT 21% for Spain.",
+            confidence_score=0.9,
+        ),
+    )
+
+    apply_compliance_attention(
+        record,
+        "Restaurant receipt total EUR 42. VAT 21% ES Spain.",
+    )
+
+    assert all(
+        note.risk != PUBLIC_SECTOR_EXPENSE_RISK for note in record.analysis.risk_notes
+    )
+
+
 def test_detected_document_type_handles_unknown_and_aliases():
     assert detected_document_type("technical report") == DocumentType.TECHNICAL_REPORT
     assert detected_document_type("receipt") == DocumentType.INVOICE

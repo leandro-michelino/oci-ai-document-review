@@ -29,3 +29,14 @@ def test_prompt_includes_document_understanding_key_values():
     assert "Key values detected by OCI Document Understanding" in prompt
     assert "Total: $42.00" in prompt
     assert "Tables detected by OCI Document Understanding: 1" in prompt
+
+
+def test_invoice_prompt_does_not_treat_vat_as_public_sector_evidence():
+    prompt = build_prompt(
+        DocumentType.INVOICE,
+        "Invoice with VAT 21% for Spain.",
+        max_chars=1000,
+    )
+
+    assert "Do not treat VAT" in prompt
+    assert "ordinary invoice tax fields" in prompt

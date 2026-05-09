@@ -39,6 +39,8 @@ Rules:
 - Identify risks only when supported by the document text.
 - Flag public-sector, government, ministry, municipality, state-owned entity, or
   public official expense references as compliance attention risks.
+- Do not treat VAT, sales tax, tax rate, tax ID, country tax format, or ordinary
+  invoice tax fields as public-sector or government evidence by themselves.
 - Always include a human_review_required boolean.
 - Return JSON only. Do not include markdown.
 
@@ -78,7 +80,9 @@ Analyze the invoice text and return a strict JSON object matching this schema:
 Focus on supplier, customer, invoice number, invoice date, due date, PO number,
 total amount, currency, tax, payment terms, and potential anomalies. Flag
 public-sector, government, ministry, municipality, state-owned entity, or public
-official expense references as compliance attention risks.
+official expense references as compliance attention risks. Do not treat VAT,
+sales tax, tax rate, tax ID, country tax format, or ordinary invoice tax fields
+as public-sector or government evidence by themselves.
 
 Rules:
 - Do not invent values.
