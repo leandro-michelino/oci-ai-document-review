@@ -22,7 +22,7 @@ Run the guided setup wizard:
 python scripts/setup.py
 ```
 
-The wizard prompts for customer-specific values, validates the OCI profile and API key, discovers subscribed regions, reads the Object Storage namespace, probes supported OCI Generative AI chat models, and writes both `.env` and `terraform/terraform.tfvars`. It does not create OCI resources.
+The wizard prompts for customer-specific values, validates the OCI profile and API key, discovers subscribed regions, reads the Object Storage namespace, probes supported OCI Generative AI chat models, asks for the runtime retention period, and writes both `.env` and `terraform/terraform.tfvars`. It does not create OCI resources. Retention defaults to 30 days.
 
 For repeatable automation, provide the required values explicitly:
 
@@ -32,12 +32,15 @@ python scripts/setup.py \
   --parent-compartment-id ocid1.compartment.oc1..exampleparent \
   --home-region your-home-region \
   --runtime-region your-runtime-region \
-  --allowed-ingress-cidr 203.0.113.10/32
+  --allowed-ingress-cidr 203.0.113.10/32 \
+  --retention-days 30
 ```
 
 Before showing GenAI choices, setup reads your OCI subscriptions and probes OCI Generative AI for active supported chat models. The app currently uses OCI SDK `CohereChatRequest`, so setup writes a Cohere chat model id.
 
 The wizard keeps runtime and GenAI region selection separate. Runtime region hosts compute, networking, Object Storage, and Document Understanding. GenAI region is selected only from discovered supported chat-model regions. In non-interactive mode, setup validates the supplied OCIDs and subscribed regions; if `--runtime-region` is omitted, it uses the OCI profile region. The wizard also writes a narrow `allowed_ingress_cidr`; host IPs are normalized to `/32`, and setup rejects explicit open ingress instead of falling back to it.
+
+The same retention value is written to `.env` as `RETENTION_DAYS` and to Terraform as `retention_days`. The app uses it for VM-local metadata, Markdown reports, and preserved upload copies. Ansible also installs `oci-ai-document-review-retention.timer` so the VM runs local cleanup daily even when nobody opens the Streamlit page. Terraform uses the value for the Object Storage lifecycle policy that deletes uploaded document objects under `documents/`.
 
 ## Review And Deploy
 
@@ -224,6 +227,12 @@ set_review()
 Failed-document retry creates a new child document id, copies the preserved local working file into a retry source file, saves a child metadata record with `parent_document_id`, and submits that child record back to the background worker pool. The original failed record keeps its retry history and audit trail.
 
 Markdown reports are refreshed from the latest metadata when workflow fields, comments, retries, review status, or document type change.
+
+## Retention
+
+The default retention period is 30 days. `RETENTION_DAYS` controls local cleanup on the VM for `data/metadata`, `data/reports`, and `data/uploads`. Active records in `UPLOADED`, `PROCESSING`, `EXTRACTED`, or `AI_ANALYZED` are protected from local cleanup so in-flight work is not removed mid-processing. Closed, failed, approved, rejected, and review-required records expire from their `processed_at` timestamp when available, otherwise from `uploaded_at`. Cleanup runs when the app starts/renders and through the daily `oci-ai-document-review-retention.timer` systemd timer.
+
+Terraform configures `oci_objectstorage_object_lifecycle_policy.documents_retention` for the private bucket. It deletes only objects with the `documents/` prefix after `retention_days`, so the curated compliance knowledge base at `compliance/public_sector_entities.csv` remains available.
 
 ## Next Phase: Customer Document Chatbot
 

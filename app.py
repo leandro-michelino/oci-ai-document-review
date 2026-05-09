@@ -1572,6 +1572,13 @@ def fail_stale_processing_runs(config, store) -> int:
     )
 
 
+def cleanup_expired_local_data(config, store) -> None:
+    store.cleanup_expired_local_data(
+        config.retention_days,
+        protected_document_ids=submitted_document_ids(),
+    )
+
+
 def record_to_row(record):
     analysis = record.analysis
     summary = record_summary(record)
@@ -3268,6 +3275,7 @@ def settings_page(config):
             st.write(f"GenAI endpoint: `{config.genai_endpoint}`")
             st.write(f"Compartment: `{config.oci_compartment_id}`")
             st.write(f"Bucket: `{config.oci_bucket_name}`")
+            st.write(f"Retention: `{config.retention_days} days`")
             st.write(
                 "Compliance knowledge base: "
                 f"`{config.compliance_entities_object_name}`"
@@ -3457,6 +3465,7 @@ def main():
     stale_count = fail_stale_processing_runs(config, store)
     if stale_count:
         st.warning(f"{stale_count} stale processing run was marked as failed.")
+    cleanup_expired_local_data(config, store)
     compliance_backfill_count = run_compliance_backfill_once(config, store)
     if compliance_backfill_count:
         st.info(

@@ -35,6 +35,7 @@ class AppConfig(BaseSettings):
     stale_processing_minutes: int = Field(
         default=12, ge=1, alias="STALE_PROCESSING_MINUTES"
     )
+    retention_days: int = Field(default=30, ge=1, alias="RETENTION_DAYS")
     max_parallel_jobs: int = Field(default=2, ge=1, le=32, alias="MAX_PARALLEL_JOBS")
     max_document_chars: int = Field(default=50000, ge=1000, alias="MAX_DOCUMENT_CHARS")
     max_upload_mb: int = Field(default=10, ge=1, alias="MAX_UPLOAD_MB")

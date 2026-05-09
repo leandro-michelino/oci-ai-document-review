@@ -10,7 +10,7 @@ The image above is the share-ready reference architecture. Terminal-friendly ASC
 
 ## Overview
 
-OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI to convert uploaded documents into structured review summaries, receipt or invoice item details, risk notes, recommendations, workflow metadata, and downloadable reports.
+OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI to convert uploaded documents into structured review summaries, receipt or invoice item details, risk notes, recommendations, workflow metadata, and downloadable reports. Uploaded document data is retained for 30 days by default across VM-local metadata, reports, preserved upload copies, and Object Storage document objects; the setup wizard can change that period for each deployment. The VM also installs a daily systemd retention timer.
 
 The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, Functions, and a customer document-status chatbot.
 
@@ -59,6 +59,7 @@ Users upload one document or a small submission of up to five files in the web p
 15. Lets a reviewer assign ownership, set an SLA, add workflow comments, and inspect the audit trail.
 16. Lets failed documents be retried from the preserved local working copy.
 17. Lets a reviewer correct the document type, then approve or reject the document.
+18. Expires VM-local artifacts and Object Storage document objects after the configured retention period.
 ```
 
 The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
@@ -297,6 +298,7 @@ Step 4 — Storage, Network, and Runtime
   SSH public key path (offers to generate an RSA key pair if none exists).
   Compute shape, OCPU count, and memory.
   Processing limits: upload size, parallel jobs, DU timeout and retries.
+  Retention period for VM-local data and Object Storage document objects.
 
 Step 5 — Generative AI
   Probes all subscribed regions in parallel for active Cohere chat models.
@@ -332,6 +334,7 @@ Neither file is committed to Git. Both are in `.gitignore`.
 | `--max-parallel-jobs` | `2` | Background worker thread count |
 | `--max-upload-mb` | `10` | Maximum upload size in MB |
 | `--max-document-chars` | `50000` | Maximum extracted characters sent to GenAI |
+| `--retention-days` | `30` | Days to retain VM-local artifacts and Object Storage document objects |
 | `--non-interactive` | `false` | Skip all prompts (requires compartment and regions) |
 | `--yes` | `false` | Skip the final write confirmation |
 
@@ -386,7 +389,7 @@ terraform init
 terraform plan
 ```
 
-The plan prepares a private Object Storage bucket, VCN, public subnet, private subnet, security lists, public and private route tables, Internet Gateway, NAT Gateway, Service Gateway, and compute VM. It does not use NSGs. Terraform validates network CIDR syntax, rejects open ingress, and requires positive flexible-shape sizing before apply.
+The plan prepares a private Object Storage bucket, a lifecycle policy that deletes uploaded objects under `documents/` after the configured retention period, VCN, public subnet, private subnet, security lists, public and private route tables, Internet Gateway, NAT Gateway, Service Gateway, and compute VM. It does not use NSGs. Terraform validates network CIDR syntax, rejects open ingress, and requires positive flexible-shape sizing before apply.
 
 Deploy end to end:
 
@@ -394,7 +397,7 @@ Deploy end to end:
 ./scripts/deploy.sh
 ```
 
-The deployed VM uses the existing OCI API key and policies from your local OCI profile. For code-only changes, Terraform should normally report no infrastructure changes, while Ansible still refreshes the app archive, writes runtime configuration, installs dependencies if needed, and restarts Streamlit.
+The deployed VM uses the existing OCI API key and policies from your local OCI profile. For code-only changes, Terraform should normally report no infrastructure changes, while Ansible still refreshes the app archive, writes runtime configuration, installs dependencies if needed, installs the daily local retention timer, and restarts Streamlit.
 
 After deployment, verify the live VM rather than relying on GitHub state:
 
@@ -420,6 +423,7 @@ The app supports:
 - Document Understanding extraction
 - GenAI JSON analysis
 - Background worker queue with parallel processing
+- Configurable 30-day default retention for VM metadata/reports/uploads and Object Storage document objects
 - Markdown report generation
 - Local JSON metadata
 - Approve and reject review actions

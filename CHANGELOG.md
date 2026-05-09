@@ -8,6 +8,10 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Added configurable retention with a 30-day default across VM-local metadata, reports, preserved upload copies, and Object Storage uploaded document objects.
+- Added a daily VM systemd retention timer for local cleanup.
+- Setup now asks for retention days and writes the value to both `.env` and `terraform/terraform.tfvars`; deploy passes it through Ansible to the VM.
+- Terraform now creates an Object Storage lifecycle policy scoped to `documents/`, leaving the compliance knowledge-base object under `compliance/` untouched.
 - Actions now shows group aggregation for multi-file expense/reference submissions, including file counts, decision/fix counts, total extracted items/services, total risks, and Items / Services by file.
 - OCI Document Understanding chunk uploads now use customer-readable names based on the original PDF stem plus `_1`, `_2`, and so on.
 - Actions now identifies the exact selected file more clearly with file name, document ID, expense/reference, stage, upload time, linked-file count, and current action.

@@ -29,6 +29,17 @@ variable "bucket_name" {
   default     = "doc-review-input"
 }
 
+variable "retention_days" {
+  description = "Number of days to retain uploaded document objects and local VM runtime artifacts."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.retention_days > 0
+    error_message = "retention_days must be greater than zero."
+  }
+}
+
 variable "object_storage_namespace" {
   description = "Object Storage namespace discovered by scripts/setup.py."
   type        = string

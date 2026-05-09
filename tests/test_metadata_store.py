@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -252,3 +253,93 @@ def test_load_sanitizes_stored_document_ai_page_limit_json(tmp_path):
     loaded = store.load("doc-page-limit")
 
     assert loaded.error_message == DOCUMENT_UNDERSTANDING_PAGE_LIMIT_MESSAGE
+
+
+def test_cleanup_expired_local_data_removes_old_closed_records_and_files(tmp_path):
+    metadata_dir = tmp_path / "metadata"
+    reports_dir = tmp_path / "reports"
+    uploads_dir = tmp_path / "uploads"
+    config = SimpleNamespace(
+        local_metadata_dir=metadata_dir,
+        local_reports_dir=reports_dir,
+        local_uploads_dir=uploads_dir,
+    )
+    reports_dir.mkdir()
+    uploads_dir.mkdir()
+    store = MetadataStore(config)
+    old_time = datetime.now(timezone.utc) - timedelta(days=45)
+    record = DocumentRecord(
+        document_id="doc-expired",
+        document_name="old receipt.pdf",
+        document_type=DocumentType.GENERAL,
+        status=ProcessingStatus.APPROVED,
+        uploaded_at=old_time,
+        processed_at=old_time,
+        report_path=str(reports_dir / "doc-expired.md"),
+    )
+    store.save(record)
+    (reports_dir / "doc-expired.md").write_text("report", encoding="utf-8")
+    (uploads_dir / "doc-expired-old_receipt.pdf").write_text("source", encoding="utf-8")
+
+    result = store.cleanup_expired_local_data(retention_days=30)
+
+    assert result.metadata_records == 1
+    assert result.reports == 1
+    assert result.uploads == 1
+    assert not (metadata_dir / "doc-expired.json").exists()
+    assert not (reports_dir / "doc-expired.md").exists()
+    assert not (uploads_dir / "doc-expired-old_receipt.pdf").exists()
+
+
+def test_cleanup_expired_local_data_keeps_active_records_even_when_old(tmp_path):
+    config = SimpleNamespace(
+        local_metadata_dir=tmp_path / "metadata",
+        local_reports_dir=tmp_path / "reports",
+        local_uploads_dir=tmp_path / "uploads",
+    )
+    config.local_reports_dir.mkdir()
+    config.local_uploads_dir.mkdir()
+    store = MetadataStore(config)
+    old_time = datetime.now(timezone.utc) - timedelta(days=45)
+    record = DocumentRecord(
+        document_id="doc-active",
+        document_name="active.pdf",
+        document_type=DocumentType.GENERAL,
+        status=ProcessingStatus.PROCESSING,
+        uploaded_at=old_time,
+    )
+    store.save(record)
+    (config.local_uploads_dir / "doc-active-active.pdf").write_text(
+        "source", encoding="utf-8"
+    )
+
+    result = store.cleanup_expired_local_data(retention_days=30)
+
+    assert result.total == 0
+    assert (config.local_metadata_dir / "doc-active.json").exists()
+    assert (config.local_uploads_dir / "doc-active-active.pdf").exists()
+
+
+def test_cleanup_expired_local_data_removes_old_orphan_artifacts(tmp_path):
+    config = SimpleNamespace(
+        local_metadata_dir=tmp_path / "metadata",
+        local_reports_dir=tmp_path / "reports",
+        local_uploads_dir=tmp_path / "uploads",
+    )
+    config.local_reports_dir.mkdir()
+    config.local_uploads_dir.mkdir()
+    store = MetadataStore(config)
+    old_mtime = (datetime.now(timezone.utc) - timedelta(days=45)).timestamp()
+    orphan_report = config.local_reports_dir / "orphan.md"
+    orphan_upload = config.local_uploads_dir / "orphan.pdf"
+    orphan_report.write_text("report", encoding="utf-8")
+    orphan_upload.write_text("source", encoding="utf-8")
+    os.utime(orphan_report, (old_mtime, old_mtime))
+    os.utime(orphan_upload, (old_mtime, old_mtime))
+
+    result = store.cleanup_expired_local_data(retention_days=30)
+
+    assert result.reports == 1
+    assert result.uploads == 1
+    assert not orphan_report.exists()
+    assert not orphan_upload.exists()

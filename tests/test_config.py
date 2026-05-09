@@ -22,6 +22,7 @@ def test_app_config_accepts_valid_runtime_settings():
 
     assert config.oci_auth == "instance_principal"
     assert config.max_parallel_jobs == 2
+    assert config.retention_days == 30
 
 
 def test_app_config_rejects_invalid_numeric_limits():
@@ -30,6 +31,9 @@ def test_app_config_rejects_invalid_numeric_limits():
 
     with pytest.raises(ValidationError):
         AppConfig(**config_kwargs(GENAI_TEMPERATURE=8))
+
+    with pytest.raises(ValidationError):
+        AppConfig(**config_kwargs(RETENTION_DAYS=0))
 
 
 def test_app_config_rejects_bad_auth_and_object_name():

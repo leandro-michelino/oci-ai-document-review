@@ -122,6 +122,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--document-ai-timeout-seconds", default="180")
     parser.add_argument("--document-ai-retry-attempts", default="2")
     parser.add_argument("--stale-processing-minutes", default="12")
+    parser.add_argument("--retention-days", default=os.getenv("RETENTION_DAYS", "30"))
     parser.add_argument("--max-parallel-jobs", default="2")
     parser.add_argument("--max-document-chars", default="50000")
     parser.add_argument("--max-upload-mb", default="10")
@@ -142,6 +143,7 @@ def parse_args() -> argparse.Namespace:
     args.profile = args.profile or "DEFAULT"
     args.bucket_name = args.bucket_name or DEFAULT_BUCKET
     args.preferred_model = args.preferred_model or DEFAULT_MODEL
+    validate_positive_integer(args.retention_days, "retention days")
     if args.non_interactive:
         require_non_interactive_values(args, parser)
     return args
@@ -458,6 +460,11 @@ def prompt_for_runtime(
     args.document_ai_retry_attempts = ask(
         "Document Understanding retry attempts", args.document_ai_retry_attempts
     )
+    args.retention_days = ask(
+        "Retention days for VM data and Object Storage documents",
+        args.retention_days,
+    )
+    validate_positive_integer(args.retention_days, "retention days")
     return os_namespace
 
 
@@ -530,6 +537,15 @@ def validate_cidr(value: str) -> None:
     normalize_cidr(value)
 
 
+def validate_positive_integer(value: str, label: str) -> None:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise SystemExit(f"The {label} value must be a positive integer.") from exc
+    if parsed < 1:
+        raise SystemExit(f"The {label} value must be a positive integer.")
+
+
 def write_env(
     args: argparse.Namespace,
     oci_region: str,
@@ -553,6 +569,7 @@ GENAI_MAX_TOKENS={args.genai_max_tokens}
 DOCUMENT_AI_TIMEOUT_SECONDS={args.document_ai_timeout_seconds}
 DOCUMENT_AI_RETRY_ATTEMPTS={args.document_ai_retry_attempts}
 STALE_PROCESSING_MINUTES={args.stale_processing_minutes}
+RETENTION_DAYS={args.retention_days}
 MAX_PARALLEL_JOBS={args.max_parallel_jobs}
 MAX_DOCUMENT_CHARS={args.max_document_chars}
 MAX_UPLOAD_MB={args.max_upload_mb}
@@ -581,6 +598,7 @@ compartment_id = "{args.compartment_id}"
 parent_compartment_id = "{args.parent_compartment_id}"
 bucket_name = "{args.bucket_name}"
 object_storage_namespace = "{os_namespace}"
+retention_days = {args.retention_days}
 allowed_ingress_cidr = "{allowed_ingress_cidr}"
 ssh_public_key_path = "{args.ssh_public_key_path}"
 instance_shape = "{args.instance_shape}"
@@ -632,6 +650,7 @@ def summary_values(
         "Processing": (
             f"{args.max_parallel_jobs} workers, {args.max_upload_mb} MB upload limit"
         ),
+        "Retention": f"{args.retention_days} days",
     }
 
 

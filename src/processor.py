@@ -13,6 +13,7 @@ from src.compliance import (
 )
 from src.config import AppConfig
 from src.document_understanding_client import DocumentUnderstandingClient
+from src.file_names import chunk_document_name, safe_document_name
 from src.genai_client import GenAIClient
 from src.logger import get_logger
 from src.metadata_store import MetadataStore
@@ -85,19 +86,6 @@ PUBLIC_SECTOR_EXPENSE_RISK = "Public-sector expense compliance review"
 def create_document_id() -> str:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     return f"{timestamp}-{uuid4().hex[:8]}"
-
-
-def safe_document_name(document_name: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(document_name).name).strip("._")
-    return cleaned or "document"
-
-
-def chunk_document_name(storage_name: str, index: int) -> str:
-    path = Path(storage_name)
-    suffix = path.suffix or ".pdf"
-    stem = path.stem if path.suffix else path.name
-    stem = stem.strip("._") or "document"
-    return f"{stem}_{index}{suffix}"
 
 
 def detected_document_type(document_class: str | None) -> DocumentType:

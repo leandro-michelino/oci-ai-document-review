@@ -18,6 +18,10 @@ compartment_id        = "ocid1.compartment.oc1..exampleproject"
 object_storage_namespace = "your_namespace"
 bucket_name              = "doc-review-input"
 
+# Uploaded document objects under documents/ are deleted after this many days.
+# The setup wizard also writes RETENTION_DAYS to the app .env for VM local data.
+retention_days = 30
+
 # Restrict SSH and Streamlit access to your current public IP.
 # Example: "203.0.113.10/32"
 # Open ingress such as "0.0.0.0/0" is rejected by validation.

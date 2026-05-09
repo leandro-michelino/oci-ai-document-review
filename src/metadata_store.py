@@ -1,8 +1,11 @@
-from datetime import datetime, timezone
+import shutil
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from src.config import AppConfig
+from src.file_names import safe_document_name
 from src.logger import get_logger
 from src.models import (
     AuditEvent,
@@ -24,9 +27,32 @@ ACTIVE_PROCESSING_STATUSES = {
 }
 
 
+@dataclass(frozen=True)
+class RetentionCleanupResult:
+    metadata_records: int = 0
+    invalid_metadata_files: int = 0
+    reports: int = 0
+    uploads: int = 0
+
+    @property
+    def total(self) -> int:
+        return (
+            self.metadata_records
+            + self.invalid_metadata_files
+            + self.reports
+            + self.uploads
+        )
+
+
 class MetadataStore:
     def __init__(self, config: AppConfig):
         self.root = config.local_metadata_dir
+        self.reports_root = getattr(
+            config, "local_reports_dir", self.root.parent / "reports"
+        )
+        self.uploads_root = getattr(
+            config, "local_uploads_dir", self.root.parent / "uploads"
+        )
         self.root.mkdir(parents=True, exist_ok=True)
 
     def path_for(self, document_id: str) -> Path:
@@ -238,3 +264,173 @@ class MetadataStore:
             self.save(record)
             failed_count += 1
         return failed_count
+
+    def cleanup_expired_local_data(
+        self,
+        retention_days: int,
+        protected_document_ids: set[str] | None = None,
+    ) -> RetentionCleanupResult:
+        protected_document_ids = protected_document_ids or set()
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        metadata_records = 0
+        invalid_metadata_files = 0
+        reports = 0
+        uploads = 0
+        protected_ids = set(protected_document_ids)
+
+        records_by_id: dict[str, DocumentRecord] = {}
+        for path in sorted(self.root.glob("*.json")):
+            try:
+                record = self.load(path.stem)
+            except Exception as exc:
+                if self._path_is_older_than(path, cutoff):
+                    logger.warning(
+                        "Deleting invalid metadata file %s after retention expiry: %s",
+                        path,
+                        exc,
+                    )
+                    invalid_metadata_files += self._remove_path(path)
+                else:
+                    logger.warning("Skipping invalid metadata file %s: %s", path, exc)
+                continue
+
+            records_by_id[record.document_id] = record
+            if record.status in ACTIVE_PROCESSING_STATUSES:
+                protected_ids.add(record.document_id)
+                continue
+            if record.document_id in protected_ids:
+                continue
+            if not self._record_is_older_than(record, cutoff):
+                continue
+
+            reports += self._delete_report(record)
+            uploads += self._delete_uploads(record)
+            metadata_records += self._remove_path(path)
+
+        reports += self._delete_orphan_paths(
+            self.reports_root,
+            "*.md",
+            cutoff,
+            protected_ids,
+            records_by_id,
+            kind="report",
+        )
+        uploads += self._delete_orphan_paths(
+            self.uploads_root,
+            "*",
+            cutoff,
+            protected_ids,
+            records_by_id,
+            kind="upload",
+        )
+
+        result = RetentionCleanupResult(
+            metadata_records=metadata_records,
+            invalid_metadata_files=invalid_metadata_files,
+            reports=reports,
+            uploads=uploads,
+        )
+        if result.total:
+            logger.info(
+                "Retention cleanup deleted %s local item(s): %s metadata record(s), "
+                "%s invalid metadata file(s), %s report(s), %s upload(s).",
+                result.total,
+                result.metadata_records,
+                result.invalid_metadata_files,
+                result.reports,
+                result.uploads,
+            )
+        return result
+
+    @staticmethod
+    def _as_aware(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    def _record_is_older_than(self, record: DocumentRecord, cutoff: datetime) -> bool:
+        retention_anchor = record.processed_at or record.uploaded_at
+        return self._as_aware(retention_anchor) < cutoff
+
+    @staticmethod
+    def _path_is_older_than(path: Path, cutoff: datetime) -> bool:
+        if not path.exists():
+            return False
+        mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+        return mtime < cutoff
+
+    @staticmethod
+    def _remove_path(path: Path) -> int:
+        if not path.exists():
+            return 0
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+        return 1
+
+    def _delete_report(self, record: DocumentRecord) -> int:
+        candidates = [self.reports_root / f"{record.document_id}.md"]
+        if record.report_path:
+            report_path = Path(record.report_path)
+            candidates.append(report_path if report_path.is_absolute() else report_path)
+        return self._remove_unique_paths(candidates)
+
+    def _delete_uploads(self, record: DocumentRecord) -> int:
+        safe_name = safe_document_name(record.document_name)
+        candidates = [
+            self.uploads_root / f"{record.document_id}-{safe_name}",
+            self.uploads_root / f"retry-{record.document_id}-{safe_name}",
+        ]
+        candidates.extend(self.uploads_root.glob(f"{record.document_id}-*"))
+        candidates.extend(self.uploads_root.glob(f"retry-{record.document_id}-*"))
+        return self._remove_unique_paths(candidates)
+
+    def _remove_unique_paths(self, paths: list[Path]) -> int:
+        removed = 0
+        seen: set[Path] = set()
+        for path in paths:
+            normalized = path.resolve() if path.exists() else path
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            removed += self._remove_path(path)
+        return removed
+
+    def _delete_orphan_paths(
+        self,
+        root: Path,
+        pattern: str,
+        cutoff: datetime,
+        protected_ids: set[str],
+        records_by_id: dict[str, DocumentRecord],
+        kind: str,
+    ) -> int:
+        if not root.exists():
+            return 0
+        removed = 0
+        for path in root.glob(pattern):
+            if not self._path_is_older_than(path, cutoff):
+                continue
+            if self._artifact_belongs_to_record(path, kind, protected_ids):
+                continue
+            if self._artifact_belongs_to_record(
+                path, kind, set(records_by_id.keys())
+            ):
+                continue
+            removed += self._remove_path(path)
+        return removed
+
+    @staticmethod
+    def _artifact_belongs_to_record(
+        path: Path,
+        kind: str,
+        document_ids: set[str],
+    ) -> bool:
+        if kind == "report":
+            return path.stem in document_ids
+        return any(
+            path.name.startswith(f"{document_id}-")
+            or path.name.startswith(f"retry-{document_id}-")
+            for document_id in document_ids
+        )

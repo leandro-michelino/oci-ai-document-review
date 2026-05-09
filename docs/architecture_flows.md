@@ -35,6 +35,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 | Expense Reference        |
 | Metadata                 |
 | Download + Retry         |
+| 30-Day Default Retention |
 +------------+-------------+
              |
              v
@@ -47,6 +48,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +--------------------------+
 | OCI Object Storage       |
 | Private Original Files   |
+| documents/ Retention     |
 +------------+-------------+
              |
              +---------------------------+----------------------------+
@@ -661,6 +663,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
            v                   v                   v                   v
 +----------------+  +----------------+  +----------------+  +----------------+
 | Compartment    |  | VCN / Subnet    |  | Compute VM     |  | Object Storage |
+|                |  |                |  | RETENTION_DAYS |  | Lifecycle      |
 +----------------+  +----------------+  +----------------+  +----------------+
                                            |
                                            v
@@ -674,6 +677,37 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                                 | systemd Streamlit   |
                                 | Running Portal      |
                                 +---------------------+
+```
+
+## Retention Flow
+
+```text
++-------------------------+
+| scripts/setup.py        |
+| asks retention days     |
+| default: 30             |
++------------+------------+
+             |
+             +----------------------------+
+             |                            |
+             v                            v
++-------------------------+     +--------------------------+
+| .env                    |     | terraform.tfvars         |
+| RETENTION_DAYS=30       |     | retention_days = 30      |
++------------+------------+     +------------+-------------+
+             |                               |
+             v                               v
++-------------------------+     +--------------------------+
+| Streamlit VM            |     | OCI Object Storage       |
+| app cleanup plus daily  |     | lifecycle deletes only   |
+| systemd timer           |     | documents/ objects       |
++------------+------------+     +------------+-------------+
+             |                               |
+             v                               v
++-------------------------+     +--------------------------+
+| Active processing       |     | compliance/ KB remains   |
+| records are protected   |     | outside lifecycle rule   |
++-------------------------+     +--------------------------+
 ```
 
 ## Release Hygiene Flow

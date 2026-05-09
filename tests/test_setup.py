@@ -7,8 +7,10 @@ from scripts.setup import (
     discover_current_ip_cidr,
     normalize_cidr,
     prompt_for_compartments,
+    summary_values,
     supported_chat_models,
     validate_cidr,
+    validate_positive_integer,
 )
 
 
@@ -52,6 +54,42 @@ def test_validate_cidr_rejects_invalid_values():
 def test_validate_cidr_rejects_open_ingress():
     with pytest.raises(SystemExit, match="open ingress"):
         validate_cidr("0.0.0.0/0")
+
+
+def test_validate_positive_integer_rejects_retention_zero():
+    validate_positive_integer("30", "retention days")
+
+    with pytest.raises(SystemExit, match="positive integer"):
+        validate_positive_integer("0", "retention days")
+
+
+def test_setup_summary_includes_retention_days():
+    args = Namespace(
+        config_file="~/.oci/config",
+        profile="DEFAULT",
+        compartment_id="ocid1.compartment.oc1..project",
+        parent_compartment_id="ocid1.compartment.oc1..parent",
+        home_region="us-ashburn-1",
+        bucket_name="doc-review-input",
+        allowed_ingress_cidr="203.0.113.10/32",
+        ssh_public_key_path="~/.ssh/id_rsa.pub",
+        instance_shape="VM.Standard.A1.Flex",
+        instance_ocpus="1",
+        instance_memory_gbs="6",
+        max_parallel_jobs="2",
+        max_upload_mb="10",
+        retention_days="30",
+    )
+
+    values = summary_values(
+        args=args,
+        runtime_region="us-ashburn-1",
+        genai_region="us-ashburn-1",
+        model_id="cohere.command-r-plus-08-2024",
+        os_namespace="example",
+    )
+
+    assert values["Retention"] == "30 days"
 
 
 def test_non_interactive_setup_validates_regions_and_uses_profile_runtime_region():

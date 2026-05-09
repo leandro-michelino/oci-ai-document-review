@@ -111,7 +111,7 @@ Run the guided setup wizard:
 python scripts/setup.py
 ```
 
-The wizard asks for the required customer values and writes local `.env` plus `terraform/terraform.tfvars`. It validates your OCI profile, validates required OCIDs, checks subscribed regions, discovers the Object Storage namespace, normalizes ingress CIDR values, and probes OCI Generative AI before asking you to choose a model.
+The wizard asks for the required customer values and writes local `.env` plus `terraform/terraform.tfvars`. It validates your OCI profile, validates required OCIDs, checks subscribed regions, discovers the Object Storage namespace, normalizes ingress CIDR values, asks for the retention period, and probes OCI Generative AI before asking you to choose a model. Retention defaults to 30 days.
 
 For a repeatable install, pass values explicitly:
 
@@ -121,7 +121,8 @@ python scripts/setup.py \
   --parent-compartment-id ocid1.compartment.oc1..exampleparent \
   --home-region your-home-region \
   --runtime-region your-runtime-region \
-  --allowed-ingress-cidr 203.0.113.10/32
+  --allowed-ingress-cidr 203.0.113.10/32 \
+  --retention-days 30
 ```
 
 The setup wizard:
@@ -135,7 +136,8 @@ The setup wizard:
 6. Probes each region for active OCI Generative AI chat models.
 7. Shows only supported GenAI regions for this app.
 8. Writes a supported Cohere chat model id.
-9. Writes local .env and terraform/terraform.tfvars.
+9. Writes RETENTION_DAYS and Terraform retention_days.
+10. Writes local .env and terraform/terraform.tfvars.
 ```
 
 If setup cannot discover your current public IP, it stops instead of writing an open ingress CIDR. Re-run it with `--allowed-ingress-cidr` set to a trusted CIDR such as your current public IP with `/32`. If you pass a single host IP, setup normalizes it to `/32`. Explicit open ingress such as `0.0.0.0/0` is rejected.
@@ -189,6 +191,9 @@ ssh_command
 
 bucket_name
   Object Storage bucket for uploaded documents.
+
+retention_days
+  Days to keep VM-local data and uploaded Object Storage document objects.
 
 genai_region
   OCI Generative AI region discovered and selected by setup.
@@ -404,6 +409,8 @@ data/reports/*.md
 data/uploads/*
 ```
 
+The default retention period is 30 days. The Streamlit app deletes expired local JSON metadata, Markdown reports, and preserved upload copies from the VM while protecting active in-flight records. Ansible installs `oci-ai-document-review-retention.timer` so the same local cleanup also runs daily on the VM. Terraform configures Object Storage lifecycle deletion for uploaded objects under `documents/` after the same number of days. The compliance knowledge base object under `compliance/` is outside that lifecycle rule.
+
 Unexpected runtime files on the VM:
 
 ```text
@@ -512,7 +519,7 @@ Do not commit Terraform state.
 Do not commit .deploy/.
 Use your existing OCI policies and API keys from your laptop.
 Rotate API keys according to your security process.
-Review Object Storage retention and lifecycle rules before production use.
+Review Object Storage retention and lifecycle rules before production use. The default deployment deletes uploaded document objects after 30 days.
 Add OCI Vault and instance principals for a production-grade deployment.
 ```
 

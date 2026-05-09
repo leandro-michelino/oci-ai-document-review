@@ -103,6 +103,7 @@
           DOCUMENT_AI_TIMEOUT_SECONDS={{ document_ai_timeout_seconds | default('180') }}
           DOCUMENT_AI_RETRY_ATTEMPTS={{ document_ai_retry_attempts | default('2') }}
           STALE_PROCESSING_MINUTES={{ stale_processing_minutes | default('12') }}
+          RETENTION_DAYS={{ retention_days | default('30') }}
           MAX_PARALLEL_JOBS={{ max_parallel_jobs | default('2') }}
           MAX_DOCUMENT_CHARS={{ max_document_chars | default('50000') }}
           MAX_UPLOAD_MB={{ max_upload_mb | default('10') }}
@@ -192,6 +193,44 @@
           [Install]
           WantedBy=multi-user.target
 
+    - name: Install local retention cleanup service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/oci-ai-document-review-retention.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Clean expired OCI AI Document Review local data
+
+          [Service]
+          Type=oneshot
+          User={{ app_user }}
+          Group={{ app_user }}
+          WorkingDirectory={{ app_dir }}
+          EnvironmentFile={{ app_dir }}/.env
+          ExecStart={{ app_dir }}/.venv/bin/python scripts/cleanup_retention.py
+
+    - name: Install local retention cleanup timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/oci-ai-document-review-retention.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Daily OCI AI Document Review local data retention cleanup
+
+          [Timer]
+          OnCalendar=daily
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Enable local retention cleanup timer
+      ansible.builtin.systemd_service:
+        name: oci-ai-document-review-retention.timer
+        state: started
+        enabled: true
+        daemon_reload: true
+
     - name: Start portal service
       ansible.builtin.systemd_service:
         name: oci-ai-document-review
@@ -218,5 +257,6 @@
           - "Follow logs: sudo journalctl -u oci-ai-document-review -f"
           - "Restart app: sudo systemctl restart oci-ai-document-review"
           - "Runtime config: {{ app_dir }}/.env"
+          - "Retention days: {{ retention_days | default('30') }}"
           - "Local metadata: {{ app_dir }}/data/metadata"
           - "Local reports: {{ app_dir }}/data/reports"

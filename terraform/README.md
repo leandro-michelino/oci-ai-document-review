@@ -21,6 +21,7 @@ Commit `terraform/.terraform.lock.hcl`. It pins provider checksums and keeps Ter
 Prepared resources:
 
 - Private Object Storage bucket for uploads
+- Object Storage lifecycle policy that deletes uploaded document objects under `documents/` after `retention_days`
 - Same private Object Storage bucket also stores the curated compliance KB object at `compliance/public_sector_entities.csv`
 - VCN with public and private subnets
 - Security lists only, no NSGs
@@ -30,9 +31,9 @@ Prepared resources:
 - Compute VM for the Streamlit app
 - Optional IAM policy for an existing admin group, disabled by default
 
-Terraform does not deploy application code. Application deployment is handled by `../scripts/deploy.sh` and `../ansible/playbook.yml` after Terraform creates or refreshes the infrastructure.
+Terraform does not deploy application code. Application deployment is handled by `../scripts/deploy.sh` and `../ansible/playbook.yml` after Terraform creates or refreshes the infrastructure. Ansible writes `RETENTION_DAYS` to the VM and installs the daily local cleanup timer.
 
-The compliance knowledge-base CSV is not a Terraform resource. The app seeds it into the existing private bucket from `../data/compliance/public_sector_entities.csv` if `COMPLIANCE_ENTITIES_OBJECT_NAME` is missing at runtime.
+The compliance knowledge-base CSV is not a Terraform resource. The app seeds it into the existing private bucket from `../data/compliance/public_sector_entities.csv` if `COMPLIANCE_ENTITIES_OBJECT_NAME` is missing at runtime. The lifecycle policy applies only to `documents/`, so the compliance KB under `compliance/` is not deleted by the document-retention rule.
 
 Create or choose a project compartment before deployment:
 
@@ -40,7 +41,7 @@ Create or choose a project compartment before deployment:
 ocid1.compartment.oc1..exampleproject
 ```
 
-Run the setup wizard first. It validates the OCI profile, validates compartment OCIDs, fetches subscribed OCI regions, discovers the Object Storage namespace, separates runtime region from GenAI region selection, normalizes ingress CIDRs, and probes OCI Generative AI before writing local config files.
+Run the setup wizard first. It validates the OCI profile, validates compartment OCIDs, fetches subscribed OCI regions, discovers the Object Storage namespace, separates runtime region from GenAI region selection, normalizes ingress CIDRs, asks for retention days, and probes OCI Generative AI before writing local config files.
 
 Interactive setup:
 
@@ -56,7 +57,8 @@ python scripts/setup.py \
   --parent-compartment-id ocid1.compartment.oc1..exampleparent \
   --home-region your-home-region \
   --runtime-region your-runtime-region \
-  --allowed-ingress-cidr 203.0.113.10/32
+  --allowed-ingress-cidr 203.0.113.10/32 \
+  --retention-days 30
 ```
 
 Or copy the sample and edit it manually for recovery or advanced edits:

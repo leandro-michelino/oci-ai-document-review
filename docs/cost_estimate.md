@@ -496,6 +496,7 @@ Both Tiers
   Tune MAX_DOCUMENT_CHARS to prevent oversized GenAI prompts.
   Avoid repeatedly retrying the same failed scanned document.
   Store generated reports and JSON results; do not reprocess unchanged documents.
+  Keep the default 30-day document retention unless the customer approves a different period.
   Apply Object Storage lifecycle policies for documents no longer needed.
   Run OCI Preflight intentionally, not in a tight loop.
   Tag all resources with project and owner for Cost Analysis filtering.
