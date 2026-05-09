@@ -20,6 +20,7 @@ from app import (
     expense_group_aggregation,
     expense_group_file_list,
     expense_group_item_rows,
+    expense_reference_file_card_html,
     expense_row_group_target,
     expense_reference_groups,
     expense_row_groups,
@@ -243,6 +244,17 @@ def test_expense_group_aggregation_includes_items_and_risks():
             "Items / Services": "Coffee EUR 4; Lunch EUR 18",
         }
     ]
+
+
+def test_expense_reference_file_card_html_highlights_selected_file():
+    record = make_record("doc-1", "receipt.pdf")
+
+    selected = expense_reference_file_card_html(record, is_current=True)
+    normal = expense_reference_file_card_html(record, is_current=False)
+
+    assert "expense-file-card selected" in selected
+    assert "Selected now" in selected
+    assert "expense-file-card selected" not in normal
 
 
 def test_risk_detail_label_explains_missing_and_multiple_risks():

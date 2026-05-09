@@ -629,6 +629,12 @@ def apply_theme() -> None:
             padding: 0.55rem 0.65rem;
             min-width: 0;
         }
+        .expense-file-card.selected {
+            border-color: var(--brand);
+            border-left: 6px solid var(--brand);
+            background: #fff5ef;
+            box-shadow: 0 2px 5px rgba(49, 45, 40, 0.1);
+        }
         .expense-file-title {
             color: var(--text-strong);
             font-size: 0.9rem;
@@ -636,11 +642,38 @@ def apply_theme() -> None:
             line-height: 1.25;
             overflow-wrap: anywhere;
         }
+        .expense-file-card.selected .expense-file-title {
+            color: var(--brand-dark);
+        }
         .expense-file-meta {
             color: var(--text-soft);
             font-size: 0.78rem;
             line-height: 1.35;
             margin-top: 0.25rem;
+        }
+        .selected-file-pill {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid #d6875f;
+            border-radius: 999px;
+            background: #f6e6dd;
+            color: var(--brand-dark);
+            font-size: 0.72rem;
+            font-weight: 900;
+            line-height: 1.2;
+            margin-top: 0.4rem;
+            padding: 0.2rem 0.52rem;
+            text-transform: uppercase;
+        }
+        .current-file-action {
+            border: 1px solid #d6875f;
+            border-radius: 8px;
+            background: #fff5ef;
+            color: var(--brand-dark);
+            font-size: 0.8rem;
+            font-weight: 900;
+            padding: 0.5rem 0.65rem;
+            text-align: center;
         }
         .queue-title {
             color: var(--text-strong);
@@ -2415,15 +2448,9 @@ def render_expense_reference_panel(
         st.markdown("#### Files in this group")
         for record in related:
             cols = st.columns([1.2, 0.42, 0.45, 0.32], vertical_alignment="center")
+            is_current = record.document_id == current.document_id
             cols[0].markdown(
-                f"""
-                <div class="expense-file-card">
-                  <div class="expense-file-title">{escape(record.document_name)}</div>
-                  <div class="expense-file-meta">
-                    {escape(record.uploaded_at.strftime("%Y-%m-%d %H:%M"))}
-                  </div>
-                </div>
-                """,
+                expense_reference_file_card_html(record, is_current),
                 unsafe_allow_html=True,
             )
             cols[1].markdown(
@@ -2431,8 +2458,11 @@ def render_expense_reference_panel(
                 unsafe_allow_html=True,
             )
             cols[2].caption(next_action(record))
-            if record.document_id == current.document_id:
-                cols[3].caption("Current")
+            if is_current:
+                cols[3].markdown(
+                    '<div class="current-file-action">Selected</div>',
+                    unsafe_allow_html=True,
+                )
             elif cols[3].button(
                 "Review",
                 key=f"expense_related_open_{current.document_id}_{record.document_id}",
@@ -2440,6 +2470,24 @@ def render_expense_reference_panel(
             ):
                 open_page(PAGE_DETAIL, record.document_id)
                 st.rerun()
+
+
+def expense_reference_file_card_html(
+    record: DocumentRecord, is_current: bool
+) -> str:
+    selected_html = (
+        '<div class="selected-file-pill">Selected now</div>' if is_current else ""
+    )
+    card_class = "expense-file-card selected" if is_current else "expense-file-card"
+    return f"""
+    <div class="{card_class}">
+      <div class="expense-file-title">{escape(record.document_name)}</div>
+      <div class="expense-file-meta">
+        {escape(record.uploaded_at.strftime("%Y-%m-%d %H:%M"))}
+      </div>
+      {selected_html}
+    </div>
+    """
 
 
 def open_page(page: str, document_id: str | None = None) -> None:
