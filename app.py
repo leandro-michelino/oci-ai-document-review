@@ -1036,6 +1036,23 @@ def extracted_text_label(record) -> str:
     return f"{len(record.extracted_text_preview):,} preview chars"
 
 
+def elapsed_since_label(started_at: datetime) -> str:
+    value = started_at
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    seconds = max(0, int((datetime.now(timezone.utc) - value).total_seconds()))
+    if seconds < 60:
+        return "less than 1 min"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} min"
+    hours = minutes // 60
+    remaining_minutes = minutes % 60
+    if remaining_minutes:
+        return f"{hours} hr {remaining_minutes} min"
+    return f"{hours} hr"
+
+
 def sla_label(record) -> str:
     if not record.due_at:
         return "No SLA"
@@ -1314,9 +1331,9 @@ def render_risk_review_panel(record) -> None:
         f"{risk_badge(risk_level)}"
         "</div>"
         f'<p class="risk-summary-text">{escape(risk_detail_label(record))}</p>'
-        f'{"".join(note_html)}'
-        f"{extra_html}"
-        "</div>"
+            f'{"".join(note_html)}'
+            f"{extra_html}"
+            "</div>"
     )
     st.markdown(panel_html, unsafe_allow_html=True)
 
@@ -1524,6 +1541,13 @@ def display_error_message(message: str | None) -> str:
     return sanitize_provider_message(message) or GENAI_SAFETY_REVIEW_MESSAGE
 
 
+def fail_stale_processing_runs(config, store) -> int:
+    return store.fail_stale_processing(
+        config.stale_processing_minutes,
+        protected_document_ids=submitted_document_ids(),
+    )
+
+
 def record_to_row(record):
     analysis = record.analysis
     summary = record_summary(record)
@@ -1542,6 +1566,7 @@ def record_to_row(record):
         str(record.retry_count),
         record.job_description or "",
         record.business_reference or "",
+        elapsed_since_label(record.uploaded_at),
         action,
         summary,
     ]
@@ -1558,6 +1583,7 @@ def record_to_row(record):
         "Retries": record.retry_count,
         "Uploaded": record.uploaded_at.strftime("%Y-%m-%d %H:%M"),
         "Uploaded Sort": record.uploaded_at.isoformat(),
+        "Elapsed": elapsed_since_label(record.uploaded_at),
         "Expense Name or Reference": record.job_description or "",
         "Reference": record.business_reference or "",
         "Risk Level": highest_risk_level(record),
@@ -1969,6 +1995,8 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
                 ):
                     open_page_from_dashboard(PAGE_DETAIL, document_id)
                 details = [f"{row['Uploaded']} · {row['Type']}"]
+                if row["Status"] in ACTIVE_STATUSES:
+                    details.append(f"Working for {row['Elapsed']}")
                 if row["Reference"]:
                     details.append(f"Ref: {row['Reference']}")
                 if row["Assignee"] != "Unassigned":
@@ -2019,6 +2047,8 @@ def render_ready_queue_band(rows: pd.DataFrame) -> None:
                 for col, (_, row) in zip(cols, row_items[start : start + 3]):
                     document_id = row["Document ID"]
                     details = [f"{row['Uploaded']} | {row['Type']}"]
+                    if row["Status"] in ACTIVE_STATUSES:
+                        details.append(f"Working for {row['Elapsed']}")
                     if row["Reference"]:
                         details.append(f"Ref: {row['Reference']}")
                     confidence = row["Confidence"]
@@ -2803,6 +2833,9 @@ def upload_page(config, store):
 
 @st.fragment(run_every=f"{DASHBOARD_REFRESH_SECONDS}s")
 def render_dashboard_live_content(config, store) -> None:
+    stale_count = fail_stale_processing_runs(config, store)
+    if stale_count:
+        st.warning(f"{stale_count} stale processing run was marked as failed.")
     records = store.list_records()
     if not records:
         with st.container(border=True):
@@ -2842,7 +2875,9 @@ def render_dashboard_live_content(config, store) -> None:
     if not active_runs.empty:
         suffix = "s are" if len(active_runs) != 1 else " is"
         st.info(
-            f"{len(active_runs)} document{suffix} processing. Worker pool size: {config.max_parallel_jobs}."
+            f"{len(active_runs)} document{suffix} processing. Worker pool size: "
+            f"{config.max_parallel_jobs}. Items older than "
+            f"{config.stale_processing_minutes} minutes are marked failed automatically."
         )
         if st.button("Refresh Status", key="dashboard_active_refresh"):
             rerun_dashboard_fragment()
@@ -3237,10 +3272,7 @@ def main():
     store = MetadataStore(config)
     st.set_page_config(page_title=config.app_title, layout="wide")
     apply_theme()
-    stale_count = store.fail_stale_processing(
-        config.stale_processing_minutes,
-        protected_document_ids=submitted_document_ids(),
-    )
+    stale_count = fail_stale_processing_runs(config, store)
     if stale_count:
         st.warning(f"{stale_count} stale processing run was marked as failed.")
     compliance_backfill_count = run_compliance_backfill_once(config, store)
