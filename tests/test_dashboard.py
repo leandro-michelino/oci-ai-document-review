@@ -29,6 +29,7 @@ from app import (
     source_download_name,
     sort_action_records,
     upload_document_type_options,
+    validate_upload_batch_requirements,
     validate_upload_requirements,
     workflow_status_label,
     workflow_status_options,
@@ -93,6 +94,7 @@ def test_record_to_row_adds_dashboard_fields():
         risks=[RiskNote(risk="Bad clause", severity="HIGH")],
         confidence=0.76,
     )
+    record.job_description = "Q1 vendor onboarding"
 
     row = record_to_row(record)
 
@@ -104,9 +106,11 @@ def test_record_to_row_adds_dashboard_fields():
     assert row["Assignee"] == "Unassigned"
     assert row["SLA"] == "No SLA"
     assert row["Retries"] == 0
+    assert row["Job Description"] == "Q1 vendor onboarding"
     assert row["Confidence"] == 76
     assert row["Action"] == "Approve or reject"
     assert "contract.pdf" in row["Search Text"]
+    assert "q1 vendor onboarding" in row["Search Text"]
     assert "new" in row["Search Text"]
 
 
@@ -255,6 +259,21 @@ def test_upload_requirement_validation_blocks_large_images_for_ocr(tmp_path):
 
     assert notices == []
     assert any("Image OCR files must be 8 MB or smaller" in message for message in errors)
+
+
+def test_upload_batch_requires_description_only_for_multiple_files():
+    one_file = [SimpleNamespace(name="one.pdf")]
+    two_files = [SimpleNamespace(name="one.pdf"), SimpleNamespace(name="two.pdf")]
+    six_files = [SimpleNamespace(name=f"{index}.pdf") for index in range(6)]
+
+    assert validate_upload_batch_requirements(one_file, "") == []
+    assert validate_upload_batch_requirements(two_files, "Quarter-end invoices") == []
+    assert validate_upload_batch_requirements(two_files, "") == [
+        "Job description is required when uploading more than one file."
+    ]
+    assert validate_upload_batch_requirements(six_files, "Too many") == [
+        "Select up to 5 files per upload."
+    ]
 
 
 def test_source_download_metadata_uses_safe_name_and_mime_type():

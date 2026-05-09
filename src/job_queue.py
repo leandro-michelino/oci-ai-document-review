@@ -48,6 +48,7 @@ def submit_document_processing(
     document_type: DocumentType,
     business_reference: str | None,
     notes: str | None,
+    job_description: str | None,
     source_file_size_bytes: int | None,
     source_file_mime_type: str | None,
 ) -> bool:
@@ -66,6 +67,7 @@ def submit_document_processing(
             document_type,
             business_reference,
             notes,
+            job_description,
             source_file_size_bytes,
             source_file_mime_type,
         )
@@ -112,6 +114,7 @@ def retry_document_processing(
         status=ProcessingStatus.UPLOADED,
         business_reference=original.business_reference,
         notes=original.notes,
+        job_description=original.job_description,
         parent_document_id=document_id,
         assignee=original.assignee,
         due_at=original.due_at,
@@ -131,6 +134,7 @@ def retry_document_processing(
         document_type=original.document_type,
         business_reference=original.business_reference,
         notes=original.notes,
+        job_description=original.job_description,
         source_file_size_bytes=original.source_file_size_bytes,
         source_file_mime_type=original.source_file_mime_type,
     )
@@ -150,6 +154,7 @@ def _process_document(
     document_type: DocumentType,
     business_reference: str | None,
     notes: str | None,
+    job_description: str | None,
     source_file_size_bytes: int | None,
     source_file_mime_type: str | None,
 ) -> None:
@@ -160,6 +165,7 @@ def _process_document(
             document_type=document_type,
             business_reference=business_reference,
             notes=notes,
+            job_description=job_description,
             source_file_size_bytes=source_file_size_bytes,
             source_file_mime_type=source_file_mime_type,
             document_id=document_id,

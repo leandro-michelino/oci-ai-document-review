@@ -120,10 +120,12 @@ def test_processor_preserves_supplied_document_id(tmp_path, monkeypatch):
         source_path=source,
         document_name="contract.pdf",
         document_type=DocumentType.CONTRACT,
+        job_description="Vendor contract batch",
         document_id="doc-fixed",
     )
 
     assert record.document_id == "doc-fixed"
+    assert record.job_description == "Vendor contract batch"
     assert record.status == ProcessingStatus.REVIEW_REQUIRED
     assert (config.local_metadata_dir / "doc-fixed.json").exists()
 

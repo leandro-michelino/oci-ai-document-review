@@ -108,7 +108,10 @@ The MVP uses real OCI services in sequence:
 
 ```text
 Streamlit upload
-  -> local working copy
+  -> one to five files
+  -> mandatory job description when more than one file is selected
+  -> local working copies
+  -> one metadata record per file, with shared job description when supplied
   -> metadata status UPLOADED
   -> background worker pool
   -> Object Storage put_object
@@ -148,9 +151,9 @@ Uploads are queued into a background worker pool. The browser returns immediatel
 
 The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh stays on the Dashboard instead of returning to Upload. The Dashboard body runs inside a Streamlit fragment and refreshes every 10 seconds while the session is active. That updates metrics and split queue tables without using a full browser reload. Dashboard metric cards are emitted as one compact HTML block through `dashboard_metrics_html()` so Streamlit Markdown does not treat later cards as escaped code text.
 
-The Upload page validates basic requirements before queueing: supported extension, non-empty file, and `MAX_UPLOAD_MB`. It also blocks image OCR uploads above the current OCI synchronous file-size limit. For PDFs, it attempts to read the local page count. PDFs above the OCI synchronous OCR page or file-size limit are allowed and the user is informed that scanned pages will be processed in chunks. If the page count cannot be read locally, the user sees a warning that encrypted, damaged, or password-protected PDFs may fail during extraction.
+The Upload page validates basic requirements before queueing: up to five files, mandatory job description when more than one file is selected, supported extension, non-empty file, and `MAX_UPLOAD_MB`. It also blocks image OCR uploads above the current OCI synchronous file-size limit. For PDFs, it attempts to read the local page count. PDFs above the OCI synchronous OCR page or file-size limit are allowed and the user is informed that scanned pages will be processed in chunks. If the page count cannot be read locally, the user sees a warning that encrypted, damaged, or password-protected PDFs may fail during extraction.
 
-The Actions page includes a Source document section before the AI review area. It uses the preserved local working copy in `data/uploads` and shows a `Download Doc for Review` button so the reviewer can open the original file locally. If the working copy is missing, the reviewer still sees metadata, lifecycle details, extracted text, and generated analysis.
+The Dashboard and Actions page display the stored job description so reviewers can keep related files from the same multi-file upload together. The Actions page includes a Source document section before the AI review area. It uses the preserved local working copy in `data/uploads` and shows a `Download Doc for Review` button so the reviewer can open the original file locally. If the working copy is missing, the reviewer still sees metadata, lifecycle details, extracted text, and generated analysis.
 
 After GenAI returns structured analysis, the app applies a deterministic compliance overlay. It checks extracted text, file name, business reference, notes, and selected AI fields against the curated entity catalog configured by `COMPLIANCE_ENTITIES_OBJECT_NAME`, defaulting to `compliance/public_sector_entities.csv` in Object Storage. If the object is missing, the app seeds it from the bundled `data/compliance/public_sector_entities.csv` file and falls back locally if Object Storage cannot be reached.
 

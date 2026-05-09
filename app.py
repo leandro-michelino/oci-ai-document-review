@@ -61,6 +61,7 @@ DASHBOARD_STATUS_FILTERS = [
     "Retry planned",
     "Reviewed",
 ]
+MAX_FILES_PER_UPLOAD = 5
 ALLOWED_UPLOAD_EXTENSIONS = [
     "csv",
     "htm",
@@ -122,6 +123,7 @@ FIELD_HELP = {
     "Extension": "File extension from the uploaded file name.",
     "File name": "Original uploaded file name.",
     "File size": "Original upload size captured by the portal for new uploads.",
+    "Job description": "Shared description for a multi-file upload batch, used to keep related files together.",
     "MIME type": "Browser-reported file content type captured during upload.",
     "Report": "Whether a Markdown review report exists on the VM.",
     "Review": "Human review decision state: PENDING, APPROVED, or REJECTED.",
@@ -151,6 +153,7 @@ FIELD_GUIDE_ROWS = [
     ("SLA", FIELD_HELP["SLA"]),
     ("Document type", FIELD_HELP["Document type"]),
     ("File size", FIELD_HELP["File size"]),
+    ("Job description", FIELD_HELP["Job description"]),
     ("MIME type", FIELD_HELP["MIME type"]),
     ("Report", FIELD_HELP["Report"]),
     ("Text preview", FIELD_HELP["Text preview"]),
@@ -812,6 +815,16 @@ def validate_upload_requirements(uploaded, local_path: Path, config) -> tuple[li
     return errors, notices
 
 
+def validate_upload_batch_requirements(uploaded_files, job_description: str) -> list[str]:
+    errors = []
+    selected_count = len(uploaded_files or [])
+    if selected_count > MAX_FILES_PER_UPLOAD:
+        errors.append(f"Select up to {MAX_FILES_PER_UPLOAD} files per upload.")
+    if selected_count > 1 and not job_description.strip():
+        errors.append("Job description is required when uploading more than one file.")
+    return errors
+
+
 def load_app_config():
     try:
         return get_config()
@@ -1026,6 +1039,7 @@ def render_file_information(record, compact: bool = False) -> None:
         ("Retries", str(record.retry_count)),
         ("Extension", file_extension(record)),
         ("MIME type", record.source_file_mime_type or "Not captured"),
+        ("Job description", record.job_description or "Not provided"),
         ("Business reference", record.business_reference or "Not provided"),
         (
             "Processed",
@@ -1435,6 +1449,7 @@ def record_to_row(record):
         record.assignee or "",
         sla_label(record),
         str(record.retry_count),
+        record.job_description or "",
         record.business_reference or "",
         action,
         summary,
@@ -1452,6 +1467,7 @@ def record_to_row(record):
         "Retries": record.retry_count,
         "Uploaded": record.uploaded_at.strftime("%Y-%m-%d %H:%M"),
         "Uploaded Sort": record.uploaded_at.isoformat(),
+        "Job Description": record.job_description or "",
         "Reference": record.business_reference or "",
         "Risk Level": highest_risk_level(record),
         "Risks": len(analysis.risk_notes) if analysis else 0,
@@ -1626,6 +1642,8 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
                 f"{workflow_status_label(focus.workflow_status)} workflow",
                 sla_label(focus),
             ]
+            if focus.job_description:
+                context.append(f"Job: {focus.job_description}")
             if focus.assignee:
                 context.append(f"Owner: {focus.assignee}")
             panel_html = f"""
@@ -1739,6 +1757,8 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
             ):
                 open_page_from_dashboard(PAGE_DETAIL, document_id)
             details = [f"{row['Uploaded']} · {row['Type']}"]
+            if row["Job Description"]:
+                details.append(f"Job: {row['Job Description']}")
             if row["Reference"]:
                 details.append(f"Ref: {row['Reference']}")
             if row["Assignee"] != "Unassigned":
@@ -1779,6 +1799,8 @@ def render_ready_queue_band(rows: pd.DataFrame) -> None:
             for col, (_, row) in zip(cols, row_items[start : start + 3]):
                 document_id = row["Document ID"]
                 details = [f"{row['Uploaded']} | {row['Type']}"]
+                if row["Job Description"]:
+                    details.append(f"Job: {row['Job Description']}")
                 if row["Reference"]:
                     details.append(f"Ref: {row['Reference']}")
                 confidence = row["Confidence"]
@@ -1873,6 +1895,37 @@ def render_queued_actions(record) -> None:
         cols[2].button(
             "Upload Another",
             key=f"queued_upload_another_{record.document_id}",
+            on_click=open_fresh_upload,
+        )
+
+
+def render_batch_queued_actions(records: list[DocumentRecord]) -> None:
+    first_record = records[0]
+    with st.container(border=True):
+        st.subheader("Queued")
+        st.write(
+            f"{len(records)} files are in the background queue. You can follow the job from the dashboard."
+        )
+        if first_record.job_description:
+            st.caption(f"Job: {first_record.job_description}")
+        st.write(", ".join(record.document_name for record in records))
+        cols = st.columns([1, 1, 1])
+        cols[0].button(
+            "View Dashboard",
+            type="primary",
+            key=f"queued_batch_dashboard_{first_record.document_id}",
+            on_click=open_page,
+            args=(PAGE_DASHBOARD, first_record.document_id),
+        )
+        cols[1].button(
+            "Open Actions",
+            key=f"queued_batch_open_{first_record.document_id}",
+            on_click=open_page,
+            args=(PAGE_DETAIL, first_record.document_id),
+        )
+        cols[2].button(
+            "Upload Another",
+            key=f"queued_batch_upload_another_{first_record.document_id}",
             on_click=open_fresh_upload,
         )
 
@@ -2333,11 +2386,27 @@ def upload_page(config, store):
         business_reference = st.text_input(
             "Reference", placeholder="Optional", key="upload_business_reference"
         )
-        uploaded = st.file_uploader(
-            "File",
+        uploaded_files = st.file_uploader(
+            "Files",
             type=ALLOWED_UPLOAD_EXTENSIONS,
+            accept_multiple_files=True,
             key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
-            help=f"Maximum file size enforced by the app: {config.max_upload_mb} MB.",
+            help=(
+                f"Select up to {MAX_FILES_PER_UPLOAD} files. Maximum file size enforced by "
+                f"the app: {config.max_upload_mb} MB."
+            ),
+        )
+        selected_count = len(uploaded_files or [])
+        job_description = st.text_area(
+            "Job description",
+            height=80,
+            placeholder=(
+                "Required when uploading more than one file"
+                if selected_count > 1
+                else "Optional shared context for this upload"
+            ),
+            key="upload_job_description",
+            help=FIELD_HELP["Job description"],
         )
         notes = st.text_area(
             "Notes",
@@ -2346,73 +2415,112 @@ def upload_page(config, store):
             key="upload_notes",
         )
 
-        uploaded_ok = uploaded is not None
-        if uploaded:
-            size_mb = uploaded.size / (1024 * 1024)
-            st.caption(f"Selected: {uploaded.name} - {size_mb:.2f} MB")
-            if size_mb > config.max_upload_mb:
+        uploaded_ok = selected_count > 0
+        if selected_count:
+            names = ", ".join(file.name for file in uploaded_files)
+            st.caption(f"Selected {selected_count}: {names}")
+            batch_errors = validate_upload_batch_requirements(
+                uploaded_files, job_description
+            )
+            for message in batch_errors:
+                st.error(message)
+            if batch_errors:
+                uploaded_ok = False
+            for uploaded in uploaded_files:
+                size_mb = uploaded.size / (1024 * 1024)
+                st.caption(f"{uploaded.name} - {size_mb:.2f} MB")
+            oversized = [
+                file.name
+                for file in uploaded_files
+                if file.size / (1024 * 1024) > config.max_upload_mb
+            ]
+            if oversized:
                 st.error(
-                    f"File exceeds the configured {config.max_upload_mb} MB limit."
+                    f"File exceeds the configured {config.max_upload_mb} MB limit: "
+                    + ", ".join(oversized)
                 )
+                uploaded_ok = False
         process_clicked = st.button(
-            "Queue Document",
+            "Queue Documents" if selected_count > 1 else "Queue Document",
             disabled=not uploaded_ok,
             type="primary",
             width="stretch",
         )
 
-    if process_clicked and uploaded:
-        document_id = create_document_id()
+    if process_clicked and uploaded_files:
         document_type_value = DocumentType(document_type)
-        with NamedTemporaryFile(
-            delete=False,
-            dir=config.local_uploads_dir,
-            prefix=f"queued-{document_id}",
-            suffix=safe_upload_suffix(uploaded.name),
-        ) as tmp:
-            tmp.write(uploaded.getbuffer())
-            tmp_path = Path(tmp.name)
-
-        requirement_errors, requirement_notices = validate_upload_requirements(
-            uploaded, tmp_path, config
-        )
+        job_description_value = job_description.strip() or None
+        queued_files = []
+        requirement_errors = []
+        requirement_notices = []
+        for uploaded in uploaded_files:
+            document_id = create_document_id()
+            with NamedTemporaryFile(
+                delete=False,
+                dir=config.local_uploads_dir,
+                prefix=f"queued-{document_id}",
+                suffix=safe_upload_suffix(uploaded.name),
+            ) as tmp:
+                tmp.write(uploaded.getbuffer())
+                tmp_path = Path(tmp.name)
+            file_errors, file_notices = validate_upload_requirements(
+                uploaded, tmp_path, config
+            )
+            requirement_errors.extend(
+                f"{uploaded.name}: {message}" for message in file_errors
+            )
+            requirement_notices.extend(
+                f"{uploaded.name}: {message}" for message in file_notices
+            )
+            queued_files.append((uploaded, document_id, tmp_path))
         if requirement_errors:
             for message in requirement_errors:
                 st.error(message)
-            try:
-                tmp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
+            for _, _, tmp_path in queued_files:
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
             st.stop()
         for message in requirement_notices:
             st.info(message)
 
-        record = DocumentRecord(
-            document_id=document_id,
-            document_name=uploaded.name,
-            document_type=document_type_value,
-            source_file_size_bytes=uploaded.size,
-            source_file_mime_type=uploaded.type or None,
-            status=ProcessingStatus.UPLOADED,
-            business_reference=business_reference or None,
-            notes=notes or None,
-        )
-        store.save(record)
-        submit_document_processing(
-            config=config,
-            source_path=tmp_path,
-            document_id=document_id,
-            document_name=uploaded.name,
-            document_type=document_type_value,
-            business_reference=business_reference or None,
-            notes=notes or None,
-            source_file_size_bytes=uploaded.size,
-            source_file_mime_type=uploaded.type or None,
-        )
-        st.session_state["selected_document_id"] = record.document_id
-        st.session_state["dashboard_selected_document"] = record.document_id
-        st.success("Document was queued for background processing.")
-        render_queued_actions(record)
+        records = []
+        for uploaded, document_id, tmp_path in queued_files:
+            record = DocumentRecord(
+                document_id=document_id,
+                document_name=uploaded.name,
+                document_type=document_type_value,
+                source_file_size_bytes=uploaded.size,
+                source_file_mime_type=uploaded.type or None,
+                status=ProcessingStatus.UPLOADED,
+                job_description=job_description_value,
+                business_reference=business_reference or None,
+                notes=notes or None,
+            )
+            store.save(record)
+            submit_document_processing(
+                config=config,
+                source_path=tmp_path,
+                document_id=document_id,
+                document_name=uploaded.name,
+                document_type=document_type_value,
+                business_reference=business_reference or None,
+                notes=notes or None,
+                job_description=job_description_value,
+                source_file_size_bytes=uploaded.size,
+                source_file_mime_type=uploaded.type or None,
+            )
+            records.append(record)
+        first_record = records[0]
+        st.session_state["selected_document_id"] = first_record.document_id
+        st.session_state["dashboard_selected_document"] = first_record.document_id
+        if len(records) == 1:
+            st.success("Document was queued for background processing.")
+            render_queued_actions(first_record)
+        else:
+            st.success(f"{len(records)} documents were queued for background processing.")
+            render_batch_queued_actions(records)
 
 
 @st.fragment(run_every=f"{DASHBOARD_REFRESH_SECONDS}s")
@@ -2569,8 +2677,16 @@ def detail_page(config, store):
     if st.session_state.get(DETAIL_ACTION_PICKER_KEY) not in ids:
         st.session_state[DETAIL_ACTION_PICKER_KEY] = ids[index]
     labels = {
-        record.document_id: f"{record.document_name} - {queue_stage(record)} - "
-        f"{record.uploaded_at.strftime('%Y-%m-%d %H:%M')}"
+        record.document_id: " - ".join(
+            part
+            for part in [
+                record.document_name,
+                f"Job: {record.job_description}" if record.job_description else "",
+                queue_stage(record),
+                record.uploaded_at.strftime("%Y-%m-%d %H:%M"),
+            ]
+            if part
+        )
         for record in records
     }
     picker_cols = st.columns([1.4, 0.3, 0.3])
@@ -2600,6 +2716,8 @@ def detail_page(config, store):
     st.session_state["selected_document_id"] = document_id
 
     st.subheader(record.document_name)
+    if record.job_description:
+        st.caption(f"Job: {record.job_description}")
     render_status_strip(record)
 
     with st.expander("Source document", expanded=True):

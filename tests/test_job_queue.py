@@ -31,6 +31,7 @@ def test_background_worker_marks_startup_failure_failed(tmp_path, monkeypatch):
         document_type=DocumentType.CONTRACT,
         business_reference=None,
         notes=None,
+        job_description=None,
         source_file_size_bytes=None,
         source_file_mime_type=None,
     )
@@ -59,6 +60,7 @@ def test_retry_document_processing_creates_child_record_and_history(
             document_name="contract.pdf",
             document_type=DocumentType.CONTRACT,
             status=ProcessingStatus.FAILED,
+            job_description="Quarter-end vendor review",
             assignee="Legal",
         )
     )
@@ -92,7 +94,9 @@ def test_retry_document_processing_creates_child_record_and_history(
     assert original.workflow_status == WorkflowStatus.RETRY_PLANNED
     retry = store.load("doc-retry")
     assert retry.parent_document_id == "doc-failed"
+    assert retry.job_description == "Quarter-end vendor review"
     assert retry.assignee == "Legal"
     assert retry.workflow_status == WorkflowStatus.ASSIGNED
     assert submitted["document_id"] == "doc-retry"
+    assert submitted["job_description"] == "Quarter-end vendor review"
     assert submitted["source_path"].name == "retry-doc-retry-contract.pdf"

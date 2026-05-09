@@ -26,11 +26,13 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 | Streamlit Web Portal     |
 | Upload / Dashboard /     |
 | Actions / Settings       |
+| Up To 5 Files Per Job    |
 +------------+-------------+
              |
              v
 +--------------------------+
 | Local Working Copy       |
+| Job Description Metadata |
 | Download + Retry         |
 +------------+-------------+
              |

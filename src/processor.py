@@ -209,6 +209,7 @@ def compliance_context(record: DocumentRecord, extracted_text: str) -> str:
     parts = [
         extracted_text,
         record.document_name,
+        record.job_description or "",
         record.business_reference or "",
         record.notes or "",
     ]
@@ -381,6 +382,7 @@ class DocumentProcessor:
         document_type: DocumentType,
         business_reference: str | None = None,
         notes: str | None = None,
+        job_description: str | None = None,
         source_file_size_bytes: int | None = None,
         source_file_mime_type: str | None = None,
         document_id: str | None = None,
@@ -405,6 +407,7 @@ class DocumentProcessor:
             record.source_file_mime_type = source_file_mime_type
             record.business_reference = business_reference
             record.notes = notes
+            record.job_description = job_description
             record.error_message = None
         else:
             record = DocumentRecord(
@@ -415,6 +418,7 @@ class DocumentProcessor:
                 source_file_mime_type=source_file_mime_type,
                 business_reference=business_reference,
                 notes=notes,
+                job_description=job_description,
             )
         self.store.save(record)
 

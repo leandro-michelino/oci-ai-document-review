@@ -205,6 +205,7 @@ class DocumentRecord(BaseModel):
     processed_at: datetime | None = None
     review_status: ReviewStatus = ReviewStatus.PENDING
     review_comments: str | None = None
+    job_description: str | None = None
     business_reference: str | None = None
     notes: str | None = None
     parent_document_id: str | None = None
