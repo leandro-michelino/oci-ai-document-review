@@ -27,6 +27,11 @@ from src.processor import (
 )
 from src.report_generator import generate_markdown_report
 from src.safety_messages import GENAI_SAFETY_REVIEW_MESSAGE, sanitize_provider_message
+from src.text_extraction import (
+    DOCUMENT_UNDERSTANDING_SYNC_FILE_SIZE_LIMIT_BYTES,
+    DOCUMENT_UNDERSTANDING_SYNC_PAGE_LIMIT,
+    pdf_page_count,
+)
 from src.version import VERSION_LABEL
 
 RISK_ORDER = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
@@ -56,6 +61,23 @@ DASHBOARD_STATUS_FILTERS = [
     "Retry planned",
     "Reviewed",
 ]
+ALLOWED_UPLOAD_EXTENSIONS = [
+    "csv",
+    "htm",
+    "html",
+    "jpeg",
+    "jpg",
+    "json",
+    "log",
+    "md",
+    "pdf",
+    "png",
+    "txt",
+    "xml",
+    "yaml",
+    "yml",
+]
+OCI_OCR_EXTENSIONS = {"jpeg", "jpg", "png"}
 DASHBOARD_REFRESH_SECONDS = 10
 CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
 CONTACT_MESSAGE = "In case of any question, get in touch."
@@ -736,6 +758,58 @@ def apply_theme() -> None:
 def safe_upload_suffix(filename: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(filename).name).strip("._")
     return f"-{cleaned or 'upload'}"
+
+
+def validate_upload_requirements(uploaded, local_path: Path, config) -> tuple[list[str], list[str]]:
+    errors = []
+    notices = []
+    extension = Path(uploaded.name).suffix.lower().lstrip(".")
+    if extension not in ALLOWED_UPLOAD_EXTENSIONS:
+        allowed = ", ".join(sorted(ALLOWED_UPLOAD_EXTENSIONS))
+        errors.append(
+            f"Unsupported file type `.{extension or 'unknown'}`. Allowed types: {allowed}."
+        )
+    if uploaded.size <= 0:
+        errors.append("The selected file is empty.")
+    size_mb = uploaded.size / (1024 * 1024)
+    if size_mb > config.max_upload_mb:
+        errors.append(
+            f"File size is {size_mb:.2f} MB, above the configured {config.max_upload_mb} MB limit."
+        )
+    ocr_limit_mb = DOCUMENT_UNDERSTANDING_SYNC_FILE_SIZE_LIMIT_BYTES / (1024 * 1024)
+    if (
+        extension in OCI_OCR_EXTENSIONS
+        and uploaded.size > DOCUMENT_UNDERSTANDING_SYNC_FILE_SIZE_LIMIT_BYTES
+    ):
+        errors.append(
+            f"Image OCR files must be {ocr_limit_mb:.0f} MB or smaller for the current "
+            "OCI Document Understanding synchronous path."
+        )
+    if extension == "pdf":
+        pages = pdf_page_count(local_path, uploaded.name)
+        if pages and (
+            pages > DOCUMENT_UNDERSTANDING_SYNC_PAGE_LIMIT
+            or uploaded.size > DOCUMENT_UNDERSTANDING_SYNC_FILE_SIZE_LIMIT_BYTES
+        ):
+            notices.append(
+                f"This PDF has {pages} pages. Scanned pages will be OCR processed in "
+                "OCI chunks automatically when page count or chunk file size exceeds "
+                "the synchronous request limit."
+            )
+        elif pages is None:
+            notices.append(
+                "The app could not read the PDF page count locally. It will still queue the file, "
+                "but encrypted, damaged, or password-protected PDFs can fail during extraction."
+            )
+        if (
+            uploaded.size > DOCUMENT_UNDERSTANDING_SYNC_FILE_SIZE_LIMIT_BYTES
+            and pages == 1
+        ):
+            notices.append(
+                f"If this single-page PDF requires OCR, it may exceed the {ocr_limit_mb:.0f} MB "
+                "OCI synchronous file-size limit."
+            )
+    return errors, notices
 
 
 def load_app_config():
@@ -2261,22 +2335,7 @@ def upload_page(config, store):
         )
         uploaded = st.file_uploader(
             "File",
-            type=[
-                "pdf",
-                "png",
-                "jpg",
-                "jpeg",
-                "txt",
-                "md",
-                "csv",
-                "json",
-                "xml",
-                "html",
-                "htm",
-                "log",
-                "yaml",
-                "yml",
-            ],
+            type=ALLOWED_UPLOAD_EXTENSIONS,
             key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
             help=f"Maximum file size enforced by the app: {config.max_upload_mb} MB.",
         )
@@ -2295,7 +2354,6 @@ def upload_page(config, store):
                 st.error(
                     f"File exceeds the configured {config.max_upload_mb} MB limit."
                 )
-                uploaded_ok = False
         process_clicked = st.button(
             "Queue Document",
             disabled=not uploaded_ok,
@@ -2314,6 +2372,20 @@ def upload_page(config, store):
         ) as tmp:
             tmp.write(uploaded.getbuffer())
             tmp_path = Path(tmp.name)
+
+        requirement_errors, requirement_notices = validate_upload_requirements(
+            uploaded, tmp_path, config
+        )
+        if requirement_errors:
+            for message in requirement_errors:
+                st.error(message)
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+            st.stop()
+        for message in requirement_notices:
+            st.info(message)
 
         record = DocumentRecord(
             document_id=document_id,

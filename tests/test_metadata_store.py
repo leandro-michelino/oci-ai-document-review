@@ -10,6 +10,7 @@ from src.models import (
     WorkflowStatus,
 )
 from src.safety_messages import GENAI_SAFETY_REVIEW_MESSAGE
+from src.safety_messages import DOCUMENT_UNDERSTANDING_PAGE_LIMIT_MESSAGE
 
 
 def test_list_records_skips_invalid_metadata(tmp_path):
@@ -228,3 +229,26 @@ def test_load_sanitizes_stored_genai_content_filter_json(tmp_path):
 
     assert updated.error_message == GENAI_SAFETY_REVIEW_MESSAGE
     assert updated.audit_events[-1].detail == GENAI_SAFETY_REVIEW_MESSAGE
+
+
+def test_load_sanitizes_stored_document_ai_page_limit_json(tmp_path):
+    config = SimpleNamespace(local_metadata_dir=tmp_path)
+    store = MetadataStore(config)
+    raw = (
+        "OCI Document Understanding failed: {'target_service': 'ai_service_document', "
+        "'status': 413, 'message': 'Input file has too many pages, maximum number "
+        "of pages allowed is: 5'}"
+    )
+    store.save(
+        DocumentRecord(
+            document_id="doc-page-limit",
+            document_name="scan.pdf",
+            document_type=DocumentType.GENERAL,
+            status=ProcessingStatus.FAILED,
+            error_message=raw,
+        )
+    )
+
+    loaded = store.load("doc-page-limit")
+
+    assert loaded.error_message == DOCUMENT_UNDERSTANDING_PAGE_LIMIT_MESSAGE

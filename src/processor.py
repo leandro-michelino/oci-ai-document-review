@@ -2,6 +2,7 @@ import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 from src.compliance import (
@@ -16,8 +17,8 @@ from src.genai_client import GenAIClient
 from src.logger import get_logger
 from src.metadata_store import MetadataStore
 from src.models import (
-    DocumentRecord,
     DocumentAnalysis,
+    DocumentRecord,
     DocumentType,
     ExtractionResult,
     ProcessingStatus,
@@ -30,8 +31,16 @@ from src.safety_messages import (
     GENAI_SAFETY_REVIEW_MESSAGE,
     GENAI_SAFETY_REVIEW_RISK,
     is_genai_content_filter_text,
+    sanitize_provider_message,
 )
-from src.text_extraction import extract_text_locally
+from src.text_extraction import (
+    DOCUMENT_UNDERSTANDING_SYNC_FILE_SIZE_LIMIT_BYTES,
+    DOCUMENT_UNDERSTANDING_SYNC_PAGE_LIMIT,
+    PdfPageChunk,
+    extract_text_locally,
+    pdf_page_count,
+    write_pdf_page_chunks,
+)
 
 logger = get_logger(__name__)
 
@@ -127,7 +136,7 @@ def error_message(exc: Exception) -> str:
     if is_genai_content_filter_error(root):
         return GENAI_SAFETY_REVIEW_MESSAGE
     message = str(root).strip()
-    return message or root.__class__.__name__
+    return sanitize_provider_message(message) or message or root.__class__.__name__
 
 
 def is_genai_content_filter_error(exc: Exception) -> bool:
@@ -160,6 +169,34 @@ def fallback_safety_analysis(extraction: ExtractionResult) -> DocumentAnalysis:
         ],
         confidence_score=0.0,
         human_review_required=True,
+    )
+
+
+def merge_extraction_results(
+    chunk_results: list[tuple[PdfPageChunk, ExtractionResult]],
+) -> ExtractionResult:
+    text_parts = []
+    tables = []
+    key_values = {}
+    for chunk, extraction in chunk_results:
+        chunk_label = f"pages {chunk.start_page}-{chunk.end_page}"
+        if extraction.text.strip():
+            text_parts.append(f"[OCR {chunk_label}]\n{extraction.text.strip()}")
+        tables.extend(extraction.tables)
+        for key, value in extraction.key_values.items():
+            if key not in key_values:
+                key_values[key] = value
+            elif key_values[key] != value:
+                key_values[f"{chunk_label} - {key}"] = value
+    page_total = chunk_results[-1][0].end_page if chunk_results else 0
+    return ExtractionResult(
+        text="\n\n".join(text_parts),
+        tables=tables,
+        key_values=key_values,
+        source=(
+            "OCI Document Understanding chunked OCR "
+            f"({len(chunk_results)} chunks, {page_total} pages)"
+        ),
     )
 
 
@@ -262,6 +299,81 @@ class DocumentProcessor:
             self._document_ai = DocumentUnderstandingClient(self.config)
         return self._document_ai
 
+    def extract_with_document_understanding(
+        self,
+        local_path: Path,
+        document_name: str,
+        document_id: str,
+        object_name: str,
+        storage_name: str,
+        progress,
+    ) -> ExtractionResult:
+        page_count = pdf_page_count(local_path, document_name)
+        if page_count and (
+            page_count > DOCUMENT_UNDERSTANDING_SYNC_PAGE_LIMIT
+            or local_path.stat().st_size
+            > DOCUMENT_UNDERSTANDING_SYNC_FILE_SIZE_LIMIT_BYTES
+        ):
+            return self._extract_pdf_chunks(
+                local_path=local_path,
+                document_id=document_id,
+                storage_name=storage_name,
+                page_count=page_count,
+                progress=progress,
+            )
+        progress(
+            "Starting OCI Document Understanding extraction "
+            f"(timeout {self.config.document_ai_timeout_seconds}s, "
+            f"attempts {self.config.document_ai_retry_attempts})"
+        )
+        return self.document_ai.extract_document(object_name)
+
+    def _extract_pdf_chunks(
+        self,
+        local_path: Path,
+        document_id: str,
+        storage_name: str,
+        page_count: int,
+        progress,
+    ) -> ExtractionResult:
+        with TemporaryDirectory(prefix=f"ocr-{document_id}-") as tmp_dir:
+            chunks = write_pdf_page_chunks(
+                local_path,
+                Path(tmp_dir),
+                pages_per_chunk=DOCUMENT_UNDERSTANDING_SYNC_PAGE_LIMIT,
+                max_chunk_bytes=DOCUMENT_UNDERSTANDING_SYNC_FILE_SIZE_LIMIT_BYTES,
+            )
+            progress(
+                "Split scanned PDF for OCI Document Understanding "
+                f"({page_count} pages across {len(chunks)} OCR chunks)"
+            )
+            chunk_results = []
+            for index, chunk in enumerate(chunks, start=1):
+                chunk_object_name = (
+                    f"documents/{document_id}/ocr-chunks/"
+                    f"{index:03d}-{safe_document_name(storage_name)}"
+                )
+                self.object_storage.upload_file(chunk.path, chunk_object_name)
+                try:
+                    progress(
+                        "Running OCI Document Understanding OCR "
+                        f"chunk {index}/{len(chunks)} "
+                        f"(pages {chunk.start_page}-{chunk.end_page})"
+                    )
+                    chunk_results.append(
+                        (chunk, self.document_ai.extract_document(chunk_object_name))
+                    )
+                finally:
+                    try:
+                        self.object_storage.delete_object(chunk_object_name)
+                    except Exception:
+                        logger.warning(
+                            "Failed to delete temporary OCR chunk object %s",
+                            chunk_object_name,
+                            exc_info=True,
+                        )
+            return merge_extraction_results(chunk_results)
+
     def process(
         self,
         source_path: Path,
@@ -320,12 +432,14 @@ class DocumentProcessor:
                 record.extraction_source = local_extraction.source
                 progress(f"Extracted text locally from {local_extraction.source}")
             else:
-                progress(
-                    "Starting OCI Document Understanding extraction "
-                    f"(timeout {self.config.document_ai_timeout_seconds}s, "
-                    f"attempts {self.config.document_ai_retry_attempts})"
+                extraction = self.extract_with_document_understanding(
+                    local_path=local_path,
+                    document_name=document_name,
+                    document_id=document_id,
+                    object_name=object_name,
+                    storage_name=storage_name,
+                    progress=progress,
                 )
-                extraction = self.document_ai.extract_document(object_name)
                 record.extraction_source = (
                     extraction.source or "OCI Document Understanding"
                 )

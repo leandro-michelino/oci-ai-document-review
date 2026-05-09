@@ -114,6 +114,7 @@ Streamlit upload
   -> Object Storage put_object
   -> local extraction for text files and PDFs with selectable text
   -> Document Understanding OCR for images, scanned PDFs, and image-only PDFs
+  -> temporary limit-safe OCR chunks for scanned PDFs above OCI's synchronous limits
   -> DU text-only OCR fallback when rich table/key-value extraction fails
   -> JSON-safe extraction result conversion when Document Understanding is used
   -> GenAI CohereChatRequest
@@ -141,11 +142,13 @@ MAX_PARALLEL_JOBS=2
 
 The app validates runtime configuration before startup. Invalid OCI auth modes, zero or negative processing limits, out-of-range GenAI temperature, and unsafe compliance knowledge-base object names fail fast.
 
-Scanned PDFs and PDFs that contain page images use OCR. The app first tries rich Document Understanding extraction for OCR, tables, and key-values. If that rich extraction fails but text-only OCR succeeds, the app still sends the OCR text to GenAI and records the source as `OCI Document Understanding text-only OCR fallback`. Scanned files need more time than text-based PDFs and can fail if the scan is low quality, rotated, password-protected, too large, or above the upload limit.
+Scanned PDFs and PDFs that contain page images use OCR. The app first tries rich Document Understanding extraction for OCR, tables, and key-values. If a scanned PDF has more than 5 pages or a chunk is above the synchronous file-size limit, the processor writes smaller temporary PDF chunks, uploads each chunk to Object Storage, runs Document Understanding on each chunk, merges text/tables/key-values, and deletes the temporary chunk objects. If rich extraction fails but text-only OCR succeeds, the app still sends the OCR text to GenAI and records the source as `OCI Document Understanding text-only OCR fallback`. Scanned files need more time than text-based PDFs and can fail if the scan is low quality, rotated, password-protected, too large, or above the upload limit.
 
 Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run remains in an active stage beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
 
 The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh stays on the Dashboard instead of returning to Upload. The Dashboard body runs inside a Streamlit fragment and refreshes every 10 seconds while the session is active. That updates metrics and split queue tables without using a full browser reload. Dashboard metric cards are emitted as one compact HTML block through `dashboard_metrics_html()` so Streamlit Markdown does not treat later cards as escaped code text.
+
+The Upload page validates basic requirements before queueing: supported extension, non-empty file, and `MAX_UPLOAD_MB`. It also blocks image OCR uploads above the current OCI synchronous file-size limit. For PDFs, it attempts to read the local page count. PDFs above the OCI synchronous OCR page or file-size limit are allowed and the user is informed that scanned pages will be processed in chunks. If the page count cannot be read locally, the user sees a warning that encrypted, damaged, or password-protected PDFs may fail during extraction.
 
 The Actions page includes a Source document section before the AI review area. It uses the preserved local working copy in `data/uploads` and shows a `Download Doc for Review` button so the reviewer can open the original file locally. If the working copy is missing, the reviewer still sees metadata, lifecycle details, extracted text, and generated analysis.
 

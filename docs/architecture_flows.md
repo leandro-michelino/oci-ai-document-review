@@ -53,6 +53,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +--------------------------+                    +----------------------------+
 | Local Text Extraction    |                    | OCI Document Understanding |
 | No DU Call               |                    | OCR + Rich Extraction      |
+|                          |                    | Limit-Safe PDF Chunks      |
 +------------+-------------+                    +-------------+--------------+
              |                                                |
              |                                                v
@@ -132,6 +133,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                  |
                  +--> Document Understanding OCR
                  |    Images / scanned PDFs
+                 |    Scanned PDFs split into limit-safe chunks when needed
                  |
                  +--> DU text-only OCR fallback
                  |    Used when table/key-value extraction fails
@@ -189,6 +191,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +----------------------+     +----------------------------+
 | Local Text Extract   |     | Document Understanding     |
 | TXT / CSV / PDF text |     | OCR, Tables, Key Values    |
+|                      |     | Limit-Safe PDF Chunking    |
 +----------+-----------+     +----------+-----------------+
            |                             |
            |                             v
@@ -471,6 +474,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +----------------------+      +----------------------+      +----------------------+
 | Local Text Read      |      | Local PDF Text Read  |      | OCI Document         |
 | No DU Call           |      | No DU Call           |      | Understanding OCR    |
+|                      |      |                      |      | Limit-Safe Chunks    |
 +----------+-----------+      +----------+-----------+      +----------+-----------+
            |                             |                             |
            |                             |                             v

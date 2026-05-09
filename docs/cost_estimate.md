@@ -88,6 +88,7 @@ PDF with selectable embedded text
 Image, scanned PDF, or image-only PDF
   -> Object Storage upload
   -> Document Understanding rich extraction
+  -> for scanned PDFs above synchronous request limits, multiple DU chunk requests are made and merged
   -> GenAI
 
 Image or scanned PDF where rich extraction fails
@@ -102,8 +103,11 @@ The same document type produces very different cost profiles:
 ```text
 1-page text PDF       -> Object Storage + GenAI
 1-page scanned receipt -> Object Storage + DU rich + GenAI
+12-page scanned PDF    -> Object Storage + 3 DU rich chunk requests + GenAI
 1-page scan where DU rich fails -> Object Storage + DU rich attempt + DU OCR fallback + GenAI
 ```
+
+Document Understanding billing remains page-driven in the estimate. Chunking changes the number of API requests for scanned PDFs above OCI's synchronous per-request limits, not the number of source pages being OCR processed.
 
 ## Pricing References
 

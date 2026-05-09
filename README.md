@@ -45,18 +45,20 @@ Users upload a document in the web portal. The platform then:
 1. Saves the upload locally and creates an UPLOADED metadata record.
 2. Queues the document in a background worker pool so the browser does not wait on OCI processing.
 3. Stores the original file in a private OCI Object Storage bucket.
-4. Extracts text locally for text-native files and PDFs with selectable text.
-5. Uses OCI Document Understanding only for images, scanned PDFs, or image-only PDFs.
-6. Falls back to DU text-only OCR when rich table/key-value extraction fails.
-7. Sends the extracted content to OCI Generative AI for structured review.
-8. Checks the extracted content and user metadata against a curated compliance knowledge base in Object Storage.
-9. Auto-detects the document type when `Auto-detect` was selected during upload.
-10. Creates a JSON metadata record and a Markdown report.
-11. Shows the document in a clean Dashboard queue.
-12. Opens the Actions page for AI review, human decision, lifecycle details, and downloads.
-13. Lets a reviewer assign ownership, set an SLA, add workflow comments, and inspect the audit trail.
-14. Lets failed documents be retried from the preserved local working copy.
-15. Lets a reviewer correct the document type, then approve or reject the document.
+4. Validates basic upload requirements such as extension, empty file, and configured size limit.
+5. Extracts text locally for text-native files and PDFs with selectable text.
+6. Uses OCI Document Understanding only for images, scanned PDFs, or image-only PDFs.
+7. Splits scanned PDFs above OCI's synchronous OCR request limits into temporary chunks.
+8. Falls back to DU text-only OCR when rich table/key-value extraction fails.
+9. Sends the extracted content to OCI Generative AI for structured review.
+10. Checks the extracted content and user metadata against a curated compliance knowledge base in Object Storage.
+11. Auto-detects the document type when `Auto-detect` was selected during upload.
+12. Creates a JSON metadata record and a Markdown report.
+13. Shows the document in a clean Dashboard queue.
+14. Opens the Actions page for AI review, human decision, lifecycle details, and downloads.
+15. Lets a reviewer assign ownership, set an SLA, add workflow comments, and inspect the audit trail.
+16. Lets failed documents be retried from the preserved local working copy.
+17. Lets a reviewer correct the document type, then approve or reject the document.
 ```
 
 The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
@@ -86,6 +88,9 @@ Original file uploaded to OCI Object Storage
   |
   v
 Text is extracted locally or with OCI Document Understanding OCR
+  |
+  v
+Scanned PDFs over OCI request limits are split into temporary OCR chunks
   |
   v
 DU text-only OCR fallback is used when rich extraction fails
@@ -119,7 +124,7 @@ The Dashboard is intentionally action-oriented. It shows queue metrics, a next-a
 
 The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Reviewers can download the original source document for review when the local working copy is available. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata.
 
-Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first, with a text-only OCR fallback when rich extraction fails. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
+Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first. Scanned PDFs above OCI's synchronous request limits are split into temporary OCR chunks, uploaded to Object Storage, processed, merged, and cleaned up before GenAI analysis. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
 
 ## Compliance Knowledge Base
 
@@ -220,7 +225,7 @@ Uploaded file
 
 If local extraction or Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
 
-PDFs that contain scanned pages or embedded images are handled through OCI Document Understanding OCR. They can take much longer than PDFs with selectable text because OCI must read the pixels on each page. Very large, low-quality, rotated, password-protected, or image-heavy PDFs may still fail or return little text. For best results, use clear scans, normal page orientation, and files below the configured upload limit.
+PDFs that contain scanned pages or embedded images are handled through OCI Document Understanding OCR. They can take much longer than PDFs with selectable text because OCI must read the pixels on each page. The app uses synchronous Document Understanding requests and automatically splits scanned PDFs into chunks when the page count or chunk file size is above the OCI per-request limits. Very large, low-quality, rotated, password-protected, image-heavy, or single-page scans above the OCI synchronous file-size limit may still fail or return little text. For best results, use clear scans, normal page orientation, and files below the configured upload limit.
 
 Document Understanding calls are bounded by runtime settings:
 

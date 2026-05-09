@@ -193,6 +193,176 @@ def test_processor_auto_detect_relabels_from_genai_class(tmp_path, monkeypatch):
     ).read_text(encoding="utf-8")
 
 
+def test_processor_chunks_scanned_pdf_over_document_understanding_limit(
+    tmp_path, monkeypatch
+):
+    from pypdf import PdfWriter
+
+    uploaded_objects = []
+    deleted_objects = []
+
+    class FakeObjectStorage:
+        def __init__(self, config):
+            self.config = config
+
+        def upload_file(self, local_path, object_name):
+            assert local_path.exists()
+            uploaded_objects.append(object_name)
+
+        def delete_object(self, object_name):
+            deleted_objects.append(object_name)
+
+        @staticmethod
+        def object_uri(object_name):
+            return f"oci://bucket/{object_name}"
+
+    class FakeDocumentAI:
+        def __init__(self, config):
+            self.config = config
+
+        @staticmethod
+        def extract_document(object_name):
+            assert "ocr-chunks" in object_name
+            chunk_index = int(object_name.rsplit("/", 1)[-1].split("-", 1)[0])
+            return ExtractionResult(
+                text=f"Chunk {chunk_index} OCR text",
+                tables=[{"chunk": chunk_index}],
+                key_values={f"Field {chunk_index}": f"Value {chunk_index}"},
+            )
+
+    class FakeGenAI:
+        def __init__(self, config):
+            self.config = config
+
+        @staticmethod
+        def analyze_document(prompt):
+            assert "Chunk 1 OCR text" in prompt
+            assert "Chunk 2 OCR text" in prompt
+            assert "Chunk 3 OCR text" in prompt
+            assert "Tables detected by OCI Document Understanding: 3" in prompt
+            return DocumentAnalysis(
+                document_class="GENERAL",
+                executive_summary="Reviewed long scan.",
+                confidence_score=0.83,
+            )
+
+    monkeypatch.setattr("src.processor.ObjectStorageClient", FakeObjectStorage)
+    monkeypatch.setattr("src.processor.DocumentUnderstandingClient", FakeDocumentAI)
+    monkeypatch.setattr("src.processor.GenAIClient", FakeGenAI)
+
+    config = SimpleNamespace(
+        local_metadata_dir=tmp_path / "metadata",
+        local_reports_dir=tmp_path / "reports",
+        local_uploads_dir=tmp_path / "uploads",
+        max_document_chars=50000,
+        genai_model_id="cohere.command-r-plus",
+        document_ai_timeout_seconds=30,
+        document_ai_retry_attempts=1,
+    )
+    config.local_metadata_dir.mkdir()
+    config.local_reports_dir.mkdir()
+    config.local_uploads_dir.mkdir()
+    source = tmp_path / "scan.pdf"
+    writer = PdfWriter()
+    for _ in range(12):
+        writer.add_blank_page(width=72, height=72)
+    with source.open("wb") as file:
+        writer.write(file)
+
+    record = DocumentProcessor(config).process(
+        source_path=source,
+        document_name="scan.pdf",
+        document_type=DocumentType.GENERAL,
+        document_id="doc-long-scan",
+    )
+
+    assert record.status == ProcessingStatus.REVIEW_REQUIRED
+    assert record.extraction_source == (
+        "OCI Document Understanding chunked OCR (3 chunks, 12 pages)"
+    )
+    assert uploaded_objects[0] == "documents/doc-long-scan/scan.pdf"
+    assert uploaded_objects[1:] == [
+        "documents/doc-long-scan/ocr-chunks/001-scan.pdf",
+        "documents/doc-long-scan/ocr-chunks/002-scan.pdf",
+        "documents/doc-long-scan/ocr-chunks/003-scan.pdf",
+    ]
+    assert deleted_objects == uploaded_objects[1:]
+
+
+def test_processor_uses_single_document_understanding_call_at_page_limit(
+    tmp_path, monkeypatch
+):
+    from pypdf import PdfWriter
+
+    extracted_objects = []
+
+    class FakeObjectStorage:
+        def __init__(self, config):
+            self.config = config
+
+        def upload_file(self, local_path, object_name):
+            assert local_path.exists()
+
+        @staticmethod
+        def object_uri(object_name):
+            return f"oci://bucket/{object_name}"
+
+    class FakeDocumentAI:
+        def __init__(self, config):
+            self.config = config
+
+        @staticmethod
+        def extract_document(object_name):
+            extracted_objects.append(object_name)
+            return ExtractionResult(text="Five-page OCR text")
+
+    class FakeGenAI:
+        def __init__(self, config):
+            self.config = config
+
+        @staticmethod
+        def analyze_document(prompt):
+            assert "Five-page OCR text" in prompt
+            return DocumentAnalysis(
+                document_class="GENERAL",
+                executive_summary="Reviewed five-page scan.",
+                confidence_score=0.82,
+            )
+
+    monkeypatch.setattr("src.processor.ObjectStorageClient", FakeObjectStorage)
+    monkeypatch.setattr("src.processor.DocumentUnderstandingClient", FakeDocumentAI)
+    monkeypatch.setattr("src.processor.GenAIClient", FakeGenAI)
+
+    config = SimpleNamespace(
+        local_metadata_dir=tmp_path / "metadata",
+        local_reports_dir=tmp_path / "reports",
+        local_uploads_dir=tmp_path / "uploads",
+        max_document_chars=50000,
+        genai_model_id="cohere.command-r-plus",
+        document_ai_timeout_seconds=30,
+        document_ai_retry_attempts=1,
+    )
+    config.local_metadata_dir.mkdir()
+    config.local_reports_dir.mkdir()
+    config.local_uploads_dir.mkdir()
+    source = tmp_path / "scan.pdf"
+    writer = PdfWriter()
+    for _ in range(5):
+        writer.add_blank_page(width=72, height=72)
+    with source.open("wb") as file:
+        writer.write(file)
+
+    record = DocumentProcessor(config).process(
+        source_path=source,
+        document_name="scan.pdf",
+        document_type=DocumentType.GENERAL,
+        document_id="doc-five-page-scan",
+    )
+
+    assert record.status == ProcessingStatus.REVIEW_REQUIRED
+    assert extracted_objects == ["documents/doc-five-page-scan/scan.pdf"]
+
+
 def test_processor_skips_document_understanding_for_text_files(tmp_path, monkeypatch):
     class FakeObjectStorage:
         def __init__(self, config):

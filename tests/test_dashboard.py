@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 from streamlit.testing.v1 import AppTest
@@ -28,6 +29,7 @@ from app import (
     source_download_name,
     sort_action_records,
     upload_document_type_options,
+    validate_upload_requirements,
     workflow_status_label,
     workflow_status_options,
 )
@@ -213,6 +215,46 @@ def test_display_error_message_hides_raw_genai_safety_json():
 
     assert "Inappropriate content detected" not in display_error_message(raw)
     assert "content safety filter" in display_error_message(raw)
+
+
+def test_display_error_message_hides_raw_document_ai_page_limit_json():
+    raw = (
+        "OCI Document Understanding failed: {'target_service': 'ai_service_document', "
+        "'status': 413, 'message': 'Input file has too many pages, maximum number "
+        "of pages allowed is: 5'}"
+    )
+
+    message = display_error_message(raw)
+
+    assert "target_service" not in message
+    assert "too many pages" not in message
+    assert "5-page synchronous limit" in message
+    assert "automatically splits" in message
+
+
+def test_upload_requirement_validation_alerts_for_invalid_file(tmp_path):
+    source = tmp_path / "document.exe"
+    source.write_bytes(b"binary")
+    uploaded = SimpleNamespace(name="document.exe", size=12 * 1024 * 1024)
+    config = SimpleNamespace(max_upload_mb=10)
+
+    errors, notices = validate_upload_requirements(uploaded, source, config)
+
+    assert notices == []
+    assert any("Unsupported file type" in message for message in errors)
+    assert any("above the configured 10 MB limit" in message for message in errors)
+
+
+def test_upload_requirement_validation_blocks_large_images_for_ocr(tmp_path):
+    source = tmp_path / "receipt.png"
+    source.write_bytes(b"not a real image")
+    uploaded = SimpleNamespace(name="receipt.png", size=9 * 1024 * 1024)
+    config = SimpleNamespace(max_upload_mb=10)
+
+    errors, notices = validate_upload_requirements(uploaded, source, config)
+
+    assert notices == []
+    assert any("Image OCR files must be 8 MB or smaller" in message for message in errors)
 
 
 def test_source_download_metadata_uses_safe_name_and_mime_type():

@@ -262,21 +262,22 @@ Recommended processing flow:
    Auto-detect, CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, or GENERAL.
 4. Upload a PDF, image, or text-native file such as TXT, Markdown, CSV, JSON, XML, HTML, LOG, YAML, or YML.
 5. Click Queue Document.
-6. The portal saves the local working copy and queues the document.
-7. Choose the next action shown by the app:
+6. The portal validates the extension, empty-file state, configured size limit, and PDF page-count warning before queueing.
+7. The portal saves the local working copy and queues the document.
+8. Choose the next action shown by the app:
    View Dashboard, Open Actions, or Upload Another.
-8. Use Dashboard to watch the queue while the worker pool runs the live steps:
-   Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
-9. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
-10. Click Open next to a document.
-11. Use the Actions page to review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details.
-12. Use the Workflow panel to set the workflow status, assignee, and SLA due date.
-13. Add workflow comments when the reviewer needs extra context or follow-up.
-14. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
-15. Inspect the audit trail and retry history in the same Workflow panel.
-16. Correct the document type from the Decision panel if the detected label needs adjustment.
-17. Approve or reject the review from the Decision panel. Rejections require comments.
-18. Download Markdown or JSON results from the Downloads section.
+9. Use Dashboard to watch the queue while the worker pool runs the live steps:
+   Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, automatic limit-safe OCR chunks for scanned PDFs above OCI's synchronous request limits, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
+10. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
+11. Click Open next to a document.
+12. Use the Actions page to review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details.
+13. Use the Workflow panel to set the workflow status, assignee, and SLA due date.
+14. Add workflow comments when the reviewer needs extra context or follow-up.
+15. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
+16. Inspect the audit trail and retry history in the same Workflow panel.
+17. Correct the document type from the Decision panel if the detected label needs adjustment.
+18. Approve or reject the review from the Decision panel. Rejections require comments.
+19. Download Markdown or JSON results from the Downloads section.
 ```
 
 Processing fails clearly if a required live service step fails. For example, if local extraction and Document Understanding OCR return no extractable text, the app records a failed status instead of sending empty content to GenAI.
@@ -285,7 +286,7 @@ Workflow data is stored in the same local JSON metadata record as the processing
 
 Future phase option: add a customer document chatbot that answers read-only questions from the same workflow data. The assistant can answer questions such as `What is the status of my file?`, `Why was it rejected?`, `Who is reviewing it?`, `When is the SLA due?`, or `What do I need to retry?`. It should retrieve from document metadata, audit events, workflow comments, reports, extracted summaries, and approval decisions, then answer with the relevant document id and next step. It should not change review state or expose documents outside the authenticated customer context.
 
-Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. The app first tries rich OCR/table/key-value extraction, then falls back to text-only OCR if the rich mode fails. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Password-protected, very large, low-resolution, or heavily compressed image PDFs may still return little text or fail.
+Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. The app first tries rich OCR/table/key-value extraction, then falls back to text-only OCR if the rich mode fails. Scanned PDFs above OCI's synchronous request limits are split into temporary chunks and merged before GenAI analysis. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Password-protected, very large, low-resolution, single-page files above the synchronous OCR size limit, or heavily compressed image PDFs may still return little text or fail.
 
 Expense-like documents are checked against the curated compliance knowledge base after GenAI analysis. The default Object Storage object is `compliance/public_sector_entities.csv`, seeded from the bundled `data/compliance/public_sector_entities.csv` file if the object is missing. The check uses extracted text, file name, business reference, notes, and selected AI fields. Matching public-sector entities or cues add a `Public-sector expense compliance review` note, route the document to `Compliance review` in Actions, and show the risk with severity-labeled badges such as `Risk Small`, `Risk Medium`, and `Risk High`. The catalog uses `LOW`, `MEDIUM`, and `HIGH` values so routine public-service fees can be lower severity, generic public-sector cues can be medium severity, and public officials, facilitation payments, political contributions, sanctions, conflicts of interest, or sole-source exceptions can be high severity. Treat this as a reviewer-routing control, not as a final compliance determination.
 
