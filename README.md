@@ -14,7 +14,7 @@ OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for 
 
 The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, Events, Functions, and a customer document-status chatbot.
 
-Current version: `v0.3.0`
+Current version: `v0.4.0`
 
 Contact: Leandro Michelino | Oracle ACE | leandro.michelino@oracle.com.
 

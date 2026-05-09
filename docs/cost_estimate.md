@@ -4,7 +4,7 @@ This document provides illustrative cost estimates for two deployment tiers of t
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.3.0`
+Current project version: `v0.4.0`
 
 ## Disclaimer
 

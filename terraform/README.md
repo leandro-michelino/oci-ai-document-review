@@ -4,7 +4,7 @@ This directory prepares the OCI resources for the MVP.
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.3.0`
+Current project version: `v0.4.0`
 
 Deployment is intended to run from your laptop only. There are no GitHub Actions or CI deployment workflows in this repository.
 

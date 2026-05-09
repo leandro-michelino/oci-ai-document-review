@@ -8,6 +8,8 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## v0.4.0 - 2026-05-09
+
 - Removed the separate Upload `Reference` field so customers use only `Expense name or reference` for upload grouping/context.
 - Linked-file review lists now make the selected document visually obvious with a highlighted file card and selected marker.
 - Dashboard and Actions now use stronger progressive disclosure: tabbed queues, collapsed expense groups, linked-file expanders, a focused Decision panel, and expanders for workflow, source document, AI summary, analysis details, lifecycle, extracted text, and downloads.
