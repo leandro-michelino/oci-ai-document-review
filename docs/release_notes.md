@@ -20,6 +20,7 @@ Release notes summarize user-visible workflow, infrastructure, documentation, an
 - Replaced separate multi-file group cards with group rows inside the same selectable queue table used by individual files.
 - Group rows show file count, stage summary, target action, highest risk, confidence range, SLA, owner, and the first target file.
 - `Review selected` now handles both individual file rows and multi-file group rows.
+- Removed the redundant Dashboard `Expense groups` overview expander now that group rows are part of each queue table.
 
 ## v0.5.1 - 2026-05-09
 

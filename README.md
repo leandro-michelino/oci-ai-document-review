@@ -126,7 +126,7 @@ Reviewer assigns owner, SLA, workflow status, or comments
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, collapsed expense/reference batches, and tabbed work queues for Ready, Processing, Failed, and Reviewed records. Individual files and multi-file expense/reference groups render in the same compact selectable table with one `Review selected` action, so large batches stay readable without duplicate cards or a long vertical file list.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, and tabbed work queues for Ready, Processing, Failed, and Reviewed records. Individual files and multi-file expense/reference groups render in the same compact selectable table with one `Review selected` action, so large batches stay readable without duplicate cards, duplicate group expanders, or a long vertical file list.
 
 The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. After an approver selects a file, the AI review summary appears before the Decision panel so the approver sees the executive summary, key points, items or services, risks, and recommendations before choosing `Approve` or `Reject`. Workflow fields, comments, retry, retry history, and audit events now live inside a `Workflow, notes, retry, and audit` expander to keep the main review screen focused. For multi-file expense/reference groups, Actions shows group aggregation with file counts, files needing decision or fix, total extracted items/services, total risks, and an Items / Services by file table when receipts or invoices contain line items. Reviewers can download the original source document for review when the local working copy is available. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata.
 
@@ -457,7 +457,7 @@ The app supports:
 - Markdown report generation
 - Local JSON metadata
 - Approve and reject review actions
-- Dashboard queue view with metrics, next-action guidance, search, collapsed expense groups, active elapsed time, tabbed queue sections, shortcuts, and selectable tables containing both individual files and multi-file group rows
+- Dashboard queue view with metrics, next-action guidance, search, active elapsed time, tabbed queue sections, shortcuts, and selectable tables containing both individual files and multi-file group rows
 - Dashboard status filters for queue, approval, rejection, retry, failed, processing, and compliance-review states
 - Actions page for prioritized approvals, top Decision panel, linked-file context, group aggregation, source-document download, workflow expander, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document

@@ -10,7 +10,7 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 
 ## Fixes Applied
 
-- Reworked Dashboard and Actions around progressive disclosure: Dashboard uses tabbed queue sections and collapsed expense groups, while Actions keeps Decision visible and moves workflow, notes, retry, linked files, source document, AI summary, analysis details, lifecycle, extracted text, and downloads into focused expanders.
+- Reworked Dashboard and Actions around progressive disclosure: Dashboard uses tabbed queue tables with group rows for multi-file expense/reference batches, while Actions keeps Decision visible and moves workflow, notes, retry, linked files, source document, AI summary, analysis details, lifecycle, extracted text, and downloads into focused expanders.
 - Added Actions group aggregation for multi-file expense/reference submissions, including decision/fix counts, total items/services, total risk notes, and Items / Services by file.
 - Renamed OCI Document Understanding chunk object naming from opaque numbered prefixes to original-file-stem sequence names such as `Receipt_21Apr2026_112647_1.pdf`.
 - Added configurable retention with a 30-day default across VM-local metadata, Markdown reports, preserved upload copies, and Object Storage uploaded document objects.

@@ -23,7 +23,6 @@ from app import (
     document_type_label,
     expense_group_badges_html,
     expense_group_aggregation,
-    expense_group_file_list,
     expense_group_item_rows,
     expense_reference_file_card_html,
     expense_row_group_target,
@@ -179,16 +178,13 @@ def test_expense_row_groups_groups_dashboard_rows_by_reference():
     assert groups[1][1]["Document ID"].tolist() == ["doc-3"]
 
 
-def test_expense_group_visual_helpers_summarize_files_and_statuses():
+def test_expense_group_badges_summarize_statuses():
     ready = make_record("doc-ready", "ready.pdf")
     processing = make_record(
         "doc-processing", "processing.pdf", status=ProcessingStatus.PROCESSING
     )
     failed = make_record("doc-failed", "failed.pdf", status=ProcessingStatus.FAILED)
 
-    assert expense_group_file_list([ready, processing, failed], limit=2) == (
-        "ready.pdf, processing.pdf, +1 more"
-    )
     badges = expense_group_badges_html([ready, processing, failed])
     assert "1 Failed" in badges
     assert "1 Processing" in badges

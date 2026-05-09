@@ -1844,14 +1844,6 @@ def expense_row_groups(rows: pd.DataFrame) -> list[tuple[str | None, pd.DataFram
     )
 
 
-def expense_group_stage_summary(records: list[DocumentRecord]) -> str:
-    stages = {}
-    for record in records:
-        stage = queue_stage(record)
-        stages[stage] = stages.get(stage, 0) + 1
-    return ", ".join(f"{count} {stage}" for stage, count in sorted(stages.items()))
-
-
 def expense_group_badges_html(records: list[DocumentRecord]) -> str:
     stage_tones = {
         "Failed": "state-bad",
@@ -1869,13 +1861,6 @@ def expense_group_badges_html(records: list[DocumentRecord]) -> str:
         for stage, count in sorted(stages.items())
     ]
     return f'<div class="status-strip">{"".join(badges)}</div>'
-
-
-def expense_group_file_list(records: list[DocumentRecord], limit: int = 4) -> str:
-    names = [record.document_name for record in records[:limit]]
-    if len(records) > limit:
-        names.append(f"+{len(records) - limit} more")
-    return ", ".join(names)
 
 
 def compact_value_label(values: pd.Series, empty: str = "-") -> str:
@@ -2296,49 +2281,6 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
             key="dashboard_focus_upload_clear",
         ):
             open_page_from_dashboard(PAGE_UPLOAD)
-
-
-def render_expense_groups_overview(records: list[DocumentRecord]) -> None:
-    groups = expense_reference_groups(records)
-    if not groups:
-        return
-    with st.expander(f"Expense groups ({len(groups)})", expanded=False):
-        for reference, group_records in groups[:6]:
-            target = next(
-                (record for record in group_records if is_actionable_record(record)),
-                group_records[0],
-            )
-            with st.container(border=True):
-                st.markdown(
-                    f"""
-                    <div class="expense-group-card">
-                      <div class="expense-group-head">
-                        <div>
-                          <div class="expense-group-label">Expense name or reference</div>
-                          <div class="expense-group-title">{escape(reference)}</div>
-                        </div>
-                        <span class="badge state-info">{len(group_records)} files</span>
-                      </div>
-                      {expense_group_badges_html(group_records)}
-                      <div class="expense-file-list">
-                        {escape(expense_group_file_list(group_records))}
-                      </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                cols = st.columns([0.35, 1.65], vertical_alignment="center")
-                if cols[0].button(
-                    "Review",
-                    type="primary",
-                    key=f"expense_group_open_{target.document_id}",
-                    width="stretch",
-                ):
-                    open_page_from_dashboard(PAGE_DETAIL, target.document_id)
-                cols[1].caption(
-                    f"Review starts with {target.document_name}; "
-                    f"{expense_group_stage_summary(group_records)}."
-                )
 
 
 def render_queue_section(view: str, rows: pd.DataFrame) -> None:
@@ -3227,7 +3169,6 @@ def render_dashboard_live_content(config, store) -> None:
     render_dashboard_metrics(df, active_runs)
 
     render_dashboard_focus(config, records)
-    render_expense_groups_overview(records)
 
     failures = df[df["Status"] == "FAILED"]
     if not failures.empty:
