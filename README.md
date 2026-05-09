@@ -18,6 +18,23 @@ Current version: `v0.3.0`
 
 Contact: Leandro Michelino | Oracle ACE | leandro.michelino@oracle.com.
 
+## Future Enhancements
+
+These items describe the next practical phases after the MVP. They are intentionally shown early because they explain how the current Streamlit, local metadata, and laptop-driven deployment model can evolve into an enterprise platform.
+
+- Add Autonomous Database for metadata
+- Add APEX or Visual Builder as enterprise frontend
+- Add a customer document chatbot for status, rejection reason, retry, owner, SLA, and risk-summary questions
+- Add OCI Events and Functions for automatic processing
+- Add OCI Vault for secrets
+- Add OCI Logging for operational visibility
+
+### Next Phase: Customer Document Chatbot
+
+A future phase can add a read-only chatbot so customers can ask natural-language questions about uploaded documents, such as `What is the status of my file?`, `Why was it rejected?`, `Who is reviewing it?`, or `What should I upload again?`.
+
+The chatbot should answer from trusted application data only: local or database-backed metadata, audit events, workflow comments, generated reports, extracted summaries, and approval/rejection decisions. It should not make final approval decisions or invent missing information. In the enterprise version, this assistant should sit behind authentication and authorization so each customer only sees documents they are allowed to access.
+
 ## What This Project Does
 
 This project is a working OCI document review portal for business files such as receipts, invoices, contracts, compliance documents, reports, PDFs, and images.
@@ -409,18 +426,3 @@ The project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - `PATCH`: bug fixes, documentation updates, and small UX refinements.
 
 The current source-of-truth version is `src/version.py`, and release notes are tracked in `CHANGELOG.md`.
-
-## Future Enhancements
-
-- Add Autonomous Database for metadata
-- Add APEX or Visual Builder as enterprise frontend
-- Add a customer document chatbot for status, rejection reason, retry, owner, SLA, and risk-summary questions
-- Add OCI Events and Functions for automatic processing
-- Add OCI Vault for secrets
-- Add OCI Logging for operational visibility
-
-### Next Phase: Customer Document Chatbot
-
-A future phase can add a read-only chatbot so customers can ask natural-language questions about uploaded documents, such as `What is the status of my file?`, `Why was it rejected?`, `Who is reviewing it?`, or `What should I upload again?`.
-
-The chatbot should answer from trusted application data only: local or database-backed metadata, audit events, workflow comments, generated reports, extracted summaries, and approval/rejection decisions. It should not make final approval decisions or invent missing information. In the enterprise version, this assistant should sit behind authentication and authorization so each customer only sees documents they are allowed to access.

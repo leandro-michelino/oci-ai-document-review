@@ -8,6 +8,10 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+No unreleased changes.
+
+## v0.3.0
+
 - Documentation now makes the live deployment boundary explicit: pushing to GitHub records source changes, but the OCI VM is updated only by running `./scripts/deploy.sh` from the local laptop.
 - Added post-deployment verification guidance for confirming the VM has the current dashboard code, the `oci-ai-document-review` systemd service is active, and the portal responds on the Streamlit URL.
 - Documented the Dashboard `At a glance` rendering guard: metric cards are emitted as one compact HTML block so Streamlit does not render later cards as escaped code text.
@@ -17,9 +21,6 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - Terraform now validates narrow ingress CIDRs, flexible-shape sizing, and network CIDR syntax; setup rejects explicit open ingress such as `0.0.0.0/0`.
 - ASCII architecture flows now include source-document download, safety-filter sanitization, and the deployment/configuration boundary.
 - Workspace cleanup removes generated Python, test, linter, and deployment-render scratch files from the local tree.
-
-## v0.3.0
-
 - Dashboard page state persists in the browser URL, so refresh stays on Dashboard.
 - Dashboard status refresh uses Streamlit fragments instead of full browser reloads.
 - Queue tables are split by Processing, Ready, Failed, and Reviewed.
