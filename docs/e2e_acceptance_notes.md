@@ -10,93 +10,155 @@ Run date: 2026-05-09
 
 This walkthrough exercised the documented MVP paths as a human uploader, reviewer, and operator would use them:
 
-- OCI Preflight
-- Upload and processing path using text-native documents
-- Multi-file expense name/reference grouping
-- Dashboard review queues and compact grouped display
-- Actions review summary, workflow, comments, approve, reject, and next-item routing
-- Public-sector expense compliance routing
-- Failed-document retry from the preserved local working copy
-- Markdown report generation and source-document retention
+- Upload page, including the `How To Use` button
+- How To Use guide, including uploader, approver, and operator paths
+- Dashboard queues, expense groups, and existing uploaded document records
+- Actions review page using the already-uploaded E2E records
+- Settings page and live OCI Preflight
+- Local metadata, reports, preserved upload copies, and source-download readiness
+- Public-sector expense compliance routing evidence
+- Failed-document retry state
 - Optional OCI Events and Functions event-intake importer path
-- Local retention cleanup timer entrypoint
+- Local retention cleanup entrypoint
+- Terraform, Ansible, lint, and automated test validation
 
-The run used repository documentation files as uploaded documents for the normal text-native flow. A small synthetic receipt was also used to exercise the compliance-risk path because the repository docs are not expense receipts.
+The run reused ignored local runtime artifacts already present under `data/uploads`, `data/metadata`, and `data/reports`. Those artifacts represent repository documentation uploads plus a synthetic public-sector receipt used for compliance routing.
 
-## Process Notes
+## Human Walkthrough Notes
 
 ```text
-1. Ran static and automated validation.
-   Result: Ruff passed, Terraform validated, Ansible syntax checked, and pytest passed.
+1. Opened the app as an uploader.
+   Result: Upload opened by default and showed runtime context, upload controls,
+   and the How To Use button.
 
-2. Ran OCI Preflight with the configured runtime credentials.
-   Result: Object Storage write/read/delete passed, Document Understanding API access passed, and OCI Generative AI responded with the configured Cohere model.
+2. Clicked How To Use.
+   Result: The guide opened with uploader, approver, and operator sections.
+   The operator path covered OCI Preflight, cost awareness, retention, and
+   automatic-intake readiness.
 
-3. Processed README.md and docs/platform_usage.md as a grouped documentation upload.
-   Result: Both documents were uploaded to private Object Storage, extracted locally, analyzed by OCI Generative AI, saved as metadata, and rendered into Markdown reports.
+3. Verified legacy guide routing.
+   Result: The older `?page=How to Use` URL still normalized to `How To Use`.
 
-4. Processed a synthetic public-sector receipt.
-   Result: The document was classified as INVOICE, compliance-risk notes were added, and Actions routed it as Compliance review.
+4. Opened Dashboard.
+   Result: The Dashboard rendered against the existing uploaded records and
+   exposed queue/group review context without requiring new uploads.
 
-5. Opened Dashboard as the reviewer.
-   Result: Dashboard showed the grouped documentation upload as one compact expense/reference group and showed the receipt as priority compliance work.
+5. Opened Actions.
+   Result: The Actions page rendered the existing review queue state, including
+   reviewed records and the failed retry-planned parent record.
 
-6. Opened Actions as the reviewer.
-   Result: The selected file summary, AI review summary, Decision panel, workflow controls, source download, analysis, lifecycle, extracted text, and downloads were available through the expected focused sections.
+6. Opened Settings.
+   Result: Settings rendered the OCI Preflight controls and runtime settings.
 
-7. Tried to reject without comments.
-   Result: The app correctly required comments, but the Streamlit test harness exposed a session-state stability issue in the review comments widget.
-   Fix applied: Initialized the review-comments widget key before rendering the text area.
+7. Ran live OCI Preflight.
+   Result: Object Storage, Document Understanding, and Generative AI all passed
+   with the configured runtime credentials.
 
-8. Rejected the compliance receipt with comments.
-   Result: The record moved to REJECTED, review state became REJECTED, workflow closed, and the app advanced to the next action item.
+8. Checked existing uploaded document artifacts.
+   Result: Five local metadata records were present. Approved, rejected, failed,
+   retry-planned, risk-noted, report-backed, and upload-copy states were all
+   represented.
 
-9. Assigned workflow, added a reviewer comment, and approved the documentation files.
-   Result: Workflow assignment and comment were persisted, audit events were written, reports were refreshed, and approval advanced to the next action item.
+9. Ran optional event-intake importer.
+   Result: The command completed successfully and reported that event intake is
+   disabled for the current deployment.
 
-10. Simulated an initial failed document with a preserved local working copy, then queued Retry Processing.
-    Result: The parent record moved to RETRY_PLANNED, retry history was written, a child processing record was created, the child reached REVIEW_REQUIRED, and the child was approved.
-    Fix applied: Retry now also sets the pending-detail routing key so Actions opens the retry child deterministically after queueing.
+10. Ran local retention cleanup.
+    Result: The command completed successfully and removed no active artifacts.
 
-11. Ran the optional event-intake importer entrypoint.
-    Result: `scripts/poll_event_queue.py --limit 1` ran successfully and reported that event intake is disabled in the current deployment.
+11. Ran full repository validation.
+    Result: Ruff, pytest, Terraform validation, and Ansible syntax checks passed.
+```
 
-12. Ran the local retention cleanup entrypoint.
-    Result: The first run exposed that `scripts/cleanup_retention.py` could not import `src` when executed the same way systemd runs it.
-    Fix applied: Added the project root to `sys.path`, matching the already-correct event-intake script pattern. The cleanup command now runs successfully.
+## Existing Runtime Records
+
+```text
+20260509-133022-89aeca30
+  security_notes.md
+  status: APPROVED
+  review: APPROVED
+  report: present
+  upload copy: present
+
+e2e-failed-retry-source
+  security_notes.md
+  status: FAILED
+  review: PENDING
+  workflow: RETRY_PLANNED
+  upload copy: present
+
+e2e-platform-usage-doc
+  platform_usage.md
+  status: APPROVED
+  review: APPROVED
+  report: present
+  upload copy: present
+
+e2e-public-sector-receipt
+  e2e_public_sector_receipt.txt
+  status: REJECTED
+  review: REJECTED
+  compliance risks: present
+  report: present
+  upload copy: present
+
+e2e-readme-doc
+  README.md
+  status: APPROVED
+  review: APPROVED
+  report: present
+  upload copy: present
 ```
 
 ## Evidence Summary
 
 ```text
-Automated tests:
-  .venv/bin/pytest -q
+UI walkthrough:
+  PYTHONPATH=. .venv/bin/python /tmp/e2e_ui_walkthrough.py
+  Result: ui_walkthrough=PASS
 
-Lint:
-  .venv/bin/ruff check .
-
-Terraform:
-  terraform -chdir=terraform validate
-
-Ansible:
-  ansible-playbook --syntax-check -i localhost, ansible/playbook.yml
-
-Live OCI preflight:
+Live OCI Preflight:
   Object Storage: PASS
   Document Understanding: PASS
   Generative AI: PASS
 
 Event intake:
-  event_intake imported=0 skipped=0 failed=0
-  Event intake is disabled.
+  PYTHONPATH=. .venv/bin/python scripts/poll_event_queue.py --limit 1
+  Result: event_intake imported=0 skipped=0 failed=0
+  Result detail: Event intake is disabled.
 
 Retention cleanup:
-  Retention cleanup complete: 0 metadata record(s), 0 invalid metadata file(s), 0 report(s), 0 upload(s) removed.
+  PYTHONPATH=. .venv/bin/python scripts/cleanup_retention.py
+  Result: 0 metadata record(s), 0 invalid metadata file(s), 0 report(s),
+  0 upload(s) removed.
+
+Lint:
+  .venv/bin/ruff check .
+  Result: passed
+
+Automated tests:
+  .venv/bin/pytest
+  Result: 118 passed
+
+Terraform:
+  terraform -chdir=terraform fmt -check -diff
+  terraform -chdir=terraform validate
+  Result: passed
+
+Ansible:
+  ansible-playbook --syntax-check ansible/playbook.yml
+  Result: passed
 ```
+
+## Issues Found
+
+No application bug was found during this run.
+
+One manual-harness issue appeared when the standalone Streamlit walkthrough script was launched from `/tmp` without the repository on `PYTHONPATH`. Running it with `PYTHONPATH=.` matched the project `pytest.ini` configuration and passed. No repository fix was needed.
 
 ## Local Runtime Artifacts
 
-The run created ignored local metadata, upload, and report artifacts under:
+The walkthrough reused ignored local artifacts under:
 
 ```text
 data/metadata/
@@ -104,11 +166,4 @@ data/reports/
 data/uploads/
 ```
 
-The live processing path also uploaded source objects under the configured private Object Storage bucket. The project lifecycle policy deletes uploaded document objects under `documents/` after the configured retention period.
-
-## Fixes Applied During The Walkthrough
-
-- Stabilized the Actions review-comments widget before rejection validation.
-- Removed noisy same-run widget-state assignment for the Actions group/file selectors during next-item routing.
-- Routed retry children through the same pending-detail selection key used by approve/reject navigation.
-- Fixed `scripts/cleanup_retention.py` so it can be executed directly by the VM systemd timer.
+These files are intentionally ignored and must not be committed. They may include customer-like document content, extracted text previews, report output, and workflow history.
