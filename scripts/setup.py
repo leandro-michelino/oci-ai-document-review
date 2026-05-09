@@ -774,6 +774,9 @@ def main() -> None:
         return
 
     ui.success("Wrote .env and terraform/terraform.tfvars.")
+    if os.getenv("SETUP_SH_ORCHESTRATED"):
+        ui.print("Configuration is ready. setup.sh will continue with the selected next steps.")
+        return
     ui.print("No OCI resources were created by setup.")
     ui.print("")
     ui.print("Next steps:")

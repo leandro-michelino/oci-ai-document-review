@@ -6,6 +6,15 @@ Current project version: `v0.5.1`
 
 Release notes summarize user-visible workflow, infrastructure, documentation, and cost-estimate changes. `CHANGELOG.md` remains the source of truth for full repository history.
 
+## Unreleased
+
+### End-To-End Setup
+
+- Added root `setup.sh` as the recommended laptop-driven deployment entry point.
+- `./setup.sh` now creates or refreshes `.venv`, installs dependencies, runs the guided configuration wizard, validates code, validates Terraform and Ansible, deploys infrastructure and application changes, waits for the portal, and prints the ready-to-use URL.
+- Added `--configure-only`, `--deploy-only`, and `--skip-checks` modes for split configuration, repeat deployment, and faster trusted reruns.
+- Updated setup documentation across README, implementation guide, platform usage guide, and Terraform README.
+
 ## v0.5.1 - 2026-05-09
 
 ### Cost Estimate

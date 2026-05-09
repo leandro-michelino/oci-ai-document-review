@@ -54,7 +54,15 @@ Create or choose a project compartment before deployment:
 ocid1.compartment.oc1..exampleproject
 ```
 
-Run the setup wizard first. It validates the OCI profile, validates compartment OCIDs, fetches subscribed OCI regions, discovers the Object Storage namespace, separates runtime region from GenAI region selection, normalizes ingress CIDRs, asks for retention days, and probes OCI Generative AI before writing local config files.
+For an end-to-end deployment from the repository root, prefer:
+
+```bash
+./setup.sh
+```
+
+The root setup script validates local tools, creates or refreshes `.venv`, runs the setup wizard, runs local validation, applies Terraform, deploys with Ansible, waits for the Streamlit port, and prints the ready-to-use portal URL.
+
+You can also run the setup wizard first. It validates the OCI profile, validates compartment OCIDs, fetches subscribed OCI regions, discovers the Object Storage namespace, separates runtime region from GenAI region selection, normalizes ingress CIDRs, asks for retention days, and probes OCI Generative AI before writing local config files.
 
 Interactive setup:
 

@@ -8,6 +8,16 @@ Current project version: `v0.5.1`
 
 ## Local Preparation
 
+Recommended end-to-end path:
+
+```bash
+./setup.sh
+```
+
+The root setup script creates or refreshes `.venv`, installs dependencies, runs the guided OCI setup wizard, validates the repository, runs Terraform, deploys with Ansible, waits for the Streamlit port, and prints the portal URL. Use `./setup.sh --configure-only` to stop after configuration, or `./setup.sh --deploy-only` to deploy from existing `.env` and `terraform/terraform.tfvars`.
+
+Manual preparation:
+
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -64,10 +74,10 @@ terraform plan
 Deploy end to end from the repo root:
 
 ```bash
-./scripts/deploy.sh
+./setup.sh --deploy-only
 ```
 
-The deploy script runs Terraform, packages the app, runs Ansible, starts the systemd service, and prints the portal URL plus operations commands.
+`setup.sh --deploy-only` runs validation and then calls `scripts/deploy.sh`. The deploy script runs Terraform, packages the app, runs Ansible, starts the systemd service, and prints the portal URL plus operations commands. If you have already validated locally and want the lower-level deploy command, run `./scripts/deploy.sh` directly.
 
 ## Release Package Hygiene
 

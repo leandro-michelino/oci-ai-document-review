@@ -6,6 +6,12 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - `MINOR`: visible workflow, cloud integration, or capability changes.
 - `PATCH`: bug fixes, documentation updates, and small UX refinements.
 
+## Unreleased
+
+- Added a root `setup.sh` end-to-end setup wrapper that creates or refreshes `.venv`, runs the guided configuration wizard, validates the repository, deploys Terraform and Ansible, waits for the portal, and prints the ready-to-use URL.
+- Documented `setup.sh`, `--configure-only`, `--deploy-only`, and `--skip-checks` in the README, implementation guide, platform usage guide, and Terraform README.
+- Updated `scripts/setup.py` completion output so the guided wizard hands back cleanly to `setup.sh` when orchestrated by the root wrapper.
+
 ## v0.5.1 - 2026-05-09
 
 - Updated the project patch version and release notes for the repository cleanup pass.

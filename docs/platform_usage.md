@@ -97,7 +97,23 @@ Ansible also scrubs these file patterns after unpacking the release on the VM. T
 
 ## First-Time Setup
 
-Create a virtual environment:
+For a new end-to-end deployment, run:
+
+```bash
+./setup.sh
+```
+
+The root setup script creates or refreshes `.venv`, installs dependencies, runs the guided setup wizard, validates the repository, applies Terraform, deploys with Ansible, waits for the Streamlit port, and prints the ready-to-use portal URL.
+
+Useful modes:
+
+```bash
+./setup.sh --configure-only
+./setup.sh --deploy-only
+./setup.sh --skip-checks
+```
+
+Manual setup is also available. Create a virtual environment:
 
 ```bash
 python3.11 -m venv .venv
@@ -148,10 +164,10 @@ If setup cannot discover your current public IP, it stops instead of writing an 
 Run:
 
 ```bash
-./scripts/deploy.sh
+./setup.sh --deploy-only
 ```
 
-GitHub is not the live deployment target. Committing and pushing source changes preserves them in the remote repository, but the running portal changes only after this local deployment script builds a new release archive, copies it to the VM, and restarts the `oci-ai-document-review` service.
+GitHub is not the live deployment target. Committing and pushing source changes preserves them in the remote repository, but the running portal changes only after this local deployment script builds a new release archive, copies it to the VM, and restarts the `oci-ai-document-review` service. `./setup.sh --deploy-only` is the recommended wrapper; it validates first and then calls `./scripts/deploy.sh`.
 
 The deploy script:
 

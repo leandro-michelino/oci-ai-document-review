@@ -262,7 +262,27 @@ This estimate is not an official Oracle quote and may not be realistic for your 
 
 ## Setup
 
-### 1. Create the virtual environment
+### Recommended: end-to-end setup
+
+For a new laptop-driven deployment, run the root setup script:
+
+```bash
+./setup.sh
+```
+
+`setup.sh` creates or refreshes `.venv`, installs Python dependencies, runs the guided OCI configuration wizard, validates the repository, runs Terraform, deploys the app with Ansible, waits for the Streamlit port, and prints the ready-to-use portal URL plus SSH and operations commands.
+
+Useful modes:
+
+```bash
+./setup.sh --configure-only   # write .env and terraform/terraform.tfvars, then stop before deploy
+./setup.sh --deploy-only      # deploy from existing .env and terraform/terraform.tfvars
+./setup.sh --skip-checks      # skip local validation before deploy
+```
+
+All other flags are passed to `scripts/setup.py`, so non-interactive deployments can still use the setup wizard flags shown below.
+
+### Manual path: create the virtual environment
 
 ```bash
 python3.11 -m venv .venv
@@ -270,9 +290,9 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-### 2. Run the setup wizard
+### Manual path: run the setup wizard
 
-`scripts/setup.py` is the only step that collects your environment-specific values. It reads your existing OCI CLI profile, probes live OCI services, and writes the two local files that Terraform and the app need. It does not create any OCI resources.
+`scripts/setup.py` collects your environment-specific values. It reads your existing OCI CLI profile, probes live OCI services, and writes the two local files that Terraform and the app need. It does not create any OCI resources when run directly.
 
 ```bash
 python scripts/setup.py
@@ -359,7 +379,7 @@ python scripts/setup.py \
   --non-interactive
 ```
 
-### After the wizard finishes
+### After the manual wizard finishes
 
 The wizard prints these next steps on completion:
 
@@ -401,10 +421,10 @@ The plan prepares a private Object Storage bucket, a lifecycle policy that delet
 Deploy end to end:
 
 ```bash
-./scripts/deploy.sh
+./setup.sh --deploy-only
 ```
 
-The deployed VM uses the existing OCI API key and policies from your local OCI profile. For code-only changes, Terraform should normally report no infrastructure changes, while Ansible still refreshes the app archive, writes runtime configuration, installs dependencies if needed, installs the daily local retention timer, and restarts Streamlit.
+You can also call `./scripts/deploy.sh` directly after `.env` and `terraform/terraform.tfvars` exist. The deployed VM uses the existing OCI API key and policies from your local OCI profile. For code-only changes, Terraform should normally report no infrastructure changes, while Ansible still refreshes the app archive, writes runtime configuration, installs dependencies if needed, installs the daily local retention timer, and restarts Streamlit.
 
 `scripts/deploy.sh` builds the temporary Ansible inventory from Terraform outputs. It uses the private key path derived from `ssh_public_key_path`, or the explicit `SSH_PRIVATE_KEY_PATH` environment override when you need to use a different local key.
 
