@@ -269,7 +269,7 @@ Recommended processing flow:
    View Dashboard, Open Actions, or Upload Another.
 10. Use Dashboard to watch the queue while the worker pool runs the live steps:
    Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, automatic limit-safe OCR chunks for scanned PDFs above OCI's synchronous request limits, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
-11. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Multi-file uploads stay grouped under their shared Expense name or reference in the Expense groups overview and inside each phase queue. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
+11. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Multi-file uploads stay grouped under their shared Expense name or reference in the Expense groups overview and inside each phase queue. Active rows show how long they have been working, and stale runs are marked failed automatically during Dashboard refresh. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
 12. Click Open next to a document.
 13. Use the Actions page to review the expense name or reference, linked files for the same expense/reference, executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details.
 14. Use the Workflow panel to set the workflow status, assignee, and SLA due date.
@@ -336,10 +336,12 @@ Dashboard
   - Provides search across document name, reference, status, action, and summary.
   - Provides Upload and Actions shortcuts for common navigation.
   - Keeps multi-file uploads together in an Expense groups overview and under expense/reference headers in each phase queue.
+  - Shows elapsed working time for active processing rows.
   - Shows split queue tables for Processing, Ready, Failed, and Reviewed documents.
   - Opens each document in Actions from the Open button at the start of its row.
   - Keeps the route in the browser URL with `?page=Dashboard`.
   - Refreshes Dashboard components with a Streamlit fragment instead of full browser reloads.
+  - Marks stale active records as failed during refresh so stuck uploads do not remain in Processing forever.
 
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.

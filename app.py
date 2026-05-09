@@ -1879,13 +1879,13 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
                 <div class="dashboard-workbench">
                   <div class="dashboard-panel">
                     <div class="muted-label">Queue status</div>
-                    <h3>{active_count} document{'s are' if active_count != 1 else ' is'} processing</h3>
+                    <h3>{active_count} file{'s are' if active_count != 1 else ' is'} processing</h3>
                     <p class="panel-note">The worker pool can run {config.max_parallel_jobs} at a time.</p>
                   </div>
                   <div class="dashboard-panel">
                     <div class="muted-label">Reviewed</div>
                     <h3>{reviewed_count} complete</h3>
-                    <p class="panel-note">Refresh the status if a processing document looks stale.</p>
+                    <p class="panel-note">Refresh the status if a processing file looks stale.</p>
                   </div>
                 </div>
                 """,
@@ -1900,12 +1900,12 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
             <div class="dashboard-workbench">
               <div class="dashboard-panel">
                 <div class="muted-label">Queue status</div>
-                <h3>No documents need action</h3>
-                <p class="panel-note">{reviewed_count} document{'s have' if reviewed_count != 1 else ' has'} already been reviewed.</p>
+                <h3>No files need action</h3>
+                <p class="panel-note">{reviewed_count} file{'s have' if reviewed_count != 1 else ' has'} already been reviewed.</p>
               </div>
               <div class="dashboard-panel">
                 <div class="muted-label">Next step</div>
-                <h3>Upload a document</h3>
+                <h3>Upload files</h3>
                 <p class="panel-note">New uploads will appear here as processing, ready, failed, or reviewed.</p>
               </div>
             </div>
@@ -3165,25 +3165,29 @@ def howto_page(config, store):
     page_header(
         "Guide",
         "How to Use",
-        "A short path for submitting documents and completing reviewer decisions.",
+        "A short path for submitting files and completing reviewer decisions.",
     )
 
     uploader_steps = [
         (
-            "Choose the review type",
-            "Start in Upload, choose a document type or Auto-detect, then add an optional reference and notes.",
+            "Choose the review type and context",
+            "Start in Upload, choose a document type or Auto-detect, then add an optional reference, expense name or reference, and notes.",
         ),
         (
-            "Queue the document",
-            "Attach the PDF, image, or text file and click Queue Document. The browser can move on while the worker processes it.",
+            "Attach one to five files",
+            "Select PDFs, images, or text files. When you select more than one file, Expense name or reference is required so the set stays together.",
+        ),
+        (
+            "Queue the submission",
+            "Click Queue Document or Queue Documents. The browser can move on while workers process the files in the background.",
         ),
         (
             "Watch the queue",
-            "Use Dashboard to see whether the document is queued, processing, ready, failed, or reviewed.",
+            "Use Dashboard to see expense groups, linked files, active processing time, ready reviews, failures, and reviewed items.",
         ),
         (
             "Fix only failed items",
-            "If processing fails, open the item from Dashboard or Actions, check the failure detail, and retry with a corrected file.",
+            "If processing fails or becomes stale, open the item from Dashboard or Actions, check the failure detail, and retry with a corrected file.",
         ),
     ]
     approver_steps = [
@@ -3192,8 +3196,12 @@ def howto_page(config, store):
             "Use Actions for the review queue. The highest-priority item is selected first.",
         ),
         (
-            "Read the source and AI review",
-            "Download Doc for Review when needed, then check the summary, extracted fields, risks, and recommendations.",
+            "Read the source and linked files",
+            "Download Doc for Review when needed, then use the linked-files panel to see other files from the same expense name or reference.",
+        ),
+        (
+            "Check the AI review",
+            "Review the summary, key points, items or services, extracted fields, risks, recommendations, and missing information.",
         ),
         (
             "Update workflow details",
@@ -3209,7 +3217,7 @@ def howto_page(config, store):
         '<div class="howto-grid">'
         + render_howto_panel(
             "For uploaders",
-            "Use this path when you are submitting a document for AI-assisted review.",
+            "Use this path when you are submitting one file or a small related file set for AI-assisted review.",
             uploader_steps,
         )
         + render_howto_panel(
@@ -3224,10 +3232,10 @@ def howto_page(config, store):
     st.markdown("### Queue states")
     st.markdown(
         '<div class="howto-status-grid">'
-        '<div class="howto-status"><strong>Queued / Processing</strong><span>The document is waiting for or running through OCR, extraction, GenAI, and compliance checks.</span></div>'
-        '<div class="howto-status"><strong>Ready</strong><span>The document needs a reviewer to inspect the results and approve or reject.</span></div>'
-        '<div class="howto-status"><strong>Failed</strong><span>The document needs an operational fix or retry before review can continue.</span></div>'
-        '<div class="howto-status"><strong>Reviewed</strong><span>The document has already been approved or rejected and stays available for audit.</span></div>'
+        '<div class="howto-status"><strong>Queued / Processing</strong><span>The file is waiting for or running through OCR, extraction, GenAI, and compliance checks. Dashboard shows active elapsed time.</span></div>'
+        '<div class="howto-status"><strong>Ready</strong><span>The file needs a reviewer to inspect the results and approve, reject, or handle compliance review.</span></div>'
+        '<div class="howto-status"><strong>Failed</strong><span>The file needs an operational fix or retry before review can continue. Stale active runs are marked failed automatically.</span></div>'
+        '<div class="howto-status"><strong>Reviewed</strong><span>The file has already been approved or rejected and stays available for audit with its expense group.</span></div>'
         "</div>",
         unsafe_allow_html=True,
     )

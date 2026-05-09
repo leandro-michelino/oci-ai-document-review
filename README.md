@@ -43,7 +43,7 @@ Users upload one document or a small submission of up to five files in the web p
 
 ```text
 1. Saves each uploaded file locally and creates an UPLOADED metadata record.
-2. Queues the document in a background worker pool so the browser does not wait on OCI processing.
+2. Queues each file in a background worker pool so the browser does not wait on OCI processing.
 3. Stores the original file in a private OCI Object Storage bucket.
 4. Validates basic upload requirements such as file count, mandatory multi-file expense name or reference, extension, empty file, and configured size limit.
 5. Extracts text locally for text-native files and PDFs with selectable text.
@@ -54,8 +54,8 @@ Users upload one document or a small submission of up to five files in the web p
 10. Checks the extracted content and user metadata against a curated compliance knowledge base in Object Storage.
 11. Auto-detects the document type when `Auto-detect` was selected during upload.
 12. Creates a JSON metadata record and a Markdown report.
-13. Shows the document in a clean Dashboard queue.
-14. Opens the Actions page for AI review, human decision, lifecycle details, and downloads.
+13. Shows the file in a clean Dashboard queue, grouped by expense name or reference when applicable.
+14. Opens the Actions page for AI review, linked-file context, human decision, lifecycle details, and downloads.
 15. Lets a reviewer assign ownership, set an SLA, add workflow comments, and inspect the audit trail.
 16. Lets failed documents be retried from the preserved local working copy.
 17. Lets a reviewer correct the document type, then approve or reject the document.
@@ -68,16 +68,19 @@ The goal is not to replace human approval. The goal is to give reviewers a real,
 After the user clicks Queue Document or Queue Documents, the portal accepts the file set, creates one metadata record per file, and queues the live backend workflow. Multi-file uploads share the same expense name or reference. Dashboard keeps those files together in an Expense groups overview and under expense/reference headers inside each phase queue, while Actions shows the linked files for the selected expense/reference.
 
 ```text
-User uploads file
+User uploads 1 to 5 files
   |
   v
-Local working copy saved
+Expense name or reference is required for multi-file submissions
+  |
+  v
+Local working copies are saved
   |
   v
 Metadata status is set to UPLOADED
   |
   v
-Background worker pool accepts the job
+Background worker pool accepts one queued record per file
   |
   +--> Worker 1 processes a document
   |
@@ -108,10 +111,13 @@ Auto-detected document type is applied when requested
 Metadata and Markdown report are saved
   |
   v
-Dashboard shows the document as Ready
+Dashboard shows expense groups, active elapsed time, and Ready files
   |
   v
 Reviewer opens the Actions page
+  |
+  v
+Reviewer downloads the source and checks linked files from the same expense/reference
   |
   v
 Reviewer assigns owner, SLA, workflow status, or comments
@@ -409,7 +415,7 @@ streamlit run app.py
 
 The app supports:
 
-- Document upload
+- One-to-five-file upload with required expense name or reference for multi-file submissions
 - Object Storage upload
 - Document Understanding extraction
 - GenAI JSON analysis
@@ -417,9 +423,9 @@ The app supports:
 - Markdown report generation
 - Local JSON metadata
 - Approve and reject review actions
-- Dashboard queue view with metrics, next-action guidance, search, split queue tables, shortcuts, and per-row Open actions
+- Dashboard queue view with metrics, next-action guidance, search, expense groups, active elapsed time, split queue tables, shortcuts, and per-row Open actions
 - Dashboard status filters for queue, approval, rejection, retry, failed, processing, and compliance-review states
-- Actions page for prioritized approvals, source-document download, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
+- Actions page for prioritized approvals, linked-file context, source-document download, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document
 - Field guide with `?` explanations for review and file metadata fields
 - OCI Preflight checks in Settings

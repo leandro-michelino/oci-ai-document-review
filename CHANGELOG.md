@@ -8,7 +8,9 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
-No unreleased changes.
+- Refreshed the in-app How to Use guide for one-to-five-file submissions, mandatory multi-file expense name or reference, Dashboard expense groups, stale processing cleanup, source-document download, and approver linked-file review.
+- Updated README, platform usage, implementation notes, repository review, and ASCII architecture flows so documentation matches the current expense-grouped upload and review workflow.
+- Cleaned generated local cache and personal agent artifacts from the working tree while keeping runtime secrets, Terraform state, deployment context, metadata, reports, and uploads ignored.
 
 ## v0.3.0
 

@@ -26,7 +26,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 | Streamlit Web Portal     |
 | Upload / Dashboard /     |
 | Actions / Settings       |
-| Up To 5 Files Per Job    |
+| 1-5 Files Per Submission |
 +------------+-------------+
              |
              v
@@ -97,13 +97,15 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                     +----------------------------+
                     | Dashboard Queue            |
                     | URL State + Fragment       |
-                    | Refresh + Split Tables     |
+                    | Expense Groups + Filters   |
+                    | Elapsed + Stale Refresh    |
                     +-------------+--------------+
                                   |
                                   v
                     +----------------------------+
                     | Actions Review             |
-                    | Source Download, Workflow  |
+                    | Linked Files + Source      |
+                    | Download, Workflow         |
                     | Type, Decide               |
                     | Next-In-Line Routing       |
                     +----------------------------+
@@ -165,9 +167,11 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +----------------------+
 | Local Working Copy   |
 | data/uploads         |
+| Expense Reference    |
 +----------+-----------+
            |
-           | metadata status UPLOADED
+           | one metadata record per file
+           | shared expense/reference for multi-file submissions
            v
 +----------------------+
 | Worker Pool          |
@@ -249,16 +253,63 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                          v
               +----------------------------+
               | Dashboard Queue            |
+              | Expense Groups / Filters   |
               | Processing / Ready /       |
               | Failed / Reviewed          |
+              | Active Elapsed + Stale Fix |
               +----------+-----------------+
                          |
                          v
               +----------------------------+
               | Actions Review             |
-              | Source Download / Workflow |
+              | Linked Files / Source      |
+              | Download / Workflow        |
               | Type / Approve             |
               | Next-In-Line Navigation    |
+              +----------------------------+
+```
+
+## Upload Batch and Expense Group Flow
+
+```text
++--------------------------+
+| Upload Page              |
+| Select 1 to 5 files      |
++------------+-------------+
+             |
+             +----------------------------+----------------------------+
+             |                            |                            |
+             v                            v                            |
++--------------------------+  +----------------------------+           |
+| Single File              |  | Multiple Files             |           |
+| Expense Reference        |  | Expense Reference Required |           |
+| Optional                 |  | Before Queueing            |           |
++------------+-------------+  +-------------+--------------+           |
+             |                              |                          |
+             +---------------+--------------+                          |
+                             |                                         |
+                             v                                         |
+              +----------------------------+                           |
+              | One Metadata Record        |                           |
+              | Per Uploaded File          |                           |
+              +-------------+--------------+                           |
+                            |
+                            v
+              +----------------------------+
+              | Shared Expense Reference   |
+              | Stored On Each File        |
+              +-------------+--------------+
+                            |
+                            v
+              +----------------------------+
+              | Dashboard Expense Groups   |
+              | Queue Headers + Overview   |
+              +-------------+--------------+
+                            |
+                            v
+              +----------------------------+
+              | Actions Linked Files Panel |
+              | End-To-End Batch Context   |
               +----------------------------+
 ```
 
@@ -268,13 +319,15 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +---------------------------+
 | Dashboard Work Queues     |
 | Search + Status Filter    |
+| Expense Groups            |
 +-------------+-------------+
               |
               v
 +---------------------------+
 | Queue Row Metadata        |
 | status, review, action,   |
-| workflow, SLA, risk       |
+| workflow, SLA, risk,      |
+| expense/reference         |
 +-------------+-------------+
               |
               +-----------------------+-----------------------+-----------------------+
@@ -292,6 +345,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                          | Visible Queue Sections    |
                          | Processing / Ready /      |
                          | Failed / Reviewed         |
+                         | Grouped When Applicable   |
                          +---------------------------+
 ```
 
@@ -416,10 +470,12 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +----------------------+
 | Dashboard Components |
 | Metrics, Next Action,|
-| Search, Split Tables |
+| Search, Filters,     |
+| Groups, Split Tables |
 +----------+-----------+
            |
            | reads latest local JSON metadata
+           | marks stale active records failed
            v
 +----------------------+
 | Updated Queue State  |
