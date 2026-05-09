@@ -30,6 +30,8 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 - Added an Upload Batch and Expense Group ASCII flow that shows how one metadata record per file stays tied together by the shared expense name or reference through Dashboard and Actions.
 - Re-reviewed tracked repository contents for secret exposure and redundant configuration. Real `.env`, Terraform state/tfvars, deployment archives, local metadata, uploads, reports, and caches are ignored; personal agent settings are not present in tracked files; tracked OCIDs are placeholders or tests.
 - Re-ran full validation across the Streamlit app, tests, Terraform, and Ansible syntax after the dashboard filter, chatbot documentation, and architecture updates.
+- Ran an end-to-end acceptance walkthrough across preflight, upload/processing, Dashboard, Actions approval/rejection, workflow comments, retry, event-intake polling, and retention cleanup. Notes are tracked in `docs/e2e_acceptance_notes.md`.
+- Fixed Actions review-comment state initialization, retry child routing, next-item selector state, and the direct retention cleanup script import path found during the walkthrough.
 - Added Dashboard status filtering documentation and ASCII flow coverage for Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, and Retry planned states.
 - Added Phase 2 customer chatbot documentation and ASCII flow coverage for read-only status, rejection reason, retry, owner, SLA, and risk-summary questions.
 - Replaced the Actions inline source preview with a `Download Doc for Review` button, avoiding optional Streamlit PDF dependencies on the VM.

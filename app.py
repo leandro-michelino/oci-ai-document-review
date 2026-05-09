@@ -2725,10 +2725,12 @@ def render_review_action_panel(config, store, record, key_prefix: str) -> None:
     else:
         st.info(f"Current review decision: {record.review_status.value}")
 
+    comments_key = f"{key_prefix}_comments_{record.document_id}"
+    if comments_key not in st.session_state:
+        st.session_state[comments_key] = record.review_comments or ""
     comments = st.text_area(
         "Review comments",
-        value=record.review_comments or "",
-        key=f"{key_prefix}_comments_{record.document_id}",
+        key=comments_key,
     )
     cols = st.columns(2)
     if cols[0].button(
@@ -2799,6 +2801,7 @@ def render_retry_panel(config, store, record, key_prefix: str) -> None:
             refresh_markdown_report(config, store.load(record.document_id))
             st.session_state["selected_document_id"] = new_document_id
             st.session_state["dashboard_selected_document"] = new_document_id
+            st.session_state[PENDING_DETAIL_DOCUMENT_KEY] = new_document_id
             st.success("Retry queued. Opening the new processing record.")
             st.rerun()
 
@@ -3387,10 +3390,8 @@ def detail_page(config, store):
     pending_document_id = st.session_state.pop(PENDING_DETAIL_DOCUMENT_KEY, None)
     if pending_document_id in ids:
         st.session_state["selected_document_id"] = pending_document_id
-        st.session_state[DETAIL_ACTION_PICKER_KEY] = pending_document_id
-        st.session_state[DETAIL_GROUP_PICKER_KEY] = action_group_for_document(
-            records, pending_document_id
-        )
+        st.session_state.pop(DETAIL_ACTION_PICKER_KEY, None)
+        st.session_state.pop(DETAIL_GROUP_PICKER_KEY, None)
 
     default_id = st.session_state.get("selected_document_id", ids[0])
     if default_id not in ids:
@@ -3400,15 +3401,17 @@ def detail_page(config, store):
     group_labels = {key: label for key, label, _ in group_options}
     group_keys = [key for key, _, _ in group_options]
     default_group = action_group_for_document(records, default_id)
-    if st.session_state.get(DETAIL_GROUP_PICKER_KEY) not in group_keys:
-        st.session_state[DETAIL_GROUP_PICKER_KEY] = default_group
+    selected_group_key = st.session_state.get(DETAIL_GROUP_PICKER_KEY)
+    if selected_group_key not in group_keys:
+        st.session_state.pop(DETAIL_GROUP_PICKER_KEY, None)
+        selected_group_key = default_group
     labels = {record.document_id: action_item_label(record) for record in records}
     with st.container(border=True):
         group_cols = st.columns([0.82, 0.58, 0.3, 0.3], vertical_alignment="bottom")
         group_key = group_cols[0].selectbox(
             "Select document group",
             group_keys,
-            index=group_keys.index(st.session_state[DETAIL_GROUP_PICKER_KEY]),
+            index=group_keys.index(selected_group_key),
             format_func=lambda item: group_labels.get(item, item),
             help=(
                 "Choose an expense/reference group first, then select the exact file "
@@ -3418,14 +3421,14 @@ def detail_page(config, store):
         )
         scoped_records = group_records_by_key[group_key]
         scoped_ids = [record.document_id for record in scoped_records]
-        if st.session_state.get(DETAIL_ACTION_PICKER_KEY) not in scoped_ids:
-            st.session_state[DETAIL_ACTION_PICKER_KEY] = (
-                default_id if default_id in scoped_ids else scoped_ids[0]
-            )
+        selected_action_id = st.session_state.get(DETAIL_ACTION_PICKER_KEY)
+        if selected_action_id not in scoped_ids:
+            st.session_state.pop(DETAIL_ACTION_PICKER_KEY, None)
+            selected_action_id = default_id if default_id in scoped_ids else scoped_ids[0]
         document_id = group_cols[1].selectbox(
             "Select file in group" if group_key != "all" else "Selected file for review",
             scoped_ids,
-            index=scoped_ids.index(st.session_state[DETAIL_ACTION_PICKER_KEY]),
+            index=scoped_ids.index(selected_action_id),
             format_func=lambda item: labels.get(item, item),
             key=DETAIL_ACTION_PICKER_KEY,
         )

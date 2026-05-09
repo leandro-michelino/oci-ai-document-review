@@ -980,3 +980,45 @@ def test_approve_advances_actions_picker_to_next_item(monkeypatch, tmp_path):
         assert app.session_state["detail_action_item"] == "doc-next"
     finally:
         get_config.cache_clear()
+
+
+def test_reject_requires_comments_and_then_closes_record(monkeypatch, tmp_path):
+    configure_streamlit_test_env(monkeypatch, tmp_path)
+
+    from src.config import get_config
+    from src.metadata_store import MetadataStore
+
+    get_config.cache_clear()
+    try:
+        config = get_config()
+        store = MetadataStore(config)
+        record = make_record("doc-reject", "receipt.txt")
+        record.uploaded_at = datetime.now(timezone.utc)
+        store.save(record)
+
+        app = AppTest.from_file("app.py", default_timeout=5)
+        app.query_params["page"] = "Actions"
+        app = app.run()
+
+        for button in app.button:
+            if button.label == "Reject":
+                app = button.click().run()
+                break
+        assert store.load("doc-reject").review_status == ReviewStatus.PENDING
+
+        for text_area in app.text_area:
+            if text_area.label == "Review comments":
+                app = text_area.set_value("Not enough evidence for approval.").run()
+                break
+        for button in app.button:
+            if button.label == "Reject":
+                app = button.click().run()
+                break
+
+        rejected = store.load("doc-reject")
+        assert rejected.review_status == ReviewStatus.REJECTED
+        assert rejected.status == ProcessingStatus.REJECTED
+        assert rejected.review_comments == "Not enough evidence for approval."
+        assert rejected.workflow_status == WorkflowStatus.CLOSED
+    finally:
+        get_config.cache_clear()

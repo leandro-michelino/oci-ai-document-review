@@ -197,7 +197,7 @@ Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and i
 
 ## Platform Usage
 
-Detailed Terraform outputs, Ansible output, deployment flow, operations commands, and portal usage instructions are in `docs/platform_usage.md`. Current review findings, cleanup decisions, and verification commands are tracked in `docs/repository_review.md`.
+Detailed Terraform outputs, Ansible output, deployment flow, operations commands, and portal usage instructions are in `docs/platform_usage.md`. Current review findings, cleanup decisions, and verification commands are tracked in `docs/repository_review.md`. End-to-end acceptance notes are captured in `docs/e2e_acceptance_notes.md`.
 
 ## Preflight Verification
 
