@@ -8,6 +8,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Dashboard and Actions now use stronger progressive disclosure: tabbed queues, collapsed expense groups, linked-file expanders, a focused Decision panel, and expanders for workflow, source document, AI summary, analysis details, lifecycle, extracted text, and downloads.
 - Added configurable retention with a 30-day default across VM-local metadata, reports, preserved upload copies, and Object Storage uploaded document objects.
 - Added a daily VM systemd retention timer for local cleanup.
 - Setup now asks for retention days and writes the value to both `.env` and `terraform/terraform.tfvars`; deploy passes it through Ansible to the VM.

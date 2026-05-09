@@ -448,7 +448,7 @@ def apply_theme() -> None:
         }
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 0.65rem;
             margin: 0.4rem 0 0.95rem;
         }
@@ -528,6 +528,48 @@ def apply_theme() -> None:
             font-size: 0.86rem;
             line-height: 1.45;
             margin: 0.35rem 0 0;
+        }
+        .section-shell {
+            background: #fffefb;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.85rem 0.95rem;
+            margin: 0.75rem 0 1rem;
+        }
+        .section-title {
+            color: var(--text-strong);
+            font-size: 0.98rem;
+            font-weight: 900;
+            line-height: 1.3;
+            margin-bottom: 0.2rem;
+        }
+        .section-copy {
+            color: var(--text-soft);
+            font-size: 0.84rem;
+            line-height: 1.4;
+            margin: 0;
+        }
+        .actions-summary {
+            background: #fffefb;
+            border: 1px solid var(--panel-border);
+            border-left: 5px solid var(--brand);
+            border-radius: 8px;
+            padding: 0.9rem 1rem;
+            margin: 0.7rem 0 0.9rem;
+            box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
+        }
+        .actions-summary h3 {
+            color: var(--text-strong);
+            font-size: 1.06rem;
+            line-height: 1.25;
+            margin: 0.1rem 0 0.35rem;
+            overflow-wrap: anywhere;
+        }
+        .actions-summary p {
+            color: var(--text-soft);
+            font-size: 0.86rem;
+            line-height: 1.45;
+            margin: 0.25rem 0 0;
         }
         .queue-card {
             border: 1px solid var(--panel-border);
@@ -1950,6 +1992,61 @@ def render_dashboard_metrics(df: pd.DataFrame, active_runs: pd.DataFrame) -> Non
     st.markdown(dashboard_metrics_html(metric_cards), unsafe_allow_html=True)
 
 
+def action_workload_metrics_html(
+    ready_actions: int,
+    failed_actions: int,
+    active_actions: int,
+    reviewed_actions: int,
+) -> str:
+    return dashboard_metrics_html(
+        [
+            (
+                "Needs decision",
+                ready_actions,
+                "Approval, rejection, or compliance review",
+                "warning" if ready_actions else "good",
+            ),
+            (
+                "Needs fix",
+                failed_actions,
+                "Retry or processing follow-up",
+                "danger" if failed_actions else "good",
+            ),
+            (
+                "Processing",
+                active_actions,
+                "Still moving through workers",
+                "info" if active_actions else "good",
+            ),
+            (
+                "Reviewed",
+                reviewed_actions,
+                "Approved or rejected",
+                "good" if reviewed_actions else "info",
+            ),
+        ]
+    )
+
+
+def render_dashboard_queue_tabs(sections: dict[str, pd.DataFrame]) -> None:
+    tabs = st.tabs(
+        [
+            f"Ready ({len(sections['Ready'])})",
+            f"Processing ({len(sections['Processing'])})",
+            f"Failed ({len(sections['Failed'])})",
+            f"Reviewed ({len(sections['Reviewed'])})",
+        ]
+    )
+    with tabs[0]:
+        render_ready_queue_band(sections["Ready"])
+    with tabs[1]:
+        render_queue_section("Processing", sections["Processing"])
+    with tabs[2]:
+        render_queue_section("Failed", sections["Failed"])
+    with tabs[3]:
+        render_queue_section("Reviewed", sections["Reviewed"])
+
+
 def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
     focus = dashboard_focus_record(records)
     active_count = sum(
@@ -2067,43 +2164,43 @@ def render_expense_groups_overview(records: list[DocumentRecord]) -> None:
     groups = expense_reference_groups(records)
     if not groups:
         return
-    st.markdown("### Expense groups")
-    for reference, group_records in groups[:6]:
-        target = next(
-            (record for record in group_records if is_actionable_record(record)),
-            group_records[0],
-        )
-        with st.container(border=True):
-            st.markdown(
-                f"""
-                <div class="expense-group-card">
-                  <div class="expense-group-head">
-                    <div>
-                      <div class="expense-group-label">Expense name or reference</div>
-                      <div class="expense-group-title">{escape(reference)}</div>
+    with st.expander(f"Expense groups ({len(groups)})", expanded=False):
+        for reference, group_records in groups[:6]:
+            target = next(
+                (record for record in group_records if is_actionable_record(record)),
+                group_records[0],
+            )
+            with st.container(border=True):
+                st.markdown(
+                    f"""
+                    <div class="expense-group-card">
+                      <div class="expense-group-head">
+                        <div>
+                          <div class="expense-group-label">Expense name or reference</div>
+                          <div class="expense-group-title">{escape(reference)}</div>
+                        </div>
+                        <span class="badge state-info">{len(group_records)} files</span>
+                      </div>
+                      {expense_group_badges_html(group_records)}
+                      <div class="expense-file-list">
+                        {escape(expense_group_file_list(group_records))}
+                      </div>
                     </div>
-                    <span class="badge state-info">{len(group_records)} files</span>
-                  </div>
-                  {expense_group_badges_html(group_records)}
-                  <div class="expense-file-list">
-                    {escape(expense_group_file_list(group_records))}
-                  </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            cols = st.columns([0.35, 1.65], vertical_alignment="center")
-            if cols[0].button(
-                "Review",
-                type="primary",
-                key=f"expense_group_open_{target.document_id}",
-                width="stretch",
-            ):
-                open_page_from_dashboard(PAGE_DETAIL, target.document_id)
-            cols[1].caption(
-                f"Review starts with {target.document_name}; "
-                f"{expense_group_stage_summary(group_records)}."
-            )
+                    """,
+                    unsafe_allow_html=True,
+                )
+                cols = st.columns([0.35, 1.65], vertical_alignment="center")
+                if cols[0].button(
+                    "Review",
+                    type="primary",
+                    key=f"expense_group_open_{target.document_id}",
+                    width="stretch",
+                ):
+                    open_page_from_dashboard(PAGE_DETAIL, target.document_id)
+                cols[1].caption(
+                    f"Review starts with {target.document_name}; "
+                    f"{expense_group_stage_summary(group_records)}."
+                )
 
 
 def render_queue_section(view: str, rows: pd.DataFrame) -> None:
@@ -2274,7 +2371,10 @@ def render_expense_reference_panel(
     )
     if len(related) <= 1:
         return
-    with st.container(border=True):
+    with st.expander(
+        f"Linked files and expense group ({len(related)})",
+        expanded=False,
+    ):
         aggregate = expense_group_aggregation(related)
         st.markdown(
             f"""
@@ -2326,7 +2426,10 @@ def render_expense_reference_panel(
                 """,
                 unsafe_allow_html=True,
             )
-            cols[1].markdown(badge(queue_stage(record), state_tone(record.status.value)), unsafe_allow_html=True)
+            cols[1].markdown(
+                badge(queue_stage(record), state_tone(record.status.value)),
+                unsafe_allow_html=True,
+            )
             cols[2].caption(next_action(record))
             if record.document_id == current.document_id:
                 cols[3].caption("Current")
@@ -2690,10 +2793,10 @@ def render_retry_history(record) -> None:
 
 
 def render_workflow_panel(config, store, record, key_prefix: str) -> None:
-    st.subheader("Workflow")
     if record.parent_document_id:
         st.caption(f"Retry of document `{record.parent_document_id}`")
 
+    st.markdown("### Assignment and SLA")
     options = workflow_status_options()
     selected_status = st.selectbox(
         "Workflow status",
@@ -2749,6 +2852,31 @@ def render_workflow_panel(config, store, record, key_prefix: str) -> None:
     render_workflow_comments(config, store, record, key_prefix)
     render_retry_history(record)
     render_audit_trail(record)
+
+
+def actions_summary_html(record: DocumentRecord, linked_count: int) -> str:
+    context = [
+        f"Document ID: {record.document_id}",
+        f"Linked files: {linked_count}",
+        f"Workflow: {workflow_status_label(record.workflow_status)}",
+        f"SLA: {sla_label(record)}",
+    ]
+    if record.assignee:
+        context.append(f"Owner: {record.assignee}")
+    if record.job_description:
+        context.append(f"Expense: {record.job_description}")
+    return f"""
+    <div class="actions-summary">
+      <div class="muted-label">Selected file for review</div>
+      <h3>{escape(record.document_name)}</h3>
+      <div class="status-strip">
+        {badge(record.status.value, state_tone(record.status.value))}
+        {action_badge(next_action(record))}
+        {risk_badge(highest_risk_level(record))}
+      </div>
+      <p>{escape(" | ".join(context))}</p>
+    </div>
+    """
 
 
 def render_analysis_overview(record) -> None:
@@ -3064,7 +3192,15 @@ def render_dashboard_live_content(config, store) -> None:
             rerun_dashboard_fragment()
         render_dashboard_refresh_note(len(active_runs))
 
-    st.markdown("### Work queues")
+    st.markdown(
+        """
+        <div class="section-shell">
+          <div class="section-title">Work queues</div>
+          <p class="section-copy">Filter once, then review each stage from the tabs below.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     search_cols = st.columns([1.05, 0.5, 0.3, 0.3], vertical_alignment="bottom")
     search = search_cols[0].text_input(
         "Search documents",
@@ -3105,12 +3241,7 @@ def render_dashboard_live_content(config, store) -> None:
 
     filter_label = "" if status_filter == "All" else f" | Filter: {status_filter}"
     st.caption(f"Showing {len(filtered)} of {len(df)} documents{filter_label}")
-    render_queue_section("Processing", sections["Processing"])
-    render_ready_queue_band(sections["Ready"])
-    section_cols = st.columns(2, gap="large")
-    for col, view_name in zip(section_cols, ["Failed", "Reviewed"]):
-        with col:
-            render_queue_section(view_name, sections[view_name])
+    render_dashboard_queue_tabs(sections)
 
     if filtered.empty:
         st.info("No documents match this search.")
@@ -3156,11 +3287,15 @@ def detail_page(config, store):
         for record in records
         if record.review_status.value in {"APPROVED", "REJECTED"}
     )
-    action_cols = st.columns(4)
-    action_cols[0].metric("Needs decision", ready_actions)
-    action_cols[1].metric("Needs fix", failed_actions)
-    action_cols[2].metric("Processing", active_actions)
-    action_cols[3].metric("Reviewed", reviewed_actions)
+    st.markdown(
+        action_workload_metrics_html(
+            ready_actions=ready_actions,
+            failed_actions=failed_actions,
+            active_actions=active_actions,
+            reviewed_actions=reviewed_actions,
+        ),
+        unsafe_allow_html=True,
+    )
 
     pending_document_id = st.session_state.pop(PENDING_DETAIL_DOCUMENT_KEY, None)
     if pending_document_id in ids:
@@ -3172,28 +3307,29 @@ def detail_page(config, store):
     if st.session_state.get(DETAIL_ACTION_PICKER_KEY) not in ids:
         st.session_state[DETAIL_ACTION_PICKER_KEY] = ids[index]
     labels = {record.document_id: action_item_label(record) for record in records}
-    picker_cols = st.columns([1.4, 0.3, 0.3])
-    document_id = picker_cols[0].selectbox(
-        "Selected file for review",
-        ids,
-        index=index,
-        format_func=lambda item: labels.get(item, item),
-        key=DETAIL_ACTION_PICKER_KEY,
-    )
-    picker_cols[1].button(
-        "Dashboard",
-        width="stretch",
-        key=f"detail_dashboard_{document_id}",
-        on_click=open_page,
-        args=(PAGE_DASHBOARD,),
-    )
-    picker_cols[2].button(
-        "Upload",
-        width="stretch",
-        key=f"detail_upload_{document_id}",
-        on_click=open_page,
-        args=(PAGE_UPLOAD,),
-    )
+    with st.container(border=True):
+        picker_cols = st.columns([1.4, 0.3, 0.3], vertical_alignment="bottom")
+        document_id = picker_cols[0].selectbox(
+            "Selected file for review",
+            ids,
+            index=index,
+            format_func=lambda item: labels.get(item, item),
+            key=DETAIL_ACTION_PICKER_KEY,
+        )
+        picker_cols[1].button(
+            "Dashboard",
+            width="stretch",
+            key=f"detail_dashboard_{document_id}",
+            on_click=open_page,
+            args=(PAGE_DASHBOARD,),
+        )
+        picker_cols[2].button(
+            "Upload",
+            width="stretch",
+            key=f"detail_upload_{document_id}",
+            on_click=open_page,
+            args=(PAGE_UPLOAD,),
+        )
 
     record = store.load(document_id)
     st.session_state["selected_document_id"] = document_id
@@ -3208,42 +3344,44 @@ def detail_page(config, store):
         if (record.job_description or "").strip()
         else 1
     )
-    st.subheader(f"Selected file: {record.document_name}")
-    st.info(selected_file_notice(record, linked_count))
-    if record.job_description:
-        st.caption(f"Expense: {record.job_description}")
-    render_status_strip(record)
+    st.markdown(actions_summary_html(record, linked_count), unsafe_allow_html=True)
+    st.caption(selected_file_notice(record, linked_count))
     render_expense_reference_panel(records, record)
 
-    decision_col, workflow_col = st.columns([0.95, 1.05], gap="large")
-    with decision_col:
-        with st.container(border=True):
-            st.subheader("Decision")
-            render_document_type_editor(config, store, record, "detail")
-            render_review_action_panel(config, store, record, "detail")
-            if record.review_comments:
-                st.markdown("### Comments")
-                st.write(record.review_comments)
-    with workflow_col:
-        with st.container(border=True):
-            render_workflow_panel(config, store, record, "detail")
+    with st.container(border=True):
+        st.subheader("Decision")
+        render_document_type_editor(config, store, record, "detail")
+        render_review_action_panel(config, store, record, "detail")
+        if record.review_comments:
+            st.markdown("### Decision comments")
+            st.write(record.review_comments)
 
-    with st.expander("Source document", expanded=True):
+    workflow_expanded = record.status == ProcessingStatus.FAILED or record.workflow_status in {
+        WorkflowStatus.ASSIGNED,
+        WorkflowStatus.ESCALATED,
+        WorkflowStatus.RETRY_PLANNED,
+        WorkflowStatus.WAITING_FOR_INFO,
+    }
+    with st.expander("Workflow, notes, retry, and audit", expanded=workflow_expanded):
+        render_workflow_panel(config, store, record, "detail")
+
+    with st.expander("Source document", expanded=False):
         render_source_document_download(config, record)
 
-    render_analysis_overview(record)
+    with st.expander("AI review summary", expanded=True):
+        render_analysis_overview(record)
 
-    with st.expander("Analysis details"):
+    with st.expander("Analysis details", expanded=False):
         render_analysis_details(record)
 
-    with st.expander("File and processing"):
+    with st.expander("File and processing", expanded=False):
         render_file_information(record)
         st.markdown("### Lifecycle")
         render_lifecycle(record)
         st.markdown("### Object Storage")
         st.code(record.object_storage_path or "Not uploaded")
 
-    with st.expander("Extracted text"):
+    with st.expander("Extracted text", expanded=False):
         st.text_area(
             "Preview",
             value=record.extracted_text_preview
@@ -3254,7 +3392,7 @@ def detail_page(config, store):
             key=f"extracted_preview_{document_id}",
         )
 
-    with st.expander("Downloads"):
+    with st.expander("Downloads", expanded=False):
         render_downloads(record, document_id)
 
     render_field_guide()

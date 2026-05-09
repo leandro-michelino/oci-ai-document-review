@@ -9,7 +9,9 @@ from app import (
     DASHBOARD_STATUS_FILTERS,
     action_badge,
     action_item_label,
+    action_workload_metrics_html,
     action_tone,
+    actions_summary_html,
     backfill_compliance_attention,
     dashboard_metrics_html,
     display_error_message,
@@ -188,6 +190,7 @@ def test_action_item_label_and_selected_notice_identify_exact_file():
 
     label = action_item_label(record)
     notice = selected_file_notice(record, linked_count=3)
+    summary = actions_summary_html(record, linked_count=3)
 
     assert "Receipt_21Apr2026_112647.pdf" in label
     assert "ID: doc-abc123" in label
@@ -195,6 +198,23 @@ def test_action_item_label_and_selected_notice_identify_exact_file():
     assert "Selected file: Receipt_21Apr2026_112647.pdf" in notice
     assert "Document ID: doc-abc123" in notice
     assert "Linked files in expense/reference: 3" in notice
+    assert "Selected file for review" in summary
+    assert "Workflow: New" in summary
+    assert "Linked files: 3" in summary
+
+
+def test_action_workload_metrics_html_summarizes_actions():
+    html = action_workload_metrics_html(
+        ready_actions=2,
+        failed_actions=1,
+        active_actions=3,
+        reviewed_actions=4,
+    )
+
+    assert "Needs decision" in html
+    assert "Needs fix" in html
+    assert ">2<" in html
+    assert ">1<" in html
 
 
 def test_expense_group_aggregation_includes_items_and_risks():
