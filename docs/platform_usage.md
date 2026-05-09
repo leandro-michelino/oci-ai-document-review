@@ -275,7 +275,7 @@ Recommended processing flow:
 10. Use Dashboard to watch the queue while the worker pool runs the live steps:
    Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, automatic limit-safe OCR chunks for scanned PDFs above OCI's synchronous request limits, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
 11. Use Dashboard to scan Ready, Processing, Failed, and Reviewed tabs. Multi-file uploads stay grouped under their shared Expense name or reference in the collapsed Expense groups area and as compact cards inside each phase queue. Active rows show how long they have been working, and stale runs are marked failed automatically during Dashboard refresh. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
-12. Click Review on a single file or on a compact expense group. Group cards open the best next actionable file first and keep the file list collapsed under Show files until the reviewer needs the details.
+12. Click Review on a single file or on a compact expense group. Group cards open the best next actionable file first and keep the compact file table collapsed under Show files until the reviewer needs the details.
 13. Use the Actions page to review the selected-file summary. Open linked files, source document, workflow, analysis, lifecycle, extracted text, and downloads only when needed.
 14. Correct the document type from the top Decision panel if the detected label needs adjustment.
 15. Approve or reject the review from the top Decision panel. Rejections require comments.
@@ -342,7 +342,7 @@ Dashboard
   - Provides search across document name, reference, status, action, and summary.
   - Provides Upload and Actions shortcuts for common navigation.
   - Keeps multi-file uploads together in a collapsed Expense groups area and as compact expense/reference cards in each phase queue.
-  - Gives each compact expense/reference card one Review button and a collapsed Show files detail area.
+  - Gives each compact expense/reference card one Review button and a collapsed Show files table instead of a long vertical list.
   - Opens the best next actionable file first when Review is clicked on a multi-file group.
   - Shows elapsed working time for active processing rows.
   - Shows Ready, Processing, Failed, and Reviewed as tabs below one search and status-filter area.

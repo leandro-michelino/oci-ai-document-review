@@ -26,6 +26,7 @@ from app import (
     expense_group_item_rows,
     expense_reference_file_card_html,
     expense_row_group_target,
+    expense_row_file_table,
     expense_reference_groups,
     expense_row_groups,
     file_size_label,
@@ -192,6 +193,25 @@ def test_expense_group_visual_helpers_summarize_files_and_statuses():
     assert "1 Failed" in badges
     assert "1 Processing" in badges
     assert "1 Ready" in badges
+
+
+def test_expense_row_file_table_keeps_dashboard_group_details_compact():
+    ready = make_record("doc-ready", "ready.pdf")
+    ready.job_description = "Client dinner May"
+    ready.analysis.risk_notes = [RiskNote(risk="Check policy", severity="LOW")]
+    failed = make_record(
+        "doc-failed", "failed.pdf", status=ProcessingStatus.FAILED
+    )
+    failed.job_description = "Client dinner May"
+    failed.assignee = "Finance"
+    rows = pd.DataFrame([record_to_row(record) for record in [ready, failed]])
+
+    table = expense_row_file_table(rows)
+
+    assert table.columns.tolist() == ["File", "Stage", "Action", "Risk", "Details"]
+    assert table["File"].tolist() == ["ready.pdf", "failed.pdf"]
+    assert table["Risk"].tolist() == ["Risk Small", "Risk None"]
+    assert "Owner: Finance" in table.loc[1, "Details"]
 
 
 def test_expense_row_group_target_prefers_reviewable_file():

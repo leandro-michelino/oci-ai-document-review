@@ -1875,6 +1875,28 @@ def expense_group_file_list(records: list[DocumentRecord], limit: int = 4) -> st
     return ", ".join(names)
 
 
+def expense_row_file_table(rows: pd.DataFrame) -> pd.DataFrame:
+    table_rows = []
+    for _, row in rows.iterrows():
+        details = [str(row["Uploaded"]), str(row["Type"])]
+        if row["Status"] in ACTIVE_STATUSES:
+            details.append(f"Working for {row['Elapsed']}")
+        if row["Reference"]:
+            details.append(f"Ref: {row['Reference']}")
+        if row["Assignee"] != "Unassigned":
+            details.append(f"Owner: {row['Assignee']}")
+        table_rows.append(
+            {
+                "File": row["Name"],
+                "Stage": row["Stage"],
+                "Action": row["Action"],
+                "Risk": RISK_LABELS.get(row["Risk Level"], row["Risk Level"]),
+                "Details": " | ".join(details),
+            }
+        )
+    return pd.DataFrame(table_rows)
+
+
 def expense_group_item_rows(records: list[DocumentRecord]) -> list[dict[str, str]]:
     rows = []
     for record in records:
@@ -1980,29 +2002,12 @@ def render_compact_expense_row_group(
             f"Starts with {target['Name']}. {expense_row_stage_summary(group_rows)}."
         )
 
-        with st.expander("Show files", expanded=False):
-            for _, row in group_rows.iterrows():
-                details = [f"{row['Uploaded']} | {row['Type']}"]
-                if row["Status"] in ACTIVE_STATUSES:
-                    details.append(f"Working for {row['Elapsed']}")
-                if row["Reference"]:
-                    details.append(f"Ref: {row['Reference']}")
-                if row["Assignee"] != "Unassigned":
-                    details.append(f"Owner: {row['Assignee']}")
-                st.markdown(
-                    f"""
-                    <div class="expense-file-card">
-                      <div class="expense-file-title">{escape(row["Name"])}</div>
-                      <div class="expense-file-meta">{escape(" | ".join(details))}</div>
-                      <div class="status-strip">
-                        {badge(row["Stage"], state_tone(row["Status"]))}
-                        {action_badge(row["Action"])}
-                        {risk_badge(row["Risk Level"])}
-                      </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+        with st.expander(f"Show files ({len(group_rows)})", expanded=False):
+            st.dataframe(
+                expense_row_file_table(group_rows),
+                width="stretch",
+                hide_index=True,
+            )
 
 
 def dashboard_focus_record(records: list[DocumentRecord]) -> DocumentRecord | None:
