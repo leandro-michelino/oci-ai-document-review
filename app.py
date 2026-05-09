@@ -3281,7 +3281,7 @@ def howto_page(config, store):
         ),
         (
             "Watch the queue",
-            "Use Dashboard to see expense groups, linked files, active processing time, ready reviews, failures, and reviewed items.",
+            "Use Dashboard to see expense groups, compact Review cards, collapsed file details, active processing time, ready reviews, failures, and reviewed items.",
         ),
         (
             "Fix only failed items",
@@ -3291,7 +3291,7 @@ def howto_page(config, store):
     approver_steps = [
         (
             "Open Actions",
-            "Use Actions for the review queue. The highest-priority item is selected first.",
+            "Use Actions for the review queue. The highest-priority item is selected first and the Decision panel appears near the top.",
         ),
         (
             "Read the source and linked files",
@@ -3303,7 +3303,7 @@ def howto_page(config, store):
         ),
         (
             "Update workflow details",
-            "Set the document type, assignee, SLA, workflow status, or comments when the decision needs context.",
+            "Set the document type from the Decision panel, then update assignee, SLA, workflow status, or comments when the decision needs context.",
         ),
         (
             "Approve or reject",

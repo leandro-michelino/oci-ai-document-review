@@ -8,6 +8,8 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Dashboard documentation now reflects compact multi-file expense groups with one `Review` button, collapsed `Show files` details, and best-next-action routing.
+- Actions documentation now reflects the top Decision panel, so reviewers can correct type, approve, or reject before scrolling through source download and full AI analysis.
 - Refreshed the in-app How to Use guide for one-to-five-file submissions, mandatory multi-file expense name or reference, Dashboard expense groups, stale processing cleanup, source-document download, and approver linked-file review.
 - Updated README, platform usage, implementation notes, repository review, and ASCII architecture flows so documentation matches the current expense-grouped upload and review workflow.
 - Cleaned generated local cache and personal agent artifacts from the working tree while keeping runtime secrets, Terraform state, deployment context, metadata, reports, and uploads ignored.
@@ -26,7 +28,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - Dashboard page state persists in the browser URL, so refresh stays on Dashboard.
 - Dashboard status refresh uses Streamlit fragments instead of full browser reloads.
 - Queue tables are split by Processing, Ready, Failed, and Reviewed.
-- Row-level Open actions take reviewers directly to each document.
+- Dashboard row actions take reviewers directly to each document, while current multi-file groups use compact `Review` cards.
 - Actions page supports approve/reject, next-in-line routing, workflow assignment, SLA, comments, audit trail, and retry history.
 - Text-native files and PDFs with selectable text go directly to GenAI after local extraction.
 - Images and scanned/image-only PDFs use OCI Document Understanding OCR.

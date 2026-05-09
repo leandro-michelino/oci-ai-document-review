@@ -97,16 +97,16 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                     +----------------------------+
                     | Dashboard Queue            |
                     | URL State + Fragment       |
-                    | Expense Groups + Filters   |
+                    | Compact Groups + Filters   |
                     | Elapsed + Stale Refresh    |
                     +-------------+--------------+
                                   |
                                   v
                     +----------------------------+
                     | Actions Review             |
+                    | Decision First             |
                     | Linked Files + Source      |
                     | Download, Workflow         |
-                    | Type, Decide               |
                     | Next-In-Line Routing       |
                     +----------------------------+
 ```
@@ -253,7 +253,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                          v
               +----------------------------+
               | Dashboard Queue            |
-              | Expense Groups / Filters   |
+              | Compact Groups / Filters   |
               | Processing / Ready /       |
               | Failed / Reviewed          |
               | Active Elapsed + Stale Fix |
@@ -262,9 +262,9 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                          v
               +----------------------------+
               | Actions Review             |
+              | Decision First             |
               | Linked Files / Source      |
               | Download / Workflow        |
-              | Type / Approve             |
               | Next-In-Line Navigation    |
               +----------------------------+
 ```
@@ -303,14 +303,55 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                             v
               +----------------------------+
               | Dashboard Expense Groups   |
-              | Queue Headers + Overview   |
+              | Overview + Compact Cards   |
+              | One Review Button          |
+              | Collapsed Show Files       |
               +-------------+--------------+
                             |
                             v
               +----------------------------+
               | Actions Linked Files Panel |
+              | Decision Panel At Top      |
               | End-To-End Batch Context   |
               +----------------------------+
+```
+
+## Compact Dashboard Review Flow
+
+```text
++----------------------------+
+| Dashboard Phase Queue      |
+| Processing / Ready / ...   |
++-------------+--------------+
+              |
+              +----------------------------+----------------------------+
+              |                            |                            |
+              v                            v                            |
++----------------------------+  +----------------------------+          |
+| Single File Row            |  | Multi-File Expense Group   |          |
+| Row Action                 |  | Compact Summary Card       |          |
++-------------+--------------+  +-------------+--------------+          |
+              |                               |                         |
+              |                               v                         |
+              |                 +----------------------------+          |
+              |                 | Review Button              |          |
+              |                 | Best Next Actionable File  |          |
+              |                 +-------------+--------------+          |
+              |                               |                         |
+              |                               v                         |
+              |                 +----------------------------+          |
+              |                 | Show Files Expander        |          |
+              |                 | Collapsed By Default       |          |
+              |                 +-------------+--------------+          |
+              |                               |                         |
+              +---------------+---------------+                         |
+                              |                                         |
+                              v                                         |
+                +----------------------------+                          |
+                | Actions Page               |                          |
+                | Decision Panel Near Top    |                          |
+                | Approve / Reject / Type    |                          |
+                +----------------------------+                          |
 ```
 
 ## Dashboard Filter Flow
@@ -319,7 +360,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +---------------------------+
 | Dashboard Work Queues     |
 | Search + Status Filter    |
-| Expense Groups            |
+| Compact Expense Groups    |
 +-------------+-------------+
               |
               v
@@ -345,7 +386,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                          | Visible Queue Sections    |
                          | Processing / Ready /      |
                          | Failed / Reviewed         |
-                         | Grouped When Applicable   |
+                         | Compact Review Groups     |
                          +---------------------------+
 ```
 
@@ -422,17 +463,17 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
              v
 +--------------------------+
 | Actions Page             |
-| Source Download          |
-| Decision + Workflow      |
+| Decision First           |
+| Source Download + Flow   |
 +------------+-------------+
              |
-             +----------------------+----------------------+-------------------+
-             |                      |                      |                   |
-             v                      v                      v                   v
-+-------------------+  +---------------------+  +-------------------+  +-------------------+
-| Assign Owner      |  | Set SLA Due Date    |  | Add Comment      |  | Retry Failure     |
-| Workflow Status   |  | Overdue/Due Today   |  | Reviewer Notes   |  | Child Run Queued  |
-+---------+---------+  +----------+----------+  +---------+---------+  +---------+---------+
+             +------------------+------------------+------------------+------------------+
+             |                  |                  |                  |                  |
+             v                  v                  v                  v                  v
++----------------+  +----------------+  +----------------+  +----------------+  +----------------+
+| Approve/Reject |  | Assign Owner   |  | Set SLA Date   |  | Add Comment    |  | Retry Failure  |
+| Human Decision |  | Workflow State |  | Due Tracking   |  | Reviewer Notes |  | Child Queued   |
++-------+--------+  +-------+--------+  +-------+--------+  +-------+--------+  +-------+--------+
           |                       |                       |                      |
           +-----------+-----------+-----------+-----------+----------+-----------+
                                               |

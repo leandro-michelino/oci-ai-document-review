@@ -269,16 +269,17 @@ Recommended processing flow:
    View Dashboard, Open Actions, or Upload Another.
 10. Use Dashboard to watch the queue while the worker pool runs the live steps:
    Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, automatic limit-safe OCR chunks for scanned PDFs above OCI's synchronous request limits, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
-11. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Multi-file uploads stay grouped under their shared Expense name or reference in the Expense groups overview and inside each phase queue. Active rows show how long they have been working, and stale runs are marked failed automatically during Dashboard refresh. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
-12. Click Open next to a document.
-13. Use the Actions page to review the expense name or reference, linked files for the same expense/reference, executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details.
-14. Use the Workflow panel to set the workflow status, assignee, and SLA due date.
-15. Add workflow comments when the reviewer needs extra context or follow-up.
-16. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
-17. Inspect the audit trail and retry history in the same Workflow panel.
-18. Correct the document type from the Decision panel if the detected label needs adjustment.
-19. Approve or reject the review from the Decision panel. Rejections require comments.
-20. Download Markdown or JSON results from the Downloads section.
+11. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Multi-file uploads stay grouped under their shared Expense name or reference in the Expense groups overview and as compact cards inside each phase queue. Active rows show how long they have been working, and stale runs are marked failed automatically during Dashboard refresh. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
+12. Click Review on a single file or on a compact expense group. Group cards open the best next actionable file first and keep the file list collapsed under Show files until the reviewer needs the details.
+13. Use the Actions page to review the expense name or reference and linked files for the same expense/reference.
+14. Correct the document type from the top Decision panel if the detected label needs adjustment.
+15. Approve or reject the review from the top Decision panel. Rejections require comments.
+16. Use the Workflow panel to set the workflow status, assignee, and SLA due date.
+17. Add workflow comments when the reviewer needs extra context or follow-up.
+18. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
+19. Inspect the audit trail and retry history in the same Workflow panel.
+20. Review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details when the decision needs deeper analysis.
+21. Download Markdown or JSON results from the Downloads section.
 ```
 
 Processing fails clearly if a required live service step fails. For example, if local extraction and Document Understanding OCR return no extractable text, the app records a failed status instead of sending empty content to GenAI.
@@ -335,10 +336,12 @@ Dashboard
   - Shows the next document that needs a human or operational action.
   - Provides search across document name, reference, status, action, and summary.
   - Provides Upload and Actions shortcuts for common navigation.
-  - Keeps multi-file uploads together in an Expense groups overview and under expense/reference headers in each phase queue.
+  - Keeps multi-file uploads together in an Expense groups overview and as compact expense/reference cards in each phase queue.
+  - Gives each compact expense/reference card one Review button and a collapsed Show files detail area.
+  - Opens the best next actionable file first when Review is clicked on a multi-file group.
   - Shows elapsed working time for active processing rows.
   - Shows split queue tables for Processing, Ready, Failed, and Reviewed documents.
-  - Opens each document in Actions from the Open button at the start of its row.
+  - Opens single files in Actions from the row action button.
   - Keeps the route in the browser URL with `?page=Dashboard`.
   - Refreshes Dashboard components with a Streamlit fragment instead of full browser reloads.
   - Marks stale active records as failed during refresh so stuck uploads do not remain in Processing forever.
@@ -346,9 +349,9 @@ Dashboard
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
   - Shows linked files for the same Expense name or reference next to the selected document.
+  - Places the Decision panel near the top of the page so reviewers can correct the type, approve, or reject without scrolling through the full analysis first.
   - Shows a `Download Doc for Review` button when the VM still has the local working copy.
   - Shows a focused AI review summary with key points, receipt or invoice items and services, and recommendations.
-  - Shows the Decision panel for approve or reject.
   - Keeps analysis details, file and processing details, extracted text, and downloads in expanders.
   - Requires comments before rejecting a document.
   - After approval or rejection, selects the next action item when one exists.
@@ -458,8 +461,8 @@ Use this checklist after any wiring or deployment change:
 13. Confirm object_storage_path is populated.
 14. Confirm analysis is populated.
 15. Confirm the Markdown report exists.
-16. Confirm Dashboard opens the selected record in Actions.
-17. Confirm Actions shows the `Download Doc for Review` button when the local working copy exists.
+16. Confirm Dashboard Review opens the selected single file or the best next actionable file from a compact multi-file group.
+17. Confirm Actions shows the Decision panel near the top and the `Download Doc for Review` button when the local working copy exists.
 18. Confirm approve or reject updates the review state.
 ```
 
