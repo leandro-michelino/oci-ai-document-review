@@ -6,9 +6,15 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - `MINOR`: visible workflow, cloud integration, or capability changes.
 - `PATCH`: bug fixes, documentation updates, and small UX refinements.
 
-## Unreleased
+## v0.5.1 - 2026-05-09
 
-- Reviewed Markdown documentation for v0.5.0 consistency, including automatic intake setup flags, Function README wiring, and current expense name/reference wording.
+- Updated the project patch version and release notes for the repository cleanup pass.
+- Updated cost estimates to use OCI Generative AI on-demand character transaction billing for the default Cohere Command R+ model.
+- Added Terraform outputs for `retention_days` and `ssh_private_key_path`, matching the documented deployment outputs.
+- Updated `scripts/deploy.sh` so the Ansible inventory uses the Terraform-resolved private SSH key path unless `SSH_PRIVATE_KEY_PATH` is explicitly overridden.
+- Normalized automatic-intake Function prefixes at runtime so `incoming` and `incoming/` behave consistently.
+- Narrowed the automatic-intake Function object policy to the configured project bucket.
+- Reviewed Markdown documentation for v0.5.1 consistency, including automatic intake setup flags, Function README wiring, and current expense name/reference wording.
 
 ## v0.5.0 - 2026-05-09
 

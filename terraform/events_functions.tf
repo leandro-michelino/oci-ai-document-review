@@ -45,10 +45,10 @@ resource "oci_identity_policy" "object_intake_function" {
   count          = var.enable_automatic_processing ? 1 : 0
   compartment_id = var.parent_compartment_id
   name           = "doc-review-object-intake-function-policy"
-  description    = "Allow the document intake function to write queue markers and read incoming objects."
+  description    = "Allow the document intake function to write queue markers in the project bucket."
 
   statements = [
-    "Allow dynamic-group ${oci_identity_dynamic_group.object_intake_function[0].name} to manage objects in compartment id ${var.compartment_id}",
+    "Allow dynamic-group ${oci_identity_dynamic_group.object_intake_function[0].name} to manage objects in compartment id ${var.compartment_id} where target.bucket.name='${oci_objectstorage_bucket.documents.name}'",
   ]
 
   freeform_tags = var.freeform_tags

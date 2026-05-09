@@ -4,12 +4,12 @@ This document provides illustrative cost estimates for two deployment tiers of t
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.0`
+Current project version: `v0.5.1`
 
 ## Disclaimer
 
 - These estimates are illustrative only and are not an official Oracle quote.
-- Unit prices used throughout this document are approximate public list prices as of early 2026 and may be outdated, region-dependent, or inapplicable to your tenancy, contract, discount tier, free-tier eligibility, or currency.
+- Unit prices used throughout this document are approximate public list prices reviewed on 2026-05-09 and may become outdated, region-dependent, or inapplicable to your tenancy, contract, discount tier, free-tier eligibility, or currency.
 - All numbers should be treated as order-of-magnitude planning inputs, not procurement figures.
 - Use the Oracle Cost Estimator, OCI Cost Analysis, and a formal Oracle representative quote before making any budgeting, pricing, or purchasing decisions.
 
@@ -28,7 +28,7 @@ Current project version: `v0.5.0`
 | Load balancing            | None                       | OCI Load Balancer            |
 | Logging                   | journald on VM             | OCI Logging                  |
 | Automation                | Manual deploy.sh           | OCI Events + Functions       |
-| Approximate monthly range | $25 - $100                 | $1,800 - $3,800              |
+| Approximate monthly range | $20 - $100                 | $1,200 - $3,000              |
 +---------------------------+----------------------------+------------------------------+
 ```
 
@@ -129,6 +129,9 @@ https://www.oracle.com/cloud/costestimator/
 OCI Generative AI on-demand pricing:
 https://docs.oracle.com/en-us/iaas/Content/generative-ai/pay-on-demand.htm
 
+OCI Cohere Command R+ pricing-page mapping:
+https://docs.oracle.com/en-us/iaas/Content/generative-ai/cohere-command-r-plus-08-2024.htm
+
 OCI Document Understanding pricing:
 https://www.oracle.com/artificial-intelligence/document-understanding/pricing/
 
@@ -159,9 +162,10 @@ Document Understanding extraction   $10.00 / 1,000 transactions
   First 5,000 transactions/month    free
 Document Understanding text OCR     $1.00 / 1,000 transactions
 
-Generative AI (Cohere Command R+)   ~$2.50 / 1M characters (combined input/output)
-  This is a simplified illustrative rate. Actual pricing differs for input and output tokens.
-  Check the OCI Generative AI price list for the current per-token or per-character rates.
+Generative AI (Cohere Command R+)   $0.0156 / 10,000 transactions
+  OCI Generative AI on-demand chat billing counts prompt plus response characters.
+  The OCI pricing page treats 1 character as 1 transaction.
+  Command R+ maps to the Large Cohere pricing line at the time of this review.
 
 Autonomous Database Serverless      $0.029 / OCPU-hour + $0.0255 / GB-month storage
 OCI Load Balancer (Flexible)        ~$18 / month minimum + bandwidth
@@ -225,14 +229,14 @@ All prices are illustrative. Replace with current Oracle price list values.
 | Object Storage requests     | 5,000 req  | 10K req  | $0.0034  | $0.00 **    |
 | DU extraction (600 tx)      | 600 tx     | 1K tx    | $10.00   | $0.00 ***   |
 | DU text-only OCR fallback   | 60 tx      | 1K tx    | $1.00    | $0.00 ***   |
-| Generative AI (10M chars)   | 10 units   | 1M chars | $2.50    | $25.00      |
+| Generative AI (10M chars)   | 1,000 u.   | 10K tx   | $0.0156  | $15.60      |
 | OCI Functions intake        | 500 inv    | month    | free tier| $0.00 ****  |
 | NAT Gateway                 | 730 h      | flat     | —        | ~$5.00      |
 | Public IP                   | 730 h      | flat     | —        | ~$3.00      |
 | Outbound data               | ~2 GB      | GB       | varies   | ~$1.00      |
 +-----------------------------+------------+----------+----------+-------------+
-| Total (with A1 Always Free) |            |          |          | ~$36/month  |
-| Total (without Always Free) |            |          |          | ~$64/month  |
+| Total (with A1 Always Free) |            |          |          | ~$28/mo     |
+| Total (without Always Free) |            |          |          | ~$55/mo     |
 +-----------------------------+------------+----------+----------+-------------+
 
 *   A1 Always Free: 3,000 OCPU-hours and 18,000 GB-hours per tenancy per month.
@@ -251,12 +255,13 @@ All prices are illustrative. Replace with current Oracle price list values.
 ### Range and Confidence
 
 ```text
-Estimated monthly range:    $25 to $100
-Confidence:                 low
-Primary drivers:            GenAI usage and A1 Always Free eligibility
+Estimated monthly range:    $20 to $100
+Confidence:                 very low
+Primary driver:             GenAI characters processed by the default Command R+ model
 Main uncertainties:
-  - Whether A1 Always Free is available in the tenancy
   - Actual GenAI character count per document
+  - Whether a lower-cost supported model is selected instead of Command R+
+  - Whether A1 Always Free is available in the tenancy
   - Scan ratio and DU fallback frequency
   - Data transfer pricing by region
 ```
@@ -337,14 +342,14 @@ All prices are illustrative. Replace with current Oracle price list values.
 | AI Services                                                                                 |
 |   DU extraction (27,000 tx)              | 22 units * | 1K tx    | $10.00   | $220.00      |
 |   DU text-only OCR fallback (2,160 tx)   | 2.16 units | 1K tx    | $1.00    | $2.16        |
-|   Generative AI (450M chars)             | 450 units  | 1M chars | $2.50    | $1,125.00    |
+|   Generative AI (450M chars)             | 45,000 u.  | 10K tx   | $0.0156  | $702.00      |
 +------------------------------------------+------------+----------+----------+--------------+
 | Operations                                                                                  |
 |   OCI Vault (1 vault + 10 key versions)  | —          | month    | —        | ~$2.00       |
 |   OCI Logging (40 GB billed **)          | 40 GB      | GB       | $0.50    | $20.00       |
 |   OCI Functions (100K inv, 5s, 256MB)    | —          | month    | free tier| $0.00 ***    |
 +------------------------------------------+------------+----------+----------+--------------+
-| TOTAL                                    |            |          |          | ~$1,829/month|
+| TOTAL                                    |            |          |          | ~$1,406/mo   |
 +------------------------------------------+------------+----------+----------+--------------+
 
 *  DU free tier covers the first 5,000 transactions per month. 27,000 - 5,000 = 22,000 extraction transactions billed.
@@ -357,10 +362,10 @@ All prices are illustrative. Replace with current Oracle price list values.
 ### Range and Confidence
 
 ```text
-Estimated monthly range:    $1,800 to $3,800
+Estimated monthly range:    $1,200 to $3,000
 Confidence:                 very low
-Primary driver:             Generative AI (accounts for ~62% of this estimate)
-Secondary drivers:          Compute (~18%) and Document Understanding (~12%)
+Primary driver:             Generative AI (about half of this estimate)
+Secondary drivers:          Compute, Document Understanding, and enterprise services
 Main uncertainties:
   - Actual GenAI character count per document (most sensitive variable)
   - Percentage of scanned documents that trigger DU
@@ -372,7 +377,7 @@ Main uncertainties:
 
 Sensitivity check (GenAI):
   At 15,000 docs per month, each 10,000 character increase in average document
-  size adds 150M characters and approximately $375/month to the GenAI line item.
+  size adds 150M characters and approximately $234/month to the GenAI line item.
   Keep MAX_DOCUMENT_CHARS tuned and review prompt engineering to control this cost.
 ```
 
@@ -411,7 +416,8 @@ Document Understanding cost
   x ocr_transaction_price
 
 Generative AI cost
-  = total_characters_per_month / 1_000_000 x genai_per_million_chars_price
+  = total_characters_per_month / 10,000
+  x genai_per_10k_transactions_price
 
 Autonomous Database cost (Enterprise)
   = adb_ocpu_hours x adb_ocpu_hour_price
@@ -467,7 +473,8 @@ GenAI characters total:
   500 docs x 20,000 chars = 10,000,000 characters
 
 GenAI cost estimate:
-  10 units x $2.50 = $25.00
+  10,000,000 characters / 10,000 = 1,000 billing units
+  1,000 units x $0.0156 = $15.60
 
 DU cost estimate (after free tier):
   max(0, 600 - 5,000) / 1,000 x $10.00 = $0.00
@@ -491,7 +498,8 @@ GenAI characters total:
   15,000 docs x 30,000 chars = 450,000,000 characters
 
 GenAI cost estimate:
-  450 units x $2.50 = $1,125.00
+  450,000,000 characters / 10,000 = 45,000 billing units
+  45,000 units x $0.0156 = $702.00
 
 DU cost estimate:
   22,000 / 1,000 x $10.00 = $220.00
@@ -510,7 +518,8 @@ If a failed scanned document is retried 3 times:
 At the Enterprise tier, 100 retry events per month could add:
   DU extraction tx: 100 x 3 retries x 4 pages = 1,200 additional transactions
   DU cost: 1,200 / 1,000 x $10.00 = $12.00 before unused free-tier credit
-  GenAI (if extraction succeeds): 100 x $2.50 = $0.25 per million chars of retry content
+  GenAI (if extraction succeeds): 100 retries x 30,000 chars = 3M chars
+  GenAI retry cost: 3,000,000 / 10,000 x $0.0156 = $4.68
 ```
 
 ## Cost Controls

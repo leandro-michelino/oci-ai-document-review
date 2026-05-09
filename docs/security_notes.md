@@ -2,7 +2,7 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.0`
+Current project version: `v0.5.1`
 
 ## MVP Controls
 

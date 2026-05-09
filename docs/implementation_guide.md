@@ -4,7 +4,7 @@ This project is deployed from a local laptop. It does not use GitHub Actions or 
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.0`
+Current project version: `v0.5.1`
 
 ## Local Preparation
 
@@ -254,9 +254,9 @@ Terraform configures `oci_objectstorage_object_lifecycle_policy.documents_retent
 
 ## Automatic Object Intake
 
-Set `enable_automatic_processing = true` in `terraform/terraform.tfvars` only after building and pushing the `functions/object_intake` image to OCIR, setting `automatic_processing_function_image`, and keeping `tenancy_id` populated with the tenancy OCID discovered by setup. Terraform then enables Object Storage object events on the private bucket, creates the Functions application and function in the private subnet, creates an Events rule for Object Storage create events in the bucket, and creates the function resource-principal IAM dynamic group and policy.
+Set `enable_automatic_processing = true` in `terraform/terraform.tfvars` only after building and pushing the `functions/object_intake` image to OCIR, setting `automatic_processing_function_image`, and keeping `tenancy_id` populated with the tenancy OCID discovered by setup. Terraform then enables Object Storage object events on the private bucket, creates the Functions application and function in the private subnet, creates an Events rule for Object Storage create events in the bucket, and creates the function resource-principal IAM dynamic group and bucket-scoped policy.
 
-The Function filters for objects under `incoming/` and writes queue markers under `event-queue/`. Ansible enables `oci-ai-document-review-event-intake.timer` on the VM when Terraform reports automatic processing as enabled. The timer imports queue markers every `event_intake_poll_seconds` seconds. Objects outside `incoming/` are ignored by the Function, and generated queue markers are not processed as documents.
+The Function normalizes incoming and queue prefixes, filters for objects under `incoming/`, and writes queue markers under `event-queue/`. Ansible enables `oci-ai-document-review-event-intake.timer` on the VM when Terraform reports automatic processing as enabled. The timer imports queue markers every `event_intake_poll_seconds` seconds. Objects outside `incoming/` are ignored by the Function, and generated queue markers are not processed as documents.
 
 The Function is deliberately small: it writes queue markers only. It does not write VM-local metadata, call Document Understanding, call Generative AI, approve documents, or bypass the normal Dashboard and Actions review workflow.
 

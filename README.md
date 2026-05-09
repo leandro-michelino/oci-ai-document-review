@@ -14,7 +14,7 @@ OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for 
 
 The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, broader event automation, and a customer document-status chatbot.
 
-Current version: `v0.5.0`
+Current version: `v0.5.1`
 
 Contact: Leandro Michelino | Oracle ACE | leandro.michelino@oracle.com.
 
@@ -248,7 +248,7 @@ Uploads are queued into a background worker pool. The browser returns immediatel
 
 ## Cost Estimate
 
-An illustrative cost estimate and pricing worksheet is available in `docs/cost_estimate.md`. It includes Small and Enterprise examples, Document Understanding transaction assumptions, OCI Functions free-tier assumptions, and cost-control guidance.
+An illustrative cost estimate and pricing worksheet is available in `docs/cost_estimate.md`. It includes Small and Enterprise examples, Document Understanding transaction assumptions, OCI Generative AI character-based billing assumptions for the default Cohere Command R+ model, OCI Functions free-tier assumptions, and cost-control guidance.
 
 This estimate is not an official Oracle quote and may not be realistic for your tenancy, usage, region, discount terms, or free tier eligibility. Use the Oracle Cost Estimator and request a formal quote from your Oracle representative before using it for budgeting or production planning.
 
@@ -405,6 +405,8 @@ Deploy end to end:
 ```
 
 The deployed VM uses the existing OCI API key and policies from your local OCI profile. For code-only changes, Terraform should normally report no infrastructure changes, while Ansible still refreshes the app archive, writes runtime configuration, installs dependencies if needed, installs the daily local retention timer, and restarts Streamlit.
+
+`scripts/deploy.sh` builds the temporary Ansible inventory from Terraform outputs. It uses the private key path derived from `ssh_public_key_path`, or the explicit `SSH_PRIVATE_KEY_PATH` environment override when you need to use a different local key.
 
 After deployment, verify the live VM rather than relying on GitHub state:
 

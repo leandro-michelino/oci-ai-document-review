@@ -2,9 +2,22 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.0`
+Current project version: `v0.5.1`
 
 Release notes summarize user-visible workflow, infrastructure, documentation, and cost-estimate changes. `CHANGELOG.md` remains the source of truth for full repository history.
+
+## v0.5.1 - 2026-05-09
+
+### Cost Estimate
+
+- Updated GenAI estimates to use OCI Generative AI on-demand character transaction billing for the default Cohere Command R+ model.
+- Updated Small and Enterprise monthly totals, ranges, worksheet formulas, and retry sensitivity examples.
+
+### Deployment Wiring
+
+- Added Terraform outputs for `retention_days` and `ssh_private_key_path`.
+- Updated `scripts/deploy.sh` so Ansible uses the Terraform-resolved private SSH key path unless explicitly overridden.
+- Normalized Function prefixes at runtime and narrowed the automatic-intake Function object policy to the project bucket.
 
 ## v0.5.0 - 2026-05-09
 

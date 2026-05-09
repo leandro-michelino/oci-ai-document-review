@@ -4,7 +4,7 @@ This guide explains how to deploy, operate, and use the OCI AI Document Review P
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.0`
+Current project version: `v0.5.1`
 
 The repository does not include GitHub Actions or CI deployment workflows. Terraform and Ansible are run locally from your laptop with your existing OCI config and policies.
 
@@ -189,6 +189,9 @@ streamlit_url
 
 ssh_command
   Command to connect to the VM.
+
+ssh_private_key_path
+  Terraform-resolved private key path used by deploy.sh for Ansible unless SSH_PRIVATE_KEY_PATH overrides it.
 
 bucket_name
   Object Storage bucket for uploaded documents.

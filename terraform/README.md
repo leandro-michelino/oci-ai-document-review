@@ -4,7 +4,7 @@ This directory prepares the OCI resources for the MVP.
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.0`
+Current project version: `v0.5.1`
 
 Deployment is intended to run from your laptop only. There are no GitHub Actions or CI deployment workflows in this repository.
 
@@ -46,7 +46,7 @@ event_intake_incoming_prefix        = "incoming/"
 event_intake_queue_prefix           = "event-queue/"
 ```
 
-Terraform validates that `tenancy_id` is a valid tenancy OCID and `automatic_processing_function_image` is populated when automatic processing is enabled. External systems then upload to `incoming/<expense-name-or-reference>/<file>`. The Function writes queue markers to `event-queue/`; the VM imports those markers and uses the normal processing workflow.
+Terraform validates that `tenancy_id` is a valid tenancy OCID and `automatic_processing_function_image` is populated when automatic processing is enabled. The Function dynamic-group policy is scoped to the configured project bucket. External systems then upload to `incoming/<expense-name-or-reference>/<file>`. The Function normalizes prefix slashes, writes queue markers to `event-queue/`, and the VM imports those markers through the normal processing workflow.
 
 Create or choose a project compartment before deployment:
 

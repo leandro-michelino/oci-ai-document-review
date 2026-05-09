@@ -2,7 +2,7 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.0`
+Current project version: `v0.5.1`
 
 ## End-to-End MVP Flow
 
@@ -391,6 +391,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 | OCI Function                |
 | functions/object_intake     |
 | filters incoming/ prefix    |
+| normalizes prefix slashes   |
 +--------------+--------------+
                |
                v
@@ -723,12 +724,14 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
            v                   v                   v                   v
 +----------------+  +----------------+  +----------------+  +----------------+
 | Compartment    |  | VCN / Subnet    |  | Compute VM     |  | Object Storage |
-| IAM Policies   |  | Function App    |  | RETENTION_DAYS |  | Events Enabled |
+| Bucket-Scoped  |  | Function App    |  | RETENTION_DAYS |  | Events Enabled |
+| IAM Policies   |  | SSH Key Output  |  | Streamlit Host |  | Queue Prefixes |
 +----------------+  +----------------+  +----------------+  +----------------+
                                            |
                                            v
                                 +---------------------+
                                 | Ansible             |
+                                | Terraform SSH Key   |
                                 | App Release + Timers|
                                 +----------+----------+
                                            |

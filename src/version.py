@@ -1,2 +1,2 @@
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 VERSION_LABEL = f"v{__version__}"

@@ -119,6 +119,7 @@ terraform apply -auto-approve
 PUBLIC_IP="$(terraform output -raw instance_public_ip)"
 STREAMLIT_URL="$(terraform output -raw streamlit_url)"
 SSH_COMMAND="$(terraform output -raw ssh_command)"
+TF_SSH_PRIVATE_KEY_PATH="$(terraform output -raw ssh_private_key_path)"
 VCN_ID="$(terraform output -raw vcn_id)"
 PUBLIC_SUBNET_ID="$(terraform output -raw public_subnet_id)"
 PRIVATE_SUBNET_ID="$(terraform output -raw private_subnet_id)"
@@ -132,7 +133,7 @@ TF_EVENT_INTAKE_INCOMING_PREFIX="$(terraform output -raw event_intake_incoming_p
 
 cat > "$INVENTORY" <<EOF
 [doc_review]
-doc-review-app ansible_host=$PUBLIC_IP ansible_user=opc ansible_ssh_private_key_file=${SSH_PRIVATE_KEY_PATH:-$HOME/.ssh/id_rsa} ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'
+doc-review-app ansible_host=$PUBLIC_IP ansible_user=opc ansible_ssh_private_key_file=${SSH_PRIVATE_KEY_PATH:-$TF_SSH_PRIVATE_KEY_PATH} ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'
 EOF
 
 cd "$ROOT_DIR"

@@ -2,7 +2,7 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.0`
+Current project version: `v0.5.1`
 
 ## Scope
 
@@ -18,9 +18,13 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 - Added an Object Storage lifecycle policy scoped to `documents/` so uploaded files expire without deleting the compliance knowledge base under `compliance/`.
 - Added optional OCI Events and Functions automatic intake: external uploads under `incoming/` create Object Storage events, invoke `functions/object_intake`, write queue markers under `event-queue/`, and are imported by a VM systemd timer into the existing worker queue.
 - Tightened Terraform validation so automatic processing cannot be enabled without both a valid tenancy OCID and an OCIR image for `functions/object_intake`.
-- Updated release notes in `CHANGELOG.md` and `docs/release_notes.md` for `v0.5.0`.
+- Updated release notes in `CHANGELOG.md` and `docs/release_notes.md` through `v0.5.1`.
+- Updated cost estimates to use OCI Generative AI character transaction billing for the default Cohere Command R+ model, including revised Small and Enterprise totals.
+- Added Terraform outputs for `retention_days` and `ssh_private_key_path` so documented outputs match the live module.
+- Updated deployment wiring so Ansible uses the Terraform-resolved private SSH key path instead of assuming the default local key.
+- Normalized automatic-intake Function prefixes and narrowed the Function Object Storage IAM policy to the configured project bucket.
 - Updated the cost estimate for Document Understanding transaction pricing, the 5,000 transactions/month free tier, and OCI Functions free-tier assumptions.
-- Reviewed all tracked Markdown files for v0.5.0 consistency, including automatic intake setup flags, Function README wiring, and expense name/reference terminology.
+- Reviewed all tracked Markdown files for v0.5.1 consistency, including automatic intake setup flags, Function README wiring, and expense name/reference terminology.
 - Updated `scripts/setup.py`, `.env.example`, Terraform examples, Ansible, and deploy automation so customers can choose retention days during setup and redeploy the same value to the VM.
 - Made Actions selection clearer by documenting and testing exact selected-file labeling with file name, document ID, expense/reference, stage, upload time, linked-file count, and current action.
 - Updated all user-facing documentation for the latest review UX: compact Dashboard expense groups, one `Review` action per multi-file group, collapsed `Show files` details, best-next-action routing, and the Actions Decision panel placed near the top.
@@ -81,6 +85,6 @@ terraform -chdir=terraform validate
 ansible-playbook --syntax-check ansible/playbook.yml
 ```
 
-Latest validation for `v0.5.0` also included `terraform plan -detailed-exitcode -input=false`, which reported no infrastructure changes for the current local Terraform state.
+Latest validation for `v0.5.1` also included `terraform plan -detailed-exitcode -input=false`, which reported output-only state additions for `retention_days` and `ssh_private_key_path` and no real infrastructure changes.
 
 For live OCI deployment, `git push` is not enough. Run `./scripts/deploy.sh` from the repo root, then verify the VM service and portal URL.

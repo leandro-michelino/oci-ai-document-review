@@ -26,6 +26,14 @@ output "ssh_command" {
   value = "ssh -i ${replace(var.ssh_public_key_path, ".pub", "")} opc@${oci_core_instance.app.public_ip}"
 }
 
+output "ssh_private_key_path" {
+  value = pathexpand(replace(var.ssh_public_key_path, ".pub", ""))
+}
+
+output "retention_days" {
+  value = var.retention_days
+}
+
 output "vcn_id" {
   value = oci_core_vcn.app.id
 }
@@ -123,6 +131,7 @@ output "platform_summary" {
     access = {
       allowed_ingress_cidr = var.allowed_ingress_cidr
       public_ports         = [22, 8501]
+      ssh_private_key_path = pathexpand(replace(var.ssh_public_key_path, ".pub", ""))
       auth_mode            = "existing OCI config copied by Ansible from local laptop"
     }
 

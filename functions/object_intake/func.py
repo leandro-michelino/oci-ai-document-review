@@ -43,6 +43,13 @@ def queue_marker_name(queue_prefix: str, marker: dict) -> str:
     return f"{queue_prefix}{timestamp}-{digest}.json"
 
 
+def object_prefix(name: str, default: str) -> str:
+    value = os.getenv(name, default).strip().lstrip("/")
+    if not value:
+        value = default
+    return value if value.endswith("/") else f"{value}/"
+
+
 def handler(ctx, data: io.BytesIO | None = None):
     import oci
 
@@ -51,8 +58,8 @@ def handler(ctx, data: io.BytesIO | None = None):
     namespace = event_value(event, "namespace") or os.environ["OCI_NAMESPACE"]
     bucket = event_value(event, "bucketName", "bucket") or os.environ["OCI_BUCKET_NAME"]
     object_name = event_value(event, "objectName", "resourceName")
-    incoming_prefix = os.getenv("INCOMING_PREFIX", "incoming/")
-    queue_prefix = os.getenv("QUEUE_PREFIX", "event-queue/")
+    incoming_prefix = object_prefix("INCOMING_PREFIX", "incoming/")
+    queue_prefix = object_prefix("QUEUE_PREFIX", "event-queue/")
     if not object_name or not object_name.startswith(incoming_prefix):
         return response.Response(
             ctx,
