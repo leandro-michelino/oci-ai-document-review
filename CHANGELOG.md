@@ -12,6 +12,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - Documented `setup.sh`, `--configure-only`, `--deploy-only`, and `--skip-checks` in the README, implementation guide, platform usage guide, and Terraform README.
 - Updated `scripts/setup.py` completion output so the guided wizard hands back cleanly to `setup.sh` when orchestrated by the root wrapper.
 - Reworked Dashboard queue sections so individual files and multi-file expense/reference groups appear in one selectable table, with `Review selected` opening the best next actionable file.
+- Expanded Ansible deployment output with a clear deployment plan, portal access details, runtime settings, data paths, automation timers, troubleshooting commands, and security notes.
 
 ## v0.5.1 - 2026-05-09
 

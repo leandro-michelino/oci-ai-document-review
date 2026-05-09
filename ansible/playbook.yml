@@ -11,6 +11,22 @@
     oci_auth: config_file
 
   tasks:
+    - name: Show deployment plan
+      ansible.builtin.debug:
+        msg:
+          - "Starting OCI AI Document Review Portal deployment."
+          - "Target VM: {{ inventory_hostname }} ({{ ansible_host }})"
+          - "Application directory: {{ app_dir }}"
+          - "Portal service: oci-ai-document-review on port {{ app_port }}"
+          - "Runtime region: {{ oci_region }}"
+          - "GenAI region: {{ genai_region }}"
+          - "Object Storage bucket: {{ bucket_name }}"
+          - "Object Storage namespace: {{ object_storage_namespace }}"
+          - "Local retention: {{ retention_days | default('30') }} days"
+          - "Parallel processing jobs: {{ max_parallel_jobs | default('2') }}"
+          - "Automatic Object Storage intake: {{ event_intake_enabled | default('false') }}"
+          - "Ansible will refresh the app package, write runtime config, install dependencies, configure systemd, restart the portal, and wait for the app port."
+
     - name: Install runtime packages
       ansible.builtin.dnf:
         name:
@@ -301,19 +317,54 @@
         delay: 3
         timeout: 120
 
-    - name: Show platform usage summary
+    - name: Show deployment result and next steps
       ansible.builtin.debug:
         msg:
-          - "OCI AI Document Review Portal deployment complete."
-          - "Portal URL: http://{{ ansible_host }}:{{ app_port }}"
-          - "SSH: ssh opc@{{ ansible_host }}"
-          - "App directory: {{ app_dir }}"
-          - "Systemd service: oci-ai-document-review"
-          - "Check service: sudo systemctl status oci-ai-document-review"
-          - "Follow logs: sudo journalctl -u oci-ai-document-review -f"
-          - "Restart app: sudo systemctl restart oci-ai-document-review"
-          - "Runtime config: {{ app_dir }}/.env"
-          - "Retention days: {{ retention_days | default('30') }}"
-          - "Event intake: {{ event_intake_enabled | default('false') }}"
-          - "Local metadata: {{ app_dir }}/data/metadata"
-          - "Local reports: {{ app_dir }}/data/reports"
+          - "Deployment complete. The portal service was restarted and the app port responded."
+          - ""
+          - "Open the portal"
+          - "  URL: http://{{ ansible_host }}:{{ app_port }}"
+          - ""
+          - "SSH and operations"
+          - "  SSH: ssh -i {{ ansible_ssh_private_key_file | default('YOUR_PRIVATE_KEY') }} {{ ansible_user | default('opc') }}@{{ ansible_host }}"
+          - "  App directory: {{ app_dir }}"
+          - "  Runtime config: {{ app_dir }}/.env"
+          - "  Service status: sudo systemctl status oci-ai-document-review --no-pager"
+          - "  Follow app logs: sudo journalctl -u oci-ai-document-review -f"
+          - "  Restart app: sudo systemctl restart oci-ai-document-review"
+          - ""
+          - "Runtime configuration"
+          - "  Runtime region: {{ oci_region }}"
+          - "  GenAI region: {{ genai_region }}"
+          - "  Bucket: {{ bucket_name }}"
+          - "  Namespace: {{ object_storage_namespace }}"
+          - "  Compliance catalog object: {{ compliance_entities_object_name | default('compliance/public_sector_entities.csv') }}"
+          - "  Max upload size: {{ max_upload_mb | default('10') }} MB"
+          - "  Max document characters sent to GenAI: {{ max_document_chars | default('50000') }}"
+          - "  Parallel jobs: {{ max_parallel_jobs | default('2') }}"
+          - "  Stale processing timeout: {{ stale_processing_minutes | default('12') }} minutes"
+          - "  Document AI timeout: {{ document_ai_timeout_seconds | default('180') }} seconds"
+          - "  Document AI retry attempts: {{ document_ai_retry_attempts | default('2') }}"
+          - "  Retention days: {{ retention_days | default('30') }}"
+          - ""
+          - "Local data on the VM"
+          - "  Metadata JSON: {{ app_dir }}/data/metadata"
+          - "  Markdown reports: {{ app_dir }}/data/reports"
+          - "  Preserved upload copies: {{ app_dir }}/data/uploads"
+          - ""
+          - "Automation"
+          - "  Retention cleanup timer: oci-ai-document-review-retention.timer enabled"
+          - "  Object Storage event intake enabled: {{ event_intake_enabled | default('false') }}"
+          - "  Event intake timer: {{ 'oci-ai-document-review-event-intake.timer enabled, poll every ' ~ (event_intake_poll_seconds | default('60')) ~ ' seconds' if (event_intake_enabled | default(false) | bool) else 'disabled' }}"
+          - "  Incoming object prefix: {{ event_intake_incoming_prefix | default('incoming/') }}"
+          - "  Event queue prefix: {{ event_intake_queue_prefix | default('event-queue/') }}"
+          - ""
+          - "Troubleshooting"
+          - "  If the portal does not load, check the service first, then follow logs."
+          - "  If processing fails, open the Dashboard Failed tab and review the document failure detail."
+          - "  If OCI calls fail, run Settings > OCI Preflight in the portal and confirm compartment, region, bucket, and GenAI access."
+          - ""
+          - "Security notes"
+          - "  Real .env, Terraform tfvars/state, and OCI key material stay out of Git."
+          - "  The VM receives only the runtime .env and OCI SDK config needed by the app."
+          - "  Keep ingress CIDRs narrow and rotate local OCI API keys according to your security policy."

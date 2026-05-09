@@ -22,6 +22,11 @@ Release notes summarize user-visible workflow, infrastructure, documentation, an
 - `Review selected` now handles both individual file rows and multi-file group rows.
 - Removed the redundant Dashboard `Expense groups` overview expander now that group rows are part of each queue table.
 
+### Deployment Output
+
+- Expanded Ansible output with a human-readable deployment plan and completion summary.
+- The final Ansible summary now includes portal access, SSH and service commands, runtime settings, local VM data paths, timers, troubleshooting guidance, and security notes.
+
 ## v0.5.1 - 2026-05-09
 
 ### Cost Estimate
