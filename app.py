@@ -85,7 +85,7 @@ CONTACT_MESSAGE = "In case of any question, get in touch."
 PAGE_UPLOAD = "Upload"
 PAGE_DASHBOARD = "Dashboard"
 PAGE_DETAIL = "Actions"
-PAGE_HELP = "How to Use"
+PAGE_HELP = "How To Use"
 PAGE_SETTINGS = "Settings"
 PAGE_QUERY_PARAM = "page"
 DETAIL_ACTION_PICKER_KEY = "detail_action_item"
@@ -96,6 +96,7 @@ LEGACY_PAGE_NAMES = {
     "Review Dashboard": PAGE_DASHBOARD,
     "Document Details": PAGE_DETAIL,
     "Document": PAGE_DETAIL,
+    "How to Use": PAGE_HELP,
 }
 RISK_TONE = {
     "HIGH": "risk-high",
@@ -3078,7 +3079,7 @@ def upload_page(config, store):
         f"Upload limit: {config.max_upload_mb} MB"
     )
     intro_cols[1].button(
-        "How to Use",
+        "How To Use",
         key="upload_howto",
         width="stretch",
         on_click=open_page,
@@ -3600,7 +3601,7 @@ def render_howto_panel(
 def howto_page(config, store):
     page_header(
         "Guide",
-        "How to Use",
+        "How To Use",
         "A short path for submitting files and completing reviewer decisions.",
     )
 
@@ -3648,6 +3649,24 @@ def howto_page(config, store):
             "Approve clean items or reject with comments. The page advances to the next action item automatically.",
         ),
     ]
+    operator_steps = [
+        (
+            "Run OCI Preflight",
+            "Open Settings and run OCI Preflight before processing customer files. It checks Object Storage, Document Understanding, and Generative AI with the runtime credentials.",
+        ),
+        (
+            "Watch costs before bulk runs",
+            "Review docs/cost_estimate.md, then tune MAX_DOCUMENT_CHARS and scan quality before large batches. GenAI characters and OCR pages are the main variable costs.",
+        ),
+        (
+            "Use retention intentionally",
+            "The default 30-day retention applies to local metadata, reports, upload copies, and Object Storage document objects under documents/.",
+        ),
+        (
+            "Enable automatic intake only when ready",
+            "Use incoming/ uploads only after the Function image, Terraform automatic-processing settings, and VM event-intake timer are deployed.",
+        ),
+    ]
 
     howto_html = (
         '<div class="howto-grid">'
@@ -3660,6 +3679,11 @@ def howto_page(config, store):
             "For approvers",
             "Use this path when you are making the final human decision.",
             approver_steps,
+        )
+        + render_howto_panel(
+            "For operators",
+            "Use this path when you are preparing the environment or running larger batches.",
+            operator_steps,
         )
         + "</div>"
     )

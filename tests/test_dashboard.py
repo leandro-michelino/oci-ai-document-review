@@ -873,12 +873,12 @@ def test_upload_how_to_use_button_opens_guide(monkeypatch, tmp_path):
         assert app.session_state["page"] == "Upload"
 
         for button in app.button:
-            if button.label == "How to Use":
+            if button.label == "How To Use":
                 app = button.click().run()
                 break
 
-        assert app.session_state["page"] == "How to Use"
-        assert query_value(app.query_params, "page") == "How to Use"
+        assert app.session_state["page"] == "How To Use"
+        assert query_value(app.query_params, "page") == "How To Use"
     finally:
         get_config.cache_clear()
 
