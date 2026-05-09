@@ -66,7 +66,7 @@ The goal is not to replace human approval. The goal is to give reviewers a real,
 
 ## What Happens After Upload
 
-After the user clicks Queue Document or Queue Documents, the portal accepts the file set, creates one metadata record per file, and queues the live backend workflow. Multi-file uploads share the same expense name or reference. Dashboard keeps those files together in a collapsed Expense groups area and as compact grouped queue cards with one `Review` button plus a collapsed file table. Actions shows the linked files for the selected expense/reference, places the Decision panel near the top, and keeps Workflow, notes, retry, and audit inside an expander so approvers can approve or reject without scanning every operational detail first.
+After the user clicks Queue Document or Queue Documents, the portal accepts the file set, creates one metadata record per file, and queues the live backend workflow. Multi-file uploads share the same expense name or reference. Dashboard keeps those files together in a collapsed Expense groups area and as compact grouped queue cards with one `Review` button plus a collapsed file table; individual files are shown in a dense selectable queue table instead of stacked cards. Actions shows the linked files for the selected expense/reference, places the Decision panel near the top, and keeps Workflow, notes, retry, and audit inside an expander so approvers can approve or reject without scanning every operational detail first.
 
 ```text
 User uploads 1 to 5 files
@@ -127,7 +127,7 @@ Reviewer assigns owner, SLA, workflow status, or comments
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, collapsed expense/reference batches, and tabbed work queues for Ready, Processing, Failed, and Reviewed records. Multi-file expense/reference groups render as compact cards with a single `Review` button and a collapsed `Show files` table so large batches stay readable without a long vertical file list.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, collapsed expense/reference batches, and tabbed work queues for Ready, Processing, Failed, and Reviewed records. Individual files render in compact selectable tables with one `Review selected` action, and multi-file expense/reference groups render as compact cards with a single `Review` button and a collapsed `Show files` table so large batches stay readable without a long vertical file list.
 
 The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. After an approver selects a file, the AI review summary appears before the Decision panel so the approver sees the executive summary, key points, items or services, risks, and recommendations before choosing `Approve` or `Reject`. Workflow fields, comments, retry, retry history, and audit events now live inside a `Workflow, notes, retry, and audit` expander to keep the main review screen focused. For multi-file expense/reference groups, Actions shows group aggregation with file counts, files needing decision or fix, total extracted items/services, total risks, and an Items / Services by file table when receipts or invoices contain line items. Reviewers can download the original source document for review when the local working copy is available. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata.
 
@@ -426,7 +426,7 @@ The app supports:
 - Markdown report generation
 - Local JSON metadata
 - Approve and reject review actions
-- Dashboard queue view with metrics, next-action guidance, search, collapsed expense groups, active elapsed time, tabbed queue sections, shortcuts, compact multi-file Review cards, and collapsed file tables
+- Dashboard queue view with metrics, next-action guidance, search, collapsed expense groups, active elapsed time, tabbed queue sections, shortcuts, selectable file tables, compact multi-file Review cards, and collapsed file tables
 - Dashboard status filters for queue, approval, rejection, retry, failed, processing, and compliance-review states
 - Actions page for prioritized approvals, top Decision panel, linked-file context, group aggregation, source-document download, workflow expander, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
 - Processing lifecycle view for each document

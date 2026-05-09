@@ -17,6 +17,7 @@ from app import (
     actions_summary_html,
     backfill_compliance_attention,
     dashboard_metrics_html,
+    dashboard_file_table,
     detail_page,
     display_error_message,
     document_type_label,
@@ -212,6 +213,36 @@ def test_expense_row_file_table_keeps_dashboard_group_details_compact():
     assert table["File"].tolist() == ["ready.pdf", "failed.pdf"]
     assert table["Risk"].tolist() == ["Risk Small", "Risk None"]
     assert "Owner: Finance" in table.loc[1, "Details"]
+
+
+def test_dashboard_file_table_keeps_single_file_queues_dense():
+    ready = make_record("doc-ready", "ready.pdf")
+    ready.job_description = "Client dinner May"
+    failed = make_record(
+        "doc-failed", "failed.pdf", status=ProcessingStatus.FAILED
+    )
+    failed.assignee = "Finance"
+    rows = pd.DataFrame([record_to_row(record) for record in [ready, failed]])
+
+    table = dashboard_file_table(rows)
+
+    assert table.columns.tolist() == [
+        "File",
+        "Expense",
+        "Uploaded",
+        "Type",
+        "Stage",
+        "Action",
+        "Risk",
+        "Confidence",
+        "SLA",
+        "Owner",
+        "Document ID",
+    ]
+    assert table["File"].tolist() == ["ready.pdf", "failed.pdf"]
+    assert table["Expense"].tolist() == ["Client dinner May", "-"]
+    assert table["Confidence"].tolist() == ["80%", "80%"]
+    assert table["Owner"].tolist() == ["Unassigned", "Finance"]
 
 
 def test_expense_row_group_target_prefers_reviewable_file():

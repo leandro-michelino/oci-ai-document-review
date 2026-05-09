@@ -1897,6 +1897,29 @@ def expense_row_file_table(rows: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(table_rows)
 
 
+def dashboard_file_table(rows: pd.DataFrame) -> pd.DataFrame:
+    table_rows = []
+    for _, row in rows.iterrows():
+        confidence = row["Confidence"]
+        confidence_text = "N/A" if pd.isna(confidence) else f"{int(confidence)}%"
+        table_rows.append(
+            {
+                "File": row["Name"],
+                "Expense": row["Expense Name or Reference"] or "-",
+                "Uploaded": row["Uploaded"],
+                "Type": row["Type"],
+                "Stage": row["Stage"],
+                "Action": row["Action"],
+                "Risk": RISK_LABELS.get(row["Risk Level"], row["Risk Level"]),
+                "Confidence": confidence_text,
+                "SLA": row["SLA"],
+                "Owner": row["Assignee"],
+                "Document ID": row["Document ID"],
+            }
+        )
+    return pd.DataFrame(table_rows)
+
+
 def expense_group_item_rows(records: list[DocumentRecord]) -> list[dict[str, str]]:
     rows = []
     for record in records:
@@ -2008,6 +2031,47 @@ def render_compact_expense_row_group(
                 width="stretch",
                 hide_index=True,
             )
+
+
+def render_dashboard_file_table(
+    view: str, rows: pd.DataFrame, key_prefix: str
+) -> None:
+    if rows.empty:
+        return
+    table = dashboard_file_table(rows)
+    state = st.dataframe(
+        table,
+        width="stretch",
+        height=min(420, 48 + (len(table) + 1) * 35),
+        hide_index=True,
+        column_order=[
+            "File",
+            "Expense",
+            "Uploaded",
+            "Type",
+            "Stage",
+            "Action",
+            "Risk",
+            "Confidence",
+            "SLA",
+            "Owner",
+        ],
+        key=f"{key_prefix}_{view.lower()}_file_table",
+        on_select="rerun",
+        selection_mode="single-row",
+    )
+    selected_rows = list(getattr(state.selection, "rows", []))
+    selected_index = selected_rows[0] if selected_rows else 0
+    selected = table.iloc[selected_index]
+    review_cols = st.columns([0.28, 1.72], vertical_alignment="center")
+    if review_cols[0].button(
+        "Review selected",
+        type="primary" if view == "Ready" else "secondary",
+        key=f"{key_prefix}_review_selected_{view}_{selected['Document ID']}",
+        width="stretch",
+    ):
+        open_page_from_dashboard(PAGE_DETAIL, str(selected["Document ID"]))
+    review_cols[1].caption(f"Selected: {selected['File']}")
 
 
 def dashboard_focus_record(records: list[DocumentRecord]) -> DocumentRecord | None:
@@ -2303,6 +2367,7 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
         st.info(empty_messages.get(view, f"No {view.lower()} documents."))
         return
 
+    table_groups = []
     for reference, group_rows in expense_row_groups(rows):
         if reference and len(group_rows) > 1:
             render_compact_expense_row_group(
@@ -2312,55 +2377,13 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
                 key_prefix="queue",
             )
             continue
-        if reference:
-            st.markdown(
-                expense_row_group_header(reference, group_rows),
-                unsafe_allow_html=True,
-            )
-        for _, row in group_rows.iterrows():
-            with st.container(border=True):
-                row_cols = st.columns(
-                    [0.22, 1.65, 0.72, 0.92], vertical_alignment="center"
-                )
-                document_id = row["Document ID"]
-                if row_cols[0].button(
-                    "↗",
-                    key=f"queue_open_{view}_{document_id}",
-                    help=f"Open {row['Name']} in Actions",
-                    width="content",
-                ):
-                    open_page_from_dashboard(PAGE_DETAIL, document_id)
-                details = [f"{row['Uploaded']} · {row['Type']}"]
-                if row["Status"] in ACTIVE_STATUSES:
-                    details.append(f"Working for {row['Elapsed']}")
-                if row["Reference"]:
-                    details.append(f"Ref: {row['Reference']}")
-                if row["Assignee"] != "Unassigned":
-                    details.append(f"Owner: {row['Assignee']}")
-                row_cols[1].markdown(
-                    f"""
-                    <div class="queue-title">{escape(row["Name"])}</div>
-                    <div class="queue-meta">{escape(" | ".join(details))}</div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                row_cols[2].markdown(
-                    risk_badge(row["Risk Level"]), unsafe_allow_html=True
-                )
-                confidence = row["Confidence"]
-                confidence_text = (
-                    "N/A" if pd.isna(confidence) else f"{int(confidence)}%"
-                )
-                row_cols[2].caption(f"{confidence_text} confidence")
-                row_cols[3].markdown(
-                    f"""
-                    <div class="queue-title">{action_badge(row["Action"])}</div>
-                    <div class="queue-action">{escape(row["Workflow"])} | {escape(row["SLA"])}</div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                if row["Risk Level"] != "NONE":
-                    st.caption(row["Risk Detail"])
+        table_groups.append(group_rows)
+    if table_groups:
+        render_dashboard_file_table(
+            view=view,
+            rows=pd.concat(table_groups, ignore_index=True),
+            key_prefix="queue",
+        )
 
 
 def render_ready_queue_band(rows: pd.DataFrame) -> None:
@@ -2371,6 +2394,7 @@ def render_ready_queue_band(rows: pd.DataFrame) -> None:
         return
 
     with st.container(border=True):
+        table_groups = []
         for reference, group_rows in expense_row_groups(rows):
             if reference and len(group_rows) > 1:
                 render_compact_expense_row_group(
@@ -2380,49 +2404,13 @@ def render_ready_queue_band(rows: pd.DataFrame) -> None:
                     key_prefix="ready",
                 )
                 continue
-            if reference:
-                st.markdown(
-                    expense_row_group_header(reference, group_rows),
-                    unsafe_allow_html=True,
-                )
-            row_items = list(group_rows.iterrows())
-            for start in range(0, len(row_items), 3):
-                cols = st.columns(3, gap="medium")
-                for col, (_, row) in zip(cols, row_items[start : start + 3]):
-                    document_id = row["Document ID"]
-                    details = [f"{row['Uploaded']} | {row['Type']}"]
-                    if row["Status"] in ACTIVE_STATUSES:
-                        details.append(f"Working for {row['Elapsed']}")
-                    if row["Reference"]:
-                        details.append(f"Ref: {row['Reference']}")
-                    confidence = row["Confidence"]
-                    confidence_text = (
-                        "N/A" if pd.isna(confidence) else f"{int(confidence)}%"
-                    )
-                    with col.container(border=True):
-                        st.markdown(
-                            f"""
-                            <div class="ready-card-title">{escape(row["Name"])}</div>
-                            <div class="ready-card-meta">{escape(" | ".join(details))}</div>
-                            <div class="status-strip">
-                              {risk_badge(row["Risk Level"])}
-                              {badge(f"Confidence {confidence_text}", "state-info")}
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                        if row["Risk Level"] != "NONE":
-                            st.caption(row["Risk Detail"])
-                        action_cols = st.columns([0.44, 0.56])
-                        if action_cols[0].button(
-                            "Review",
-                            type="primary",
-                            key=f"ready_open_{document_id}",
-                            help=f"Open {row['Name']} in Actions",
-                            width="stretch",
-                        ):
-                            open_page_from_dashboard(PAGE_DETAIL, document_id)
-                        action_cols[1].caption(f"{row['Action']} | {row['SLA']}")
+            table_groups.append(group_rows)
+        if table_groups:
+            render_dashboard_file_table(
+                view="Ready",
+                rows=pd.concat(table_groups, ignore_index=True),
+                key_prefix="ready",
+            )
 
 
 def rerun_dashboard_fragment() -> None:
