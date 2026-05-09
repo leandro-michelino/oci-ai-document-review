@@ -15,6 +15,7 @@ from app import (
     document_type_label,
     expense_group_badges_html,
     expense_group_file_list,
+    expense_row_group_target,
     expense_reference_groups,
     expense_row_groups,
     file_size_label,
@@ -160,6 +161,21 @@ def test_expense_group_visual_helpers_summarize_files_and_statuses():
     assert "1 Failed" in badges
     assert "1 Processing" in badges
     assert "1 Ready" in badges
+
+
+def test_expense_row_group_target_prefers_reviewable_file():
+    reviewed = make_record("doc-reviewed", "reviewed.pdf")
+    reviewed.review_status = ReviewStatus.APPROVED
+    reviewed.status = ProcessingStatus.APPROVED
+    failed = make_record("doc-failed", "failed.pdf", status=ProcessingStatus.FAILED)
+    ready = make_record("doc-ready", "ready.pdf")
+    rows = pd.DataFrame(
+        [record_to_row(record) for record in [reviewed, failed, ready]]
+    )
+
+    target = expense_row_group_target(rows)
+
+    assert target["Document ID"] == "doc-ready"
 
 
 def test_risk_detail_label_explains_missing_and_multiple_risks():
@@ -635,7 +651,7 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
         assert app.session_state["page"] == "Dashboard"
 
         for button in app.button:
-            if button.label in {"↗", "Open"}:
+            if button.label in {"↗", "Open", "Review"}:
                 app = button.click().run()
                 break
         assert app.session_state["page"] == "Actions"

@@ -1720,6 +1720,37 @@ def expense_group_file_list(records: list[DocumentRecord], limit: int = 4) -> st
     return ", ".join(names)
 
 
+def expense_row_stage_summary(rows: pd.DataFrame) -> str:
+    stages = {}
+    for stage in rows["Stage"].tolist():
+        stages[stage] = stages.get(stage, 0) + 1
+    return ", ".join(f"{count} {stage}" for stage, count in sorted(stages.items()))
+
+
+def expense_row_group_target(rows: pd.DataFrame) -> pd.Series:
+    action_priority = {
+        "Compliance review": 0,
+        "Approve or reject": 1,
+        "Fix and retry": 2,
+        "Retry planned": 3,
+    }
+    stage_priority = {
+        "Ready": 0,
+        "Failed": 1,
+        "Processing": 2,
+        "Queued": 3,
+        "Reviewed": 4,
+    }
+
+    def priority(row: pd.Series) -> tuple[int, int]:
+        return (
+            action_priority.get(str(row["Action"]), 9),
+            stage_priority.get(str(row["Stage"]), 9),
+        )
+
+    return min((row for _, row in rows.iterrows()), key=priority)
+
+
 def expense_row_group_header(reference: str, rows: pd.DataFrame) -> str:
     file_word = "file" if len(rows) == 1 else "files"
     return f"""
@@ -1732,10 +1763,58 @@ def expense_row_group_header(reference: str, rows: pd.DataFrame) -> str:
         <span class="badge state-info">{len(rows)} {file_word}</span>
       </div>
       <div class="expense-file-list">
-        {escape(", ".join(rows["Name"].head(5).tolist()))}
+        {escape(expense_row_stage_summary(rows))}. Expand the file list only when you need the details.
       </div>
     </div>
     """
+
+
+def render_compact_expense_row_group(
+    view: str, reference: str, group_rows: pd.DataFrame, key_prefix: str
+) -> None:
+    target = expense_row_group_target(group_rows)
+    target_document_id = target["Document ID"]
+    with st.container(border=True):
+        st.markdown(
+            expense_row_group_header(reference, group_rows),
+            unsafe_allow_html=True,
+        )
+        action_cols = st.columns([0.34, 1.66], vertical_alignment="center")
+        if action_cols[0].button(
+            "Review",
+            type="primary" if view == "Ready" else "secondary",
+            key=f"{key_prefix}_review_group_{view}_{target_document_id}",
+            help=f"Review {reference} in Actions",
+            width="stretch",
+        ):
+            open_page_from_dashboard(PAGE_DETAIL, target_document_id)
+        action_cols[1].caption(
+            f"Starts with {target['Name']}. {expense_row_stage_summary(group_rows)}."
+        )
+
+        with st.expander("Show files", expanded=False):
+            for _, row in group_rows.iterrows():
+                details = [f"{row['Uploaded']} | {row['Type']}"]
+                if row["Status"] in ACTIVE_STATUSES:
+                    details.append(f"Working for {row['Elapsed']}")
+                if row["Reference"]:
+                    details.append(f"Ref: {row['Reference']}")
+                if row["Assignee"] != "Unassigned":
+                    details.append(f"Owner: {row['Assignee']}")
+                st.markdown(
+                    f"""
+                    <div class="expense-file-card">
+                      <div class="expense-file-title">{escape(row["Name"])}</div>
+                      <div class="expense-file-meta">{escape(" | ".join(details))}</div>
+                      <div class="status-strip">
+                        {badge(row["Stage"], state_tone(row["Status"]))}
+                        {action_badge(row["Action"])}
+                        {risk_badge(row["Risk Level"])}
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
 
 def dashboard_focus_record(records: list[DocumentRecord]) -> DocumentRecord | None:
@@ -1951,13 +2030,14 @@ def render_expense_groups_overview(records: list[DocumentRecord]) -> None:
             )
             cols = st.columns([0.35, 1.65], vertical_alignment="center")
             if cols[0].button(
-                "Open",
+                "Review",
+                type="primary",
                 key=f"expense_group_open_{target.document_id}",
                 width="stretch",
             ):
                 open_page_from_dashboard(PAGE_DETAIL, target.document_id)
             cols[1].caption(
-                f"Open starts with {target.document_name}; "
+                f"Review starts with {target.document_name}; "
                 f"{expense_group_stage_summary(group_records)}."
             )
 
@@ -1976,6 +2056,14 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
         return
 
     for reference, group_rows in expense_row_groups(rows):
+        if reference and len(group_rows) > 1:
+            render_compact_expense_row_group(
+                view=view,
+                reference=reference,
+                group_rows=group_rows,
+                key_prefix="queue",
+            )
+            continue
         if reference:
             st.markdown(
                 expense_row_group_header(reference, group_rows),
@@ -2036,6 +2124,14 @@ def render_ready_queue_band(rows: pd.DataFrame) -> None:
 
     with st.container(border=True):
         for reference, group_rows in expense_row_groups(rows):
+            if reference and len(group_rows) > 1:
+                render_compact_expense_row_group(
+                    view="Ready",
+                    reference=reference,
+                    group_rows=group_rows,
+                    key_prefix="ready",
+                )
+                continue
             if reference:
                 st.markdown(
                     expense_row_group_header(reference, group_rows),
@@ -2071,7 +2167,8 @@ def render_ready_queue_band(rows: pd.DataFrame) -> None:
                             st.caption(row["Risk Detail"])
                         action_cols = st.columns([0.44, 0.56])
                         if action_cols[0].button(
-                            "Open",
+                            "Review",
+                            type="primary",
                             key=f"ready_open_{document_id}",
                             help=f"Open {row['Name']} in Actions",
                             width="stretch",
@@ -3035,12 +3132,7 @@ def detail_page(config, store):
     render_status_strip(record)
     render_expense_reference_panel(records, record)
 
-    with st.expander("Source document", expanded=True):
-        render_source_document_download(config, record)
-
-    review_col, decision_col = st.columns([1.45, 0.85], gap="large")
-    with review_col:
-        render_analysis_overview(record)
+    decision_col, workflow_col = st.columns([0.95, 1.05], gap="large")
     with decision_col:
         with st.container(border=True):
             st.subheader("Decision")
@@ -3049,8 +3141,14 @@ def detail_page(config, store):
             if record.review_comments:
                 st.markdown("### Comments")
                 st.write(record.review_comments)
+    with workflow_col:
         with st.container(border=True):
             render_workflow_panel(config, store, record, "detail")
+
+    with st.expander("Source document", expanded=True):
+        render_source_document_download(config, record)
+
+    render_analysis_overview(record)
 
     with st.expander("Analysis details"):
         render_analysis_details(record)
