@@ -8,6 +8,8 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Actions now has a visible `Select document group` control before the file selector, making grouped expense/reference submissions easier to review together.
+
 ## v0.4.0 - 2026-05-09
 
 - Removed the separate Upload `Reference` field so customers use only `Expense name or reference` for upload grouping/context.

@@ -353,6 +353,7 @@ Dashboard
 
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
+  - Starts with `Select document group` so reviewers can choose all documents or a specific expense/reference group before choosing a file.
   - Labels the selector as `Selected file for review` and includes file name, document ID, expense/reference, stage, and upload time in each option.
   - Repeats the selected file name, document ID, linked-file count, workflow state, SLA, and risk/action badges in a compact summary above the Decision panel.
   - Keeps linked files for the same Expense name or reference inside a collapsed expander.

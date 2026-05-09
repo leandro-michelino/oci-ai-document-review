@@ -89,6 +89,7 @@ PAGE_HELP = "How to Use"
 PAGE_SETTINGS = "Settings"
 PAGE_QUERY_PARAM = "page"
 DETAIL_ACTION_PICKER_KEY = "detail_action_item"
+DETAIL_GROUP_PICKER_KEY = "detail_action_group"
 PENDING_DETAIL_DOCUMENT_KEY = "pending_detail_document_id"
 LEGACY_PAGE_NAMES = {
     "Upload Document": PAGE_UPLOAD,
@@ -1541,6 +1542,56 @@ def expense_reference_groups(
         key=lambda item: max(record.uploaded_at for record in item[1]),
         reverse=True,
     )
+
+
+def action_group_key(reference: str) -> str:
+    return f"group::{reference}"
+
+
+def action_group_options(
+    records: list[DocumentRecord],
+) -> list[tuple[str, str, list[DocumentRecord]]]:
+    ordered_records = sort_action_records(records)
+    options = [
+        (
+            "all",
+            f"All documents ({len(ordered_records)} files)",
+            ordered_records,
+        )
+    ]
+    for reference, group_records in expense_reference_groups(records):
+        action_count = sum(1 for record in group_records if is_actionable_record(record))
+        file_word = "file" if len(group_records) == 1 else "files"
+        action_text = (
+            f", {action_count} need action" if action_count else ", no open actions"
+        )
+        options.append(
+            (
+                action_group_key(reference),
+                f"{reference} ({len(group_records)} {file_word}{action_text})",
+                group_records,
+            )
+        )
+    return options
+
+
+def action_group_for_document(
+    records: list[DocumentRecord], document_id: str
+) -> str:
+    record = next(
+        (candidate for candidate in records if candidate.document_id == document_id),
+        None,
+    )
+    if not record or not (record.job_description or "").strip():
+        return "all"
+    reference = record.job_description.strip()
+    grouped_ids = {
+        candidate.document_id
+        for group_reference, group_records in expense_reference_groups(records)
+        if group_reference == reference
+        for candidate in group_records
+    }
+    return action_group_key(reference) if document_id in grouped_ids else "all"
 
 
 def next_action_document_id(
@@ -3344,29 +3395,55 @@ def detail_page(config, store):
     if pending_document_id in ids:
         st.session_state["selected_document_id"] = pending_document_id
         st.session_state[DETAIL_ACTION_PICKER_KEY] = pending_document_id
+        st.session_state[DETAIL_GROUP_PICKER_KEY] = action_group_for_document(
+            records, pending_document_id
+        )
 
     default_id = st.session_state.get("selected_document_id", ids[0])
-    index = ids.index(default_id) if default_id in ids else 0
-    if st.session_state.get(DETAIL_ACTION_PICKER_KEY) not in ids:
-        st.session_state[DETAIL_ACTION_PICKER_KEY] = ids[index]
+    if default_id not in ids:
+        default_id = ids[0]
+    group_options = action_group_options(records)
+    group_records_by_key = {key: group_records for key, _, group_records in group_options}
+    group_labels = {key: label for key, label, _ in group_options}
+    group_keys = [key for key, _, _ in group_options]
+    default_group = action_group_for_document(records, default_id)
+    if st.session_state.get(DETAIL_GROUP_PICKER_KEY) not in group_keys:
+        st.session_state[DETAIL_GROUP_PICKER_KEY] = default_group
     labels = {record.document_id: action_item_label(record) for record in records}
     with st.container(border=True):
-        picker_cols = st.columns([1.4, 0.3, 0.3], vertical_alignment="bottom")
-        document_id = picker_cols[0].selectbox(
-            "Selected file for review",
-            ids,
-            index=index,
+        group_cols = st.columns([0.82, 0.58, 0.3, 0.3], vertical_alignment="bottom")
+        group_key = group_cols[0].selectbox(
+            "Select document group",
+            group_keys,
+            index=group_keys.index(st.session_state[DETAIL_GROUP_PICKER_KEY]),
+            format_func=lambda item: group_labels.get(item, item),
+            help=(
+                "Choose an expense/reference group first, then select the exact file "
+                "inside that group."
+            ),
+            key=DETAIL_GROUP_PICKER_KEY,
+        )
+        scoped_records = group_records_by_key[group_key]
+        scoped_ids = [record.document_id for record in scoped_records]
+        if st.session_state.get(DETAIL_ACTION_PICKER_KEY) not in scoped_ids:
+            st.session_state[DETAIL_ACTION_PICKER_KEY] = (
+                default_id if default_id in scoped_ids else scoped_ids[0]
+            )
+        document_id = group_cols[1].selectbox(
+            "Select file in group" if group_key != "all" else "Selected file for review",
+            scoped_ids,
+            index=scoped_ids.index(st.session_state[DETAIL_ACTION_PICKER_KEY]),
             format_func=lambda item: labels.get(item, item),
             key=DETAIL_ACTION_PICKER_KEY,
         )
-        picker_cols[1].button(
+        group_cols[2].button(
             "Dashboard",
             width="stretch",
             key=f"detail_dashboard_{document_id}",
             on_click=open_page,
             args=(PAGE_DASHBOARD,),
         )
-        picker_cols[2].button(
+        group_cols[3].button(
             "Upload",
             width="stretch",
             key=f"detail_upload_{document_id}",

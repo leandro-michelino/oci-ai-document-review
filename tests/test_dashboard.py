@@ -8,6 +8,8 @@ from streamlit.testing.v1 import AppTest
 from app import (
     DASHBOARD_STATUS_FILTERS,
     action_badge,
+    action_group_for_document,
+    action_group_options,
     action_item_label,
     action_workload_metrics_html,
     action_tone,
@@ -136,6 +138,26 @@ def test_expense_reference_groups_keep_multi_file_uploads_together():
     groups = expense_reference_groups([third, second, first])
 
     assert groups == [("Client dinner May", [first, second])]
+
+
+def test_action_group_options_expose_document_groups_for_actions():
+    first = make_record("doc-1", "receipt-a.pdf")
+    first.job_description = "Client dinner May"
+    second = make_record("doc-2", "receipt-b.pdf", status=ProcessingStatus.PROCESSING)
+    second.job_description = "Client dinner May"
+    third = make_record("doc-3", "unrelated.pdf")
+
+    options = action_group_options([third, second, first])
+    keys = [key for key, _, _ in options]
+    labels = [label for _, label, _ in options]
+
+    assert keys == ["all", "group::Client dinner May"]
+    assert labels[0] == "All documents (3 files)"
+    assert labels[1] == "Client dinner May (2 files, 1 need action)"
+    assert action_group_for_document([third, second, first], "doc-1") == (
+        "group::Client dinner May"
+    )
+    assert action_group_for_document([third, second, first], "doc-3") == "all"
 
 
 def test_expense_row_groups_groups_dashboard_rows_by_reference():
