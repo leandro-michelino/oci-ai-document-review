@@ -512,6 +512,70 @@ def apply_theme() -> None:
             padding: 0.55rem 0.6rem;
             margin: 0.45rem 0;
         }
+        .expense-group-card {
+            border: 1px solid #d5c2b5;
+            border-left: 5px solid var(--brand);
+            border-radius: 8px;
+            background: #fffaf6;
+            padding: 0.85rem 0.95rem;
+            margin: 0.6rem 0 0.75rem;
+            box-shadow: 0 1px 2px rgba(38, 34, 29, 0.04);
+        }
+        .expense-group-head {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 0.55rem;
+            align-items: flex-start;
+            margin-bottom: 0.55rem;
+        }
+        .expense-group-title {
+            color: var(--text-strong);
+            font-size: 1rem;
+            font-weight: 900;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+        .expense-group-label {
+            color: var(--brand-dark);
+            font-size: 0.7rem;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 0.18rem;
+        }
+        .expense-file-list {
+            color: var(--text-soft);
+            font-size: 0.82rem;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+        .expense-file-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.45rem;
+            margin-top: 0.65rem;
+        }
+        .expense-file-card {
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 0.55rem 0.65rem;
+            min-width: 0;
+        }
+        .expense-file-title {
+            color: var(--text-strong);
+            font-size: 0.9rem;
+            font-weight: 800;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+        .expense-file-meta {
+            color: var(--text-soft);
+            font-size: 0.78rem;
+            line-height: 1.35;
+            margin-top: 0.25rem;
+        }
         .queue-title {
             color: var(--text-strong);
             font-weight: 800;
@@ -735,7 +799,8 @@ def apply_theme() -> None:
                 grid-template-columns: 1fr;
             }
             .review-snapshot,
-            .info-grid {
+            .info-grid,
+            .expense-file-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
@@ -1603,6 +1668,50 @@ def expense_group_stage_summary(records: list[DocumentRecord]) -> str:
     return ", ".join(f"{count} {stage}" for stage, count in sorted(stages.items()))
 
 
+def expense_group_badges_html(records: list[DocumentRecord]) -> str:
+    stage_tones = {
+        "Failed": "state-bad",
+        "Processing": "state-info",
+        "Queued": "state-info",
+        "Ready": "state-warn",
+        "Reviewed": "state-good",
+    }
+    stages = {}
+    for record in records:
+        stage = queue_stage(record)
+        stages[stage] = stages.get(stage, 0) + 1
+    badges = [
+        badge(f"{count} {stage}", stage_tones.get(stage, "state-info"))
+        for stage, count in sorted(stages.items())
+    ]
+    return f'<div class="status-strip">{"".join(badges)}</div>'
+
+
+def expense_group_file_list(records: list[DocumentRecord], limit: int = 4) -> str:
+    names = [record.document_name for record in records[:limit]]
+    if len(records) > limit:
+        names.append(f"+{len(records) - limit} more")
+    return ", ".join(names)
+
+
+def expense_row_group_header(reference: str, rows: pd.DataFrame) -> str:
+    file_word = "file" if len(rows) == 1 else "files"
+    return f"""
+    <div class="expense-group-card">
+      <div class="expense-group-head">
+        <div>
+          <div class="expense-group-label">Expense name or reference</div>
+          <div class="expense-group-title">{escape(reference)}</div>
+        </div>
+        <span class="badge state-info">{len(rows)} {file_word}</span>
+      </div>
+      <div class="expense-file-list">
+        {escape(", ".join(rows["Name"].head(5).tolist()))}
+      </div>
+    </div>
+    """
+
+
 def dashboard_focus_record(records: list[DocumentRecord]) -> DocumentRecord | None:
     return next(
         (
@@ -1796,24 +1905,35 @@ def render_expense_groups_overview(records: list[DocumentRecord]) -> None:
             group_records[0],
         )
         with st.container(border=True):
-            cols = st.columns([1.4, 0.7, 0.4], vertical_alignment="center")
-            cols[0].markdown(
+            st.markdown(
                 f"""
-                <div class="queue-title">{escape(reference)}</div>
-                <div class="queue-meta">{escape(expense_group_stage_summary(group_records))}</div>
+                <div class="expense-group-card">
+                  <div class="expense-group-head">
+                    <div>
+                      <div class="expense-group-label">Expense name or reference</div>
+                      <div class="expense-group-title">{escape(reference)}</div>
+                    </div>
+                    <span class="badge state-info">{len(group_records)} files</span>
+                  </div>
+                  {expense_group_badges_html(group_records)}
+                  <div class="expense-file-list">
+                    {escape(expense_group_file_list(group_records))}
+                  </div>
+                </div>
                 """,
                 unsafe_allow_html=True,
             )
-            cols[1].caption(
-                ", ".join(record.document_name for record in group_records[:4])
-                + ("..." if len(group_records) > 4 else "")
-            )
-            if cols[2].button(
+            cols = st.columns([0.35, 1.65], vertical_alignment="center")
+            if cols[0].button(
                 "Open",
                 key=f"expense_group_open_{target.document_id}",
                 width="stretch",
             ):
                 open_page_from_dashboard(PAGE_DETAIL, target.document_id)
+            cols[1].caption(
+                f"Open starts with {target.document_name}; "
+                f"{expense_group_stage_summary(group_records)}."
+            )
 
 
 def render_queue_section(view: str, rows: pd.DataFrame) -> None:
@@ -1831,8 +1951,10 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
 
     for reference, group_rows in expense_row_groups(rows):
         if reference:
-            file_word = "file" if len(group_rows) == 1 else "files"
-            st.caption(f"Expense name or reference: {reference} · {len(group_rows)} {file_word}")
+            st.markdown(
+                expense_row_group_header(reference, group_rows),
+                unsafe_allow_html=True,
+            )
         for _, row in group_rows.iterrows():
             with st.container(border=True):
                 row_cols = st.columns(
@@ -1887,9 +2009,9 @@ def render_ready_queue_band(rows: pd.DataFrame) -> None:
     with st.container(border=True):
         for reference, group_rows in expense_row_groups(rows):
             if reference:
-                file_word = "file" if len(group_rows) == 1 else "files"
-                st.caption(
-                    f"Expense name or reference: {reference} · {len(group_rows)} {file_word}"
+                st.markdown(
+                    expense_row_group_header(reference, group_rows),
+                    unsafe_allow_html=True,
                 )
             row_items = list(group_rows.iterrows())
             for start in range(0, len(row_items), 3):
@@ -1962,19 +2084,38 @@ def render_expense_reference_panel(
     if len(related) <= 1:
         return
     with st.container(border=True):
-        st.subheader("Expense name or reference")
-        st.write(reference)
-        st.caption(f"{len(related)} files are linked to this expense/reference.")
+        st.markdown(
+            f"""
+            <div class="expense-group-card">
+              <div class="expense-group-head">
+                <div>
+                  <div class="expense-group-label">Expense name or reference</div>
+                  <div class="expense-group-title">{escape(reference)}</div>
+                </div>
+                <span class="badge state-info">{len(related)} linked files</span>
+              </div>
+              {expense_group_badges_html(related)}
+              <div class="expense-file-list">
+                Review these files together; decisions can still be made per document.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         for record in related:
-            cols = st.columns([1.15, 0.55, 0.55, 0.35], vertical_alignment="center")
+            cols = st.columns([1.2, 0.42, 0.45, 0.32], vertical_alignment="center")
             cols[0].markdown(
                 f"""
-                <div class="queue-title">{escape(record.document_name)}</div>
-                <div class="queue-meta">{escape(record.uploaded_at.strftime("%Y-%m-%d %H:%M"))}</div>
+                <div class="expense-file-card">
+                  <div class="expense-file-title">{escape(record.document_name)}</div>
+                  <div class="expense-file-meta">
+                    {escape(record.uploaded_at.strftime("%Y-%m-%d %H:%M"))}
+                  </div>
+                </div>
                 """,
                 unsafe_allow_html=True,
             )
-            cols[1].caption(queue_stage(record))
+            cols[1].markdown(badge(queue_stage(record), state_tone(record.status.value)), unsafe_allow_html=True)
             cols[2].caption(next_action(record))
             if record.document_id == current.document_id:
                 cols[3].caption("Current")
