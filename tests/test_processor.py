@@ -14,6 +14,7 @@ from src.processor import (
     GENAI_SAFETY_REVIEW_RISK,
     PUBLIC_SECTOR_EXPENSE_RISK,
     apply_compliance_attention,
+    chunk_document_name,
     detected_document_type,
     error_message,
     fallback_safety_analysis,
@@ -27,6 +28,13 @@ def test_safe_document_name_removes_path_parts_and_unsafe_chars():
 
 def test_safe_document_name_has_fallback():
     assert safe_document_name("...") == "document"
+
+
+def test_chunk_document_name_keeps_original_stem_and_sequence():
+    assert (
+        chunk_document_name("Receipt_21Apr2026_112647.pdf", 2)
+        == "Receipt_21Apr2026_112647_2.pdf"
+    )
 
 
 def test_error_message_unwraps_retry_error_like_exception():
@@ -225,7 +233,9 @@ def test_processor_chunks_scanned_pdf_over_document_understanding_limit(
         @staticmethod
         def extract_document(object_name):
             assert "ocr-chunks" in object_name
-            chunk_index = int(object_name.rsplit("/", 1)[-1].split("-", 1)[0])
+            chunk_index = int(
+                object_name.rsplit("/", 1)[-1].rsplit(".", 1)[0].rsplit("_", 1)[1]
+            )
             return ExtractionResult(
                 text=f"Chunk {chunk_index} OCR text",
                 tables=[{"chunk": chunk_index}],
@@ -264,7 +274,7 @@ def test_processor_chunks_scanned_pdf_over_document_understanding_limit(
     config.local_metadata_dir.mkdir()
     config.local_reports_dir.mkdir()
     config.local_uploads_dir.mkdir()
-    source = tmp_path / "scan.pdf"
+    source = tmp_path / "Receipt_21Apr2026_112647.pdf"
     writer = PdfWriter()
     for _ in range(12):
         writer.add_blank_page(width=72, height=72)
@@ -273,7 +283,7 @@ def test_processor_chunks_scanned_pdf_over_document_understanding_limit(
 
     record = DocumentProcessor(config).process(
         source_path=source,
-        document_name="scan.pdf",
+        document_name="Receipt_21Apr2026_112647.pdf",
         document_type=DocumentType.GENERAL,
         document_id="doc-long-scan",
     )
@@ -282,11 +292,13 @@ def test_processor_chunks_scanned_pdf_over_document_understanding_limit(
     assert record.extraction_source == (
         "OCI Document Understanding chunked OCR (3 chunks, 12 pages)"
     )
-    assert uploaded_objects[0] == "documents/doc-long-scan/scan.pdf"
+    assert uploaded_objects[0] == (
+        "documents/doc-long-scan/Receipt_21Apr2026_112647.pdf"
+    )
     assert uploaded_objects[1:] == [
-        "documents/doc-long-scan/ocr-chunks/001-scan.pdf",
-        "documents/doc-long-scan/ocr-chunks/002-scan.pdf",
-        "documents/doc-long-scan/ocr-chunks/003-scan.pdf",
+        "documents/doc-long-scan/ocr-chunks/Receipt_21Apr2026_112647_1.pdf",
+        "documents/doc-long-scan/ocr-chunks/Receipt_21Apr2026_112647_2.pdf",
+        "documents/doc-long-scan/ocr-chunks/Receipt_21Apr2026_112647_3.pdf",
     ]
     assert deleted_objects == uploaded_objects[1:]
 

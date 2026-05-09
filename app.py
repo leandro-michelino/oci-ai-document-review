@@ -228,6 +228,30 @@ def upload_document_type_options() -> list[str]:
     return [item.value for item in options]
 
 
+def action_item_label(record: DocumentRecord) -> str:
+    parts = [
+        record.document_name,
+        f"ID: {record.document_id}",
+        f"Expense: {record.job_description}" if record.job_description else "",
+        f"Stage: {queue_stage(record)}",
+        f"Uploaded: {record.uploaded_at.strftime('%Y-%m-%d %H:%M')}",
+    ]
+    return " | ".join(part for part in parts if part)
+
+
+def selected_file_notice(record: DocumentRecord, linked_count: int = 1) -> str:
+    parts = [
+        f"Selected file: {record.document_name}",
+        f"Document ID: {record.document_id}",
+    ]
+    if record.job_description:
+        parts.append(f"Expense: {record.job_description}")
+    if linked_count > 1:
+        parts.append(f"Linked files in expense/reference: {linked_count}")
+    parts.append(f"Current action: {next_action(record)}")
+    return " | ".join(parts)
+
+
 def workflow_status_options() -> list[WorkflowStatus]:
     return sorted(WorkflowStatus, key=workflow_status_label)
 
@@ -1720,6 +1744,39 @@ def expense_group_file_list(records: list[DocumentRecord], limit: int = 4) -> st
     return ", ".join(names)
 
 
+def expense_group_item_rows(records: list[DocumentRecord]) -> list[dict[str, str]]:
+    rows = []
+    for record in records:
+        if not record.analysis or not record.analysis.extracted_fields.line_items:
+            continue
+        rows.append(
+            {
+                "File": record.document_name,
+                "Stage": queue_stage(record),
+                "Items / Services": "; ".join(
+                    record.analysis.extracted_fields.line_items[:8]
+                ),
+            }
+        )
+    return rows
+
+
+def expense_group_aggregation(records: list[DocumentRecord]) -> dict[str, int]:
+    return {
+        "files": len(records),
+        "needs_decision": sum(1 for record in records if requires_human_action(record)),
+        "needs_fix": sum(1 for record in records if record.status == ProcessingStatus.FAILED),
+        "items": sum(
+            len(record.analysis.extracted_fields.line_items)
+            for record in records
+            if record.analysis
+        ),
+        "risks": sum(
+            len(record.analysis.risk_notes) for record in records if record.analysis
+        ),
+    }
+
+
 def expense_row_stage_summary(rows: pd.DataFrame) -> str:
     stages = {}
     for stage in rows["Stage"].tolist():
@@ -2211,6 +2268,7 @@ def render_expense_reference_panel(
     if len(related) <= 1:
         return
     with st.container(border=True):
+        aggregate = expense_group_aggregation(related)
         st.markdown(
             f"""
             <div class="expense-group-card">
@@ -2229,6 +2287,25 @@ def render_expense_reference_panel(
             """,
             unsafe_allow_html=True,
         )
+        st.markdown("#### Group aggregation")
+        metric_cols = st.columns(4)
+        metric_cols[0].metric("Files", aggregate["files"])
+        metric_cols[1].metric("Need decision", aggregate["needs_decision"])
+        metric_cols[2].metric("Items / services", aggregate["items"])
+        metric_cols[3].metric("Risks", aggregate["risks"])
+
+        item_rows = expense_group_item_rows(related)
+        if item_rows:
+            st.markdown("#### Items / Services by file")
+            st.dataframe(
+                pd.DataFrame(item_rows),
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.caption("No receipt or invoice items were extracted across this group.")
+
+        st.markdown("#### Files in this group")
         for record in related:
             cols = st.columns([1.2, 0.42, 0.45, 0.32], vertical_alignment="center")
             cols[0].markdown(
@@ -2247,7 +2324,7 @@ def render_expense_reference_panel(
             if record.document_id == current.document_id:
                 cols[3].caption("Current")
             elif cols[3].button(
-                "Open",
+                "Review",
                 key=f"expense_related_open_{current.document_id}_{record.document_id}",
                 width="stretch",
             ):
@@ -3087,22 +3164,10 @@ def detail_page(config, store):
     index = ids.index(default_id) if default_id in ids else 0
     if st.session_state.get(DETAIL_ACTION_PICKER_KEY) not in ids:
         st.session_state[DETAIL_ACTION_PICKER_KEY] = ids[index]
-    labels = {
-        record.document_id: " - ".join(
-            part
-            for part in [
-                record.document_name,
-                f"Expense: {record.job_description}" if record.job_description else "",
-                queue_stage(record),
-                record.uploaded_at.strftime("%Y-%m-%d %H:%M"),
-            ]
-            if part
-        )
-        for record in records
-    }
+    labels = {record.document_id: action_item_label(record) for record in records}
     picker_cols = st.columns([1.4, 0.3, 0.3])
     document_id = picker_cols[0].selectbox(
-        "Action item",
+        "Selected file for review",
         ids,
         index=index,
         format_func=lambda item: labels.get(item, item),
@@ -3126,7 +3191,18 @@ def detail_page(config, store):
     record = store.load(document_id)
     st.session_state["selected_document_id"] = document_id
 
-    st.subheader(record.document_name)
+    linked_count = (
+        sum(
+            1
+            for candidate in records
+            if (candidate.job_description or "").strip()
+            == (record.job_description or "").strip()
+        )
+        if (record.job_description or "").strip()
+        else 1
+    )
+    st.subheader(f"Selected file: {record.document_name}")
+    st.info(selected_file_notice(record, linked_count))
     if record.job_description:
         st.caption(f"Expense: {record.job_description}")
     render_status_strip(record)

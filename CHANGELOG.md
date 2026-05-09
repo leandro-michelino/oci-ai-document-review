@@ -8,6 +8,9 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Actions now shows group aggregation for multi-file expense/reference submissions, including file counts, decision/fix counts, total extracted items/services, total risks, and Items / Services by file.
+- OCI Document Understanding chunk uploads now use customer-readable names based on the original PDF stem plus `_1`, `_2`, and so on.
+- Actions now identifies the exact selected file more clearly with file name, document ID, expense/reference, stage, upload time, linked-file count, and current action.
 - Dashboard documentation now reflects compact multi-file expense groups with one `Review` button, collapsed `Show files` details, and best-next-action routing.
 - Actions documentation now reflects the top Decision panel, so reviewers can correct type, approve, or reject before scrolling through source download and full AI analysis.
 - Refreshed the in-app How to Use guide for one-to-five-file submissions, mandatory multi-file expense name or reference, Dashboard expense groups, stale processing cleanup, source-document download, and approver linked-file review.

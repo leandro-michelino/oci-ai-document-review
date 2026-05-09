@@ -92,6 +92,14 @@ def safe_document_name(document_name: str) -> str:
     return cleaned or "document"
 
 
+def chunk_document_name(storage_name: str, index: int) -> str:
+    path = Path(storage_name)
+    suffix = path.suffix or ".pdf"
+    stem = path.stem if path.suffix else path.name
+    stem = stem.strip("._") or "document"
+    return f"{stem}_{index}{suffix}"
+
+
 def detected_document_type(document_class: str | None) -> DocumentType:
     if not document_class:
         return DocumentType.GENERAL
@@ -352,7 +360,7 @@ class DocumentProcessor:
             for index, chunk in enumerate(chunks, start=1):
                 chunk_object_name = (
                     f"documents/{document_id}/ocr-chunks/"
-                    f"{index:03d}-{safe_document_name(storage_name)}"
+                    f"{chunk_document_name(storage_name, index)}"
                 )
                 self.object_storage.upload_file(chunk.path, chunk_object_name)
                 try:

@@ -139,6 +139,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                  +--> Document Understanding OCR
                  |    Images / scanned PDFs
                  |    Scanned PDFs split into limit-safe chunks when needed
+                 |    Chunk names keep original stem: file_1.pdf, file_2.pdf
                  |
                  +--> DU text-only OCR fallback
                  |    Used when table/key-value extraction fails
@@ -312,6 +313,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
               +----------------------------+
               | Actions Linked Files Panel |
               | Decision Panel At Top      |
+              | Group Item Aggregation     |
               | End-To-End Batch Context   |
               +----------------------------+
 ```
@@ -575,6 +577,7 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 | Local Text Read      |      | Local PDF Text Read  |      | OCI Document         |
 | No DU Call           |      | No DU Call           |      | Understanding OCR    |
 |                      |      |                      |      | Limit-Safe Chunks    |
+|                      |      |                      |      | OriginalStem_N.pdf   |
 +----------+-----------+      +----------+-----------+      +----------+-----------+
            |                             |                             |
            |                             |                             v

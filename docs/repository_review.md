@@ -10,6 +10,9 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 
 ## Fixes Applied
 
+- Added Actions group aggregation for multi-file expense/reference submissions, including decision/fix counts, total items/services, total risk notes, and Items / Services by file.
+- Renamed OCI Document Understanding chunk object naming from opaque numbered prefixes to original-file-stem sequence names such as `Receipt_21Apr2026_112647_1.pdf`.
+- Made Actions selection clearer by documenting and testing exact selected-file labeling with file name, document ID, expense/reference, stage, upload time, linked-file count, and current action.
 - Updated all user-facing documentation for the latest review UX: compact Dashboard expense groups, one `Review` action per multi-file group, collapsed `Show files` details, best-next-action routing, and the Actions Decision panel placed near the top.
 - Updated ASCII architecture flows with a Compact Dashboard Review Flow showing single-file rows, multi-file group cards, `Review`, collapsed file details, and the top Decision panel.
 - Refreshed the in-app How to Use guide so uploaders see the current one-to-five-file submission flow, mandatory multi-file expense name or reference, Dashboard expense groups, active elapsed processing time, stale failure handling, and reviewer linked-file/source-download workflow.

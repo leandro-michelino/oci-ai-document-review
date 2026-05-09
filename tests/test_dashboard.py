@@ -8,13 +8,16 @@ from streamlit.testing.v1 import AppTest
 from app import (
     DASHBOARD_STATUS_FILTERS,
     action_badge,
+    action_item_label,
     action_tone,
     backfill_compliance_attention,
     dashboard_metrics_html,
     display_error_message,
     document_type_label,
     expense_group_badges_html,
+    expense_group_aggregation,
     expense_group_file_list,
+    expense_group_item_rows,
     expense_row_group_target,
     expense_reference_groups,
     expense_row_groups,
@@ -30,6 +33,7 @@ from app import (
     reviewer_action_count,
     render_howto_panel,
     risk_detail_label,
+    selected_file_notice,
     source_download_mime,
     source_download_name,
     sort_action_records,
@@ -176,6 +180,49 @@ def test_expense_row_group_target_prefers_reviewable_file():
     target = expense_row_group_target(rows)
 
     assert target["Document ID"] == "doc-ready"
+
+
+def test_action_item_label_and_selected_notice_identify_exact_file():
+    record = make_record("doc-abc123", "Receipt_21Apr2026_112647.pdf")
+    record.job_description = "Client dinner April"
+
+    label = action_item_label(record)
+    notice = selected_file_notice(record, linked_count=3)
+
+    assert "Receipt_21Apr2026_112647.pdf" in label
+    assert "ID: doc-abc123" in label
+    assert "Expense: Client dinner April" in label
+    assert "Selected file: Receipt_21Apr2026_112647.pdf" in notice
+    assert "Document ID: doc-abc123" in notice
+    assert "Linked files in expense/reference: 3" in notice
+
+
+def test_expense_group_aggregation_includes_items_and_risks():
+    first = make_record(
+        "doc-1",
+        "receipt-a.pdf",
+        risks=[RiskNote(risk="Missing receipt detail", severity="LOW")],
+    )
+    first.analysis.extracted_fields.line_items = ["Coffee EUR 4", "Lunch EUR 18"]
+    second = make_record("doc-2", "receipt-b.pdf", status=ProcessingStatus.FAILED)
+
+    aggregation = expense_group_aggregation([first, second])
+    rows = expense_group_item_rows([first, second])
+
+    assert aggregation == {
+        "files": 2,
+        "needs_decision": 1,
+        "needs_fix": 1,
+        "items": 2,
+        "risks": 1,
+    }
+    assert rows == [
+        {
+            "File": "receipt-a.pdf",
+            "Stage": "Ready",
+            "Items / Services": "Coffee EUR 4; Lunch EUR 18",
+        }
+    ]
 
 
 def test_risk_detail_label_explains_missing_and_multiple_risks():
