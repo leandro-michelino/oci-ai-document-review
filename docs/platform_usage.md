@@ -355,13 +355,13 @@ Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
   - Starts with `Select document group` so reviewers can choose all documents or a specific expense/reference group before choosing a file.
   - Labels the selector as `Selected file for review` and includes file name, document ID, expense/reference, stage, and upload time in each option.
-  - Repeats the selected file name, document ID, linked-file count, workflow state, SLA, and risk/action badges in a compact summary above the Decision panel.
+  - Repeats the selected file name, document ID, linked-file count, workflow state, SLA, and risk/action badges in a compact summary above the review controls.
   - Keeps linked files for the same Expense name or reference inside a collapsed expander.
   - Aggregates each multi-file expense/reference group inside that expander with file count, files needing decision, files needing fix, total extracted items/services, total risks, and Items / Services by file when line items exist.
-  - Places the Decision panel near the top of the page so reviewers can correct the type, approve, or reject without scrolling through the full analysis first.
+  - Shows the AI review summary before the Decision panel so reviewers see the summary, key points, line items, risks, and recommendations before approving or rejecting.
+  - Places the Decision panel near the top of the page after the AI summary so reviewers can correct the type, approve, or reject without scrolling through source files or full analysis details first.
   - Shows a `Download Doc for Review` button when the VM still has the local working copy.
   - Keeps Workflow, notes, retry, retry history, and audit trail in one expander.
-  - Shows a focused AI review summary in an expander with key points, receipt or invoice items and services, and recommendations.
   - Keeps source document, analysis details, file and processing details, extracted text, and downloads in expanders.
   - Requires comments before rejecting a document.
   - After approval or rejection, selects the next action item when one exists.

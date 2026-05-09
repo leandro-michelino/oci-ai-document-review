@@ -1,3 +1,4 @@
+import inspect
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +17,7 @@ from app import (
     actions_summary_html,
     backfill_compliance_attention,
     dashboard_metrics_html,
+    detail_page,
     display_error_message,
     document_type_label,
     expense_group_badges_html,
@@ -224,6 +226,12 @@ def test_action_item_label_and_selected_notice_identify_exact_file():
     assert "Selected file for review" in summary
     assert "Workflow: New" in summary
     assert "Linked files: 3" in summary
+
+
+def test_actions_page_shows_ai_summary_before_decision_panel():
+    source = inspect.getsource(detail_page)
+
+    assert source.index('"AI review summary"') < source.index('st.subheader("Decision")')
 
 
 def test_action_workload_metrics_html_summarizes_actions():

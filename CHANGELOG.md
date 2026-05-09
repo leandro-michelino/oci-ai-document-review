@@ -9,6 +9,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 ## Unreleased
 
 - Actions now has a visible `Select document group` control before the file selector, making grouped expense/reference submissions easier to review together.
+- Actions now shows the expanded AI review summary before the Decision panel, so approvers see the AI context before approving or rejecting.
 
 ## v0.4.0 - 2026-05-09
 

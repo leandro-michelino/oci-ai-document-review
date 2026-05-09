@@ -3468,6 +3468,9 @@ def detail_page(config, store):
     st.caption(selected_file_notice(record, linked_count))
     render_expense_reference_panel(records, record)
 
+    with st.expander("AI review summary", expanded=True):
+        render_analysis_overview(record)
+
     with st.container(border=True):
         st.subheader("Decision")
         render_document_type_editor(config, store, record, "detail")
@@ -3487,9 +3490,6 @@ def detail_page(config, store):
 
     with st.expander("Source document", expanded=False):
         render_source_document_download(config, record)
-
-    with st.expander("AI review summary", expanded=True):
-        render_analysis_overview(record)
 
     with st.expander("Analysis details", expanded=False):
         render_analysis_details(record)
