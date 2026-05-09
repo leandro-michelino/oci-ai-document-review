@@ -13,6 +13,8 @@ from app import (
     dashboard_metrics_html,
     display_error_message,
     document_type_label,
+    expense_reference_groups,
+    expense_row_groups,
     file_size_label,
     filter_dashboard_status,
     filter_queue_rows,
@@ -112,6 +114,34 @@ def test_record_to_row_adds_dashboard_fields():
     assert "contract.pdf" in row["Search Text"]
     assert "q1 vendor onboarding" in row["Search Text"]
     assert "new" in row["Search Text"]
+
+
+def test_expense_reference_groups_keep_multi_file_uploads_together():
+    first = make_record("doc-1", "receipt-a.pdf")
+    first.job_description = "Client dinner May"
+    second = make_record("doc-2", "receipt-b.pdf", status=ProcessingStatus.PROCESSING)
+    second.job_description = "Client dinner May"
+    third = make_record("doc-3", "unrelated.pdf")
+
+    groups = expense_reference_groups([third, second, first])
+
+    assert groups == [("Client dinner May", [first, second])]
+
+
+def test_expense_row_groups_groups_dashboard_rows_by_reference():
+    first = make_record("doc-1", "receipt-a.pdf")
+    first.job_description = "Client dinner May"
+    second = make_record("doc-2", "receipt-b.pdf")
+    second.job_description = "Client dinner May"
+    loose = make_record("doc-3", "single.pdf")
+    rows = pd.DataFrame([record_to_row(record) for record in [first, loose, second]])
+
+    groups = expense_row_groups(rows)
+
+    assert groups[0][0] == "Client dinner May"
+    assert groups[0][1]["Document ID"].tolist() == ["doc-1", "doc-2"]
+    assert groups[1][0] is None
+    assert groups[1][1]["Document ID"].tolist() == ["doc-3"]
 
 
 def test_risk_detail_label_explains_missing_and_multiple_risks():

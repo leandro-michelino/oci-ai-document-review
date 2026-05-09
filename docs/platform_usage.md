@@ -269,9 +269,9 @@ Recommended processing flow:
    View Dashboard, Open Actions, or Upload Another.
 10. Use Dashboard to watch the queue while the worker pool runs the live steps:
    Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, automatic limit-safe OCR chunks for scanned PDFs above OCI's synchronous request limits, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
-11. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Multi-file uploads show their shared Expense name or reference in the queue rows. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
+11. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Multi-file uploads stay grouped under their shared Expense name or reference in the Expense groups overview and inside each phase queue. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
 12. Click Open next to a document.
-13. Use the Actions page to review the expense name or reference, executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details.
+13. Use the Actions page to review the expense name or reference, linked files for the same expense/reference, executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details.
 14. Use the Workflow panel to set the workflow status, assignee, and SLA due date.
 15. Add workflow comments when the reviewer needs extra context or follow-up.
 16. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
@@ -335,6 +335,7 @@ Dashboard
   - Shows the next document that needs a human or operational action.
   - Provides search across document name, reference, status, action, and summary.
   - Provides Upload and Actions shortcuts for common navigation.
+  - Keeps multi-file uploads together in an Expense groups overview and under expense/reference headers in each phase queue.
   - Shows split queue tables for Processing, Ready, Failed, and Reviewed documents.
   - Opens each document in Actions from the Open button at the start of its row.
   - Keeps the route in the browser URL with `?page=Dashboard`.
@@ -342,6 +343,7 @@ Dashboard
 
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
+  - Shows linked files for the same Expense name or reference next to the selected document.
   - Shows a `Download Doc for Review` button when the VM still has the local working copy.
   - Shows a focused AI review summary with key points, receipt or invoice items and services, and recommendations.
   - Shows the Decision panel for approve or reject.

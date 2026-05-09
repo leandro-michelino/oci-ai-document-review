@@ -65,7 +65,7 @@ The goal is not to replace human approval. The goal is to give reviewers a real,
 
 ## What Happens After Upload
 
-After the user clicks Queue Document or Queue Documents, the portal accepts the file set, creates one metadata record per file, and queues the live backend workflow. Multi-file uploads share the same expense name or reference, and the Dashboard shows that context while workers process documents in parallel.
+After the user clicks Queue Document or Queue Documents, the portal accepts the file set, creates one metadata record per file, and queues the live backend workflow. Multi-file uploads share the same expense name or reference. Dashboard keeps those files together in an Expense groups overview and under expense/reference headers inside each phase queue, while Actions shows the linked files for the selected expense/reference.
 
 ```text
 User uploads file
@@ -120,7 +120,7 @@ Reviewer assigns owner, SLA, workflow status, or comments
 Reviewer approves or rejects the document
 ```
 
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, a Processing queue, a horizontal Ready band for approval work, paired Failed and Reviewed queues, and an `Open` action directly in front of each file.
+The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, grouped expense/reference batches, a Processing queue, a horizontal Ready band for approval work, paired Failed and Reviewed queues, and an `Open` action directly in front of each file.
 
 The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. Reviewers can download the original source document for review when the local working copy is available. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata.
 
