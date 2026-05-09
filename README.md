@@ -39,13 +39,13 @@ The chatbot should answer from trusted application data only: local or database-
 
 This project is a working OCI document review portal for business files such as receipts, invoices, contracts, compliance documents, reports, PDFs, and images.
 
-Users upload one document or a small job of up to five files in the web portal. When more than one file is selected, the uploader must enter a job description so the related files stay visible together in Dashboard, Actions, metadata, and reports. The platform then:
+Users upload one document or a small submission of up to five files in the web portal. When more than one file is selected, the uploader must enter an expense name or reference so the related files stay visible together in Dashboard, Actions, metadata, and reports. The platform then:
 
 ```text
 1. Saves each uploaded file locally and creates an UPLOADED metadata record.
 2. Queues the document in a background worker pool so the browser does not wait on OCI processing.
 3. Stores the original file in a private OCI Object Storage bucket.
-4. Validates basic upload requirements such as file count, mandatory multi-file job description, extension, empty file, and configured size limit.
+4. Validates basic upload requirements such as file count, mandatory multi-file expense name or reference, extension, empty file, and configured size limit.
 5. Extracts text locally for text-native files and PDFs with selectable text.
 6. Uses OCI Document Understanding only for images, scanned PDFs, or image-only PDFs.
 7. Splits scanned PDFs above OCI's synchronous OCR request limits into temporary chunks.
@@ -65,7 +65,7 @@ The goal is not to replace human approval. The goal is to give reviewers a real,
 
 ## What Happens After Upload
 
-After the user clicks Queue Document or Queue Documents, the portal accepts the file set, creates one metadata record per file, and queues the live backend workflow. Multi-file uploads share the same job description, and the Dashboard shows that job context while workers process documents in parallel.
+After the user clicks Queue Document or Queue Documents, the portal accepts the file set, creates one metadata record per file, and queues the live backend workflow. Multi-file uploads share the same expense name or reference, and the Dashboard shows that context while workers process documents in parallel.
 
 ```text
 User uploads file
@@ -165,7 +165,7 @@ The portal shows a `?` marker beside the main review and file fields. Hover over
 | File name | Original uploaded file name. |
 | Extension | File extension from the uploaded file name. |
 | File size | Original upload size captured by the portal for new uploads. |
-| Job description | Shared description for a multi-file upload batch, used to keep related files together. |
+| Expense name or reference | Shared expense name or reference for a multi-file upload batch, used to keep related files together. |
 | MIME type | Browser-reported file content type captured during upload. |
 | Business reference | Optional user-provided reference, such as invoice number, case ID, or contract ID. |
 | Document ID | Internal portal identifier created for this processing run. |

@@ -123,7 +123,7 @@ FIELD_HELP = {
     "Extension": "File extension from the uploaded file name.",
     "File name": "Original uploaded file name.",
     "File size": "Original upload size captured by the portal for new uploads.",
-    "Job description": "Shared description for a multi-file upload batch, used to keep related files together.",
+    "Expense name or reference": "Shared expense name or reference for a multi-file upload batch, used to keep related files together.",
     "MIME type": "Browser-reported file content type captured during upload.",
     "Report": "Whether a Markdown review report exists on the VM.",
     "Review": "Human review decision state: PENDING, APPROVED, or REJECTED.",
@@ -153,7 +153,7 @@ FIELD_GUIDE_ROWS = [
     ("SLA", FIELD_HELP["SLA"]),
     ("Document type", FIELD_HELP["Document type"]),
     ("File size", FIELD_HELP["File size"]),
-    ("Job description", FIELD_HELP["Job description"]),
+    ("Expense name or reference", FIELD_HELP["Expense name or reference"]),
     ("MIME type", FIELD_HELP["MIME type"]),
     ("Report", FIELD_HELP["Report"]),
     ("Text preview", FIELD_HELP["Text preview"]),
@@ -821,7 +821,9 @@ def validate_upload_batch_requirements(uploaded_files, job_description: str) -> 
     if selected_count > MAX_FILES_PER_UPLOAD:
         errors.append(f"Select up to {MAX_FILES_PER_UPLOAD} files per upload.")
     if selected_count > 1 and not job_description.strip():
-        errors.append("Job description is required when uploading more than one file.")
+        errors.append(
+            "Expense name or reference is required when uploading more than one file."
+        )
     return errors
 
 
@@ -1039,7 +1041,7 @@ def render_file_information(record, compact: bool = False) -> None:
         ("Retries", str(record.retry_count)),
         ("Extension", file_extension(record)),
         ("MIME type", record.source_file_mime_type or "Not captured"),
-        ("Job description", record.job_description or "Not provided"),
+        ("Expense name or reference", record.job_description or "Not provided"),
         ("Business reference", record.business_reference or "Not provided"),
         (
             "Processed",
@@ -1467,7 +1469,7 @@ def record_to_row(record):
         "Retries": record.retry_count,
         "Uploaded": record.uploaded_at.strftime("%Y-%m-%d %H:%M"),
         "Uploaded Sort": record.uploaded_at.isoformat(),
-        "Job Description": record.job_description or "",
+        "Expense Name or Reference": record.job_description or "",
         "Reference": record.business_reference or "",
         "Risk Level": highest_risk_level(record),
         "Risks": len(analysis.risk_notes) if analysis else 0,
@@ -1643,7 +1645,7 @@ def render_dashboard_focus(config, records: list[DocumentRecord]) -> None:
                 sla_label(focus),
             ]
             if focus.job_description:
-                context.append(f"Job: {focus.job_description}")
+                context.append(f"Expense: {focus.job_description}")
             if focus.assignee:
                 context.append(f"Owner: {focus.assignee}")
             panel_html = f"""
@@ -1757,8 +1759,8 @@ def render_queue_section(view: str, rows: pd.DataFrame) -> None:
             ):
                 open_page_from_dashboard(PAGE_DETAIL, document_id)
             details = [f"{row['Uploaded']} · {row['Type']}"]
-            if row["Job Description"]:
-                details.append(f"Job: {row['Job Description']}")
+            if row["Expense Name or Reference"]:
+                details.append(f"Expense: {row['Expense Name or Reference']}")
             if row["Reference"]:
                 details.append(f"Ref: {row['Reference']}")
             if row["Assignee"] != "Unassigned":
@@ -1799,8 +1801,8 @@ def render_ready_queue_band(rows: pd.DataFrame) -> None:
             for col, (_, row) in zip(cols, row_items[start : start + 3]):
                 document_id = row["Document ID"]
                 details = [f"{row['Uploaded']} | {row['Type']}"]
-                if row["Job Description"]:
-                    details.append(f"Job: {row['Job Description']}")
+                if row["Expense Name or Reference"]:
+                    details.append(f"Expense: {row['Expense Name or Reference']}")
                 if row["Reference"]:
                     details.append(f"Ref: {row['Reference']}")
                 confidence = row["Confidence"]
@@ -1907,7 +1909,7 @@ def render_batch_queued_actions(records: list[DocumentRecord]) -> None:
             f"{len(records)} files are in the background queue. You can follow the job from the dashboard."
         )
         if first_record.job_description:
-            st.caption(f"Job: {first_record.job_description}")
+            st.caption(f"Expense: {first_record.job_description}")
         st.write(", ".join(record.document_name for record in records))
         cols = st.columns([1, 1, 1])
         cols[0].button(
@@ -2398,7 +2400,7 @@ def upload_page(config, store):
         )
         selected_count = len(uploaded_files or [])
         job_description = st.text_area(
-            "Job description",
+            "Expense name or reference",
             height=80,
             placeholder=(
                 "Required when uploading more than one file"
@@ -2406,7 +2408,7 @@ def upload_page(config, store):
                 else "Optional shared context for this upload"
             ),
             key="upload_job_description",
-            help=FIELD_HELP["Job description"],
+            help=FIELD_HELP["Expense name or reference"],
         )
         notes = st.text_area(
             "Notes",
@@ -2681,7 +2683,7 @@ def detail_page(config, store):
             part
             for part in [
                 record.document_name,
-                f"Job: {record.job_description}" if record.job_description else "",
+                f"Expense: {record.job_description}" if record.job_description else "",
                 queue_stage(record),
                 record.uploaded_at.strftime("%Y-%m-%d %H:%M"),
             ]
@@ -2717,7 +2719,7 @@ def detail_page(config, store):
 
     st.subheader(record.document_name)
     if record.job_description:
-        st.caption(f"Job: {record.job_description}")
+        st.caption(f"Expense: {record.job_description}")
     render_status_strip(record)
 
     with st.expander("Source document", expanded=True):

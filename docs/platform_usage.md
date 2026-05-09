@@ -261,17 +261,17 @@ Recommended processing flow:
 3. Choose document type:
    Auto-detect, CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, or GENERAL.
 4. Upload one to five PDFs, images, or text-native files such as TXT, Markdown, CSV, JSON, XML, HTML, LOG, YAML, or YML.
-5. If more than one file is selected, enter a Job description. The app requires it for multi-file jobs and stores it on every file in that upload.
+5. If more than one file is selected, enter an Expense name or reference. The app requires it for multi-file uploads and stores it on every file in that upload.
 6. Click Queue Document or Queue Documents.
-7. The portal validates file count, required job description, extension, empty-file state, configured size limit, and PDF page-count warning before queueing.
+7. The portal validates file count, required expense name or reference, extension, empty-file state, configured size limit, and PDF page-count warning before queueing.
 8. The portal saves the local working copies and queues one document record per file.
 9. Choose the next action shown by the app:
    View Dashboard, Open Actions, or Upload Another.
 10. Use Dashboard to watch the queue while the worker pool runs the live steps:
    Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, automatic limit-safe OCR chunks for scanned PDFs above OCI's synchronous request limits, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
-11. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Multi-file uploads show their shared Job description in the queue rows. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
+11. Use Dashboard to scan Processing, Ready, Failed, and Reviewed tables. Multi-file uploads show their shared Expense name or reference in the queue rows. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
 12. Click Open next to a document.
-13. Use the Actions page to review the job description, executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details.
+13. Use the Actions page to review the expense name or reference, executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details.
 14. Use the Workflow panel to set the workflow status, assignee, and SLA due date.
 15. Add workflow comments when the reviewer needs extra context or follow-up.
 16. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
@@ -323,9 +323,9 @@ The portal requests a human action after a document is processed.
 ```text
 Upload
   - Accepts up to five files per submission.
-  - Requires a job description when more than one file is selected.
+  - Requires an expense name or reference when more than one file is selected.
   - Saves each upload and creates one initial metadata record per file.
-  - Stores the shared job description on each record so Dashboard and Actions can keep the files together.
+  - Stores the shared expense name or reference on each record so Dashboard and Actions can keep the files together.
   - Queues the document in the background worker pool.
   - Asks for the next action:
     View Dashboard, Open Actions, or Upload Another.

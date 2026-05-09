@@ -62,7 +62,7 @@ def generate_markdown_report(record: DocumentRecord, model_id: str) -> str:
 - Uploaded At: {record.uploaded_at.isoformat()}
 - Processed At: {record.processed_at.isoformat() if record.processed_at else generated_at}
 - Processing Status: {record.status.value}
-- Job Description: {record.job_description or "Not provided"}
+- Expense Name or Reference: {record.job_description or "Not provided"}
 - Business Reference: {record.business_reference or "Not provided"}
 
 ## Executive Summary

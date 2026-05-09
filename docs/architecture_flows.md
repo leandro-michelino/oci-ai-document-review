@@ -32,7 +32,8 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
              v
 +--------------------------+
 | Local Working Copy       |
-| Job Description Metadata |
+| Expense Reference        |
+| Metadata                 |
 | Download + Retry         |
 +------------+-------------+
              |

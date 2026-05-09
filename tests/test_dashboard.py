@@ -106,7 +106,7 @@ def test_record_to_row_adds_dashboard_fields():
     assert row["Assignee"] == "Unassigned"
     assert row["SLA"] == "No SLA"
     assert row["Retries"] == 0
-    assert row["Job Description"] == "Q1 vendor onboarding"
+    assert row["Expense Name or Reference"] == "Q1 vendor onboarding"
     assert row["Confidence"] == 76
     assert row["Action"] == "Approve or reject"
     assert "contract.pdf" in row["Search Text"]
@@ -269,7 +269,7 @@ def test_upload_batch_requires_description_only_for_multiple_files():
     assert validate_upload_batch_requirements(one_file, "") == []
     assert validate_upload_batch_requirements(two_files, "Quarter-end invoices") == []
     assert validate_upload_batch_requirements(two_files, "") == [
-        "Job description is required when uploading more than one file."
+        "Expense name or reference is required when uploading more than one file."
     ]
     assert validate_upload_batch_requirements(six_files, "Too many") == [
         "Select up to 5 files per upload."
