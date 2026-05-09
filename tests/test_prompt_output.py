@@ -40,6 +40,8 @@ def test_invoice_prompt_does_not_treat_vat_as_public_sector_evidence():
 
     assert "Do not treat VAT" in prompt
     assert "ordinary invoice tax fields" in prompt
+    assert "Never create a" in prompt
+    assert "risk note based only on VAT" in prompt
 
 
 def test_invoice_prompt_requests_receipt_line_items():

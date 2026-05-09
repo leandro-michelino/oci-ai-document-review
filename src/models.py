@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class DocumentType(str, Enum):
@@ -67,6 +67,61 @@ class RiskNote(BaseModel):
     evidence: str | None = None
 
 
+def is_tax_field_public_sector_false_positive(note: RiskNote) -> bool:
+    combined = f"{note.risk} {note.evidence or ''}".lower()
+    tax_field_terms = (
+        "vat",
+        "sales tax",
+        "tax rate",
+        "tax id",
+        "tax number",
+        "vat number",
+        "tax registration",
+        "tax field",
+        "invoice tax",
+    )
+    public_sector_link_terms = (
+        "public sector",
+        "public-sector",
+        "government",
+        "government-related",
+        "govt",
+    )
+    real_public_sector_terms = (
+        "tax authority",
+        "customs",
+        "regulator",
+        "ministry",
+        "municipality",
+        "municipal",
+        "public official",
+        "civil servant",
+        "state-owned",
+        "state owned",
+        "state agency",
+        "government official",
+        "embassy",
+        "consulate",
+        "police",
+        "military",
+        "army",
+        "public procurement",
+        "public tender",
+        "facilitation payment",
+        "political contribution",
+        "conflict of interest",
+        "sanctioned",
+        "debarred",
+        "sole source",
+        "zimsec",
+    )
+    return (
+        any(term in combined for term in tax_field_terms)
+        and any(term in combined for term in public_sector_link_terms)
+        and not any(term in combined for term in real_public_sector_terms)
+    )
+
+
 class ExtractedFields(BaseModel):
     parties: list[str] = Field(default_factory=list)
     line_items: list[str] = Field(default_factory=list)
@@ -120,6 +175,15 @@ class DocumentAnalysis(BaseModel):
     @classmethod
     def none_to_empty_fields(cls, value):
         return {} if value is None else value
+
+    @model_validator(mode="after")
+    def remove_tax_field_public_sector_false_positives(self):
+        self.risk_notes = [
+            note
+            for note in self.risk_notes
+            if not is_tax_field_public_sector_false_positive(note)
+        ]
+        return self
 
 
 class ExtractionResult(BaseModel):

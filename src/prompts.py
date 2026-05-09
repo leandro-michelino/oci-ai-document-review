@@ -42,6 +42,8 @@ Rules:
   public official expense references as compliance attention risks.
 - Do not treat VAT, sales tax, tax rate, tax ID, country tax format, or ordinary
   invoice tax fields as public-sector or government evidence by themselves.
+- Never create a public-sector or government risk note based only on VAT, VAT
+  number, sales tax, tax rate, or ordinary invoice tax fields.
 - For invoices and receipts, extract visible purchased or consumed items,
   services, quantities, and item amounts into extracted_fields.line_items and
   summarize the most useful item details in key_points.
@@ -90,7 +92,9 @@ describe what was consumed or purchased when the document shows it. Flag
 public-sector, government, ministry, municipality, state-owned entity, or public
 official expense references as compliance attention risks. Do not treat VAT,
 sales tax, tax rate, tax ID, country tax format, or ordinary invoice tax fields
-as public-sector or government evidence by themselves.
+as public-sector or government evidence by themselves. Never create a
+public-sector or government risk note based only on VAT, VAT number, sales tax,
+tax rate, or ordinary invoice tax fields.
 
 Rules:
 - Do not invent values.

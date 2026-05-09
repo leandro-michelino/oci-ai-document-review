@@ -506,3 +506,32 @@ def test_document_analysis_wraps_scalar_ai_list_fields():
     assert analysis.risk_notes[0].risk == "Unusual transaction"
     assert analysis.recommendations == ["Review the transaction."]
     assert analysis.missing_information == ["Approver name"]
+
+
+def test_document_analysis_removes_vat_public_sector_false_positive():
+    analysis = DocumentAnalysis.model_validate(
+        {
+            "document_class": "INVOICE",
+            "executive_summary": "Receipt.",
+            "risk_notes": [
+                {
+                    "risk": "Public Sector Reference",
+                    "severity": "LOW",
+                    "evidence": (
+                        "The document mentions VAT and a VAT number, which could "
+                        "indicate a public-sector or government-related expense."
+                    ),
+                },
+                {
+                    "risk": "Public-sector expense compliance review",
+                    "severity": "MEDIUM",
+                    "evidence": "Gift hospitality keyword. Expense cues found.",
+                },
+            ],
+            "confidence_score": 0.85,
+        }
+    )
+
+    assert [note.risk for note in analysis.risk_notes] == [
+        "Public-sector expense compliance review"
+    ]
