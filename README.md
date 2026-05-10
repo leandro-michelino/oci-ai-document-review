@@ -1,373 +1,269 @@
 # OCI AI Document Review Portal
 
-## Reference Architecture
-
-The portal is a lightweight OCI-hosted document review workflow. It stores uploaded files in private Object Storage, extracts usable text with the lowest-cost path available, analyzes the content with OCI Generative AI, and routes the result to a human review queue with audit, retry, and approval actions.
-
-![OCI AI Document Review architecture](Architecture.png)
-
-The image above is the share-ready reference architecture. Terminal-friendly ASCII diagrams, sequence flows, lifecycle states, refresh behavior, and deployment flows are maintained in `docs/architecture_flows.md`. Release notes are maintained in `CHANGELOG.md` and mirrored for readers in `docs/release_notes.md`.
-
-## Overview
-
-OCI AI Document Review Portal is an Oracle Cloud Infrastructure application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding, and OCI Generative AI to convert uploaded documents into structured review summaries, receipt or invoice item details, risk notes, recommendations, workflow metadata, and downloadable reports. Uploaded document data is retained for 30 days by default across VM-local metadata, reports, preserved upload copies, and Object Storage document objects; the setup wizard can change that period for each deployment. The VM also installs a daily systemd retention timer.
-
-The repository includes the application code, Terraform infrastructure, Ansible deployment automation, ASCII architecture flows, and documentation for evolving the MVP into an enterprise version with Autonomous Database, APEX or Visual Builder, Vault, Logging, broader event automation, and a customer document-status chatbot.
+OCI AI Document Review Portal is a deployable Oracle Cloud Infrastructure reference application for AI-assisted business document review. It gives reviewers a working upload, OCR, generative AI, compliance routing, dashboard, approval, rejection, retry, audit, and report-download workflow while keeping the final business decision with a human.
 
 Current version: `v0.5.1`
 
-Contact: Leandro Michelino | Oracle ACE | leandro.michelino@oracle.com.
+Maintainer: Leandro Michelino | Oracle ACE | leandro.michelino@oracle.com
 
-## Future Enhancements
+## Contents
 
-These items describe the next practical phases after the MVP. They are intentionally shown early because they explain how the current Streamlit, local metadata, and laptop-driven deployment model can evolve into an enterprise platform.
+- [Why This Exists](#why-this-exists)
+- [What It Does](#what-it-does)
+- [Architecture](#architecture)
+- [Processing Flow](#processing-flow)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Operations](#operations)
+- [Security Model](#security-model)
+- [Project Layout](#project-layout)
+- [Documentation](#documentation)
+- [Roadmap](#roadmap)
+- [Versioning](#versioning)
+- [License](#license)
 
-- Add Autonomous Database for metadata
-- Add APEX or Visual Builder as enterprise frontend
-- Add a customer document chatbot for status, rejection reason, retry, owner, SLA, and risk-summary questions
-- Add OCI Vault for secrets
-- Add OCI Logging for operational visibility
+## Why This Exists
 
-### Next Phase: Customer Document Chatbot
+Business reviewers often receive receipts, invoices, contracts, reports, and compliance files in formats that are hard to compare quickly. This project turns those files into a structured review queue:
 
-A future phase can add a read-only chatbot so customers can ask natural-language questions about uploaded documents, such as `What is the status of my file?`, `Why was it rejected?`, `Who is reviewing it?`, or `What should I upload again?`.
+- users upload one document or a small related submission;
+- the platform stores the original file privately in OCI Object Storage;
+- text is extracted locally when possible and with OCI Document Understanding when OCR is needed;
+- OCI Generative AI creates a structured review summary, risks, recommendations, and extracted business details;
+- a curated compliance knowledge base adds deterministic review-routing signals;
+- reviewers approve, reject, retry, assign, comment, and download reports from a Streamlit portal.
 
-The chatbot should answer from trusted application data only: local or database-backed metadata, audit events, workflow comments, generated reports, extracted summaries, and approval/rejection decisions. It should not make final approval decisions or invent missing information. In the enterprise version, this assistant should sit behind authentication and authorization so each customer only sees documents they are allowed to access.
+It is not a blind auto-approval system. It is a human-in-the-loop review platform that reduces manual reading and makes the decision trail easier to inspect.
 
-## What This Project Does
+## What It Does
 
-This project is a working OCI document review portal for business files such as receipts, invoices, contracts, compliance documents, reports, PDFs, and images.
-
-Users upload one document or a small submission of up to five files in the web portal. When more than one file is selected, the uploader must enter an expense name or reference so the related files stay visible together in Dashboard, Actions, metadata, and reports. The platform then:
-
-```text
-1. Saves each uploaded file locally and creates an UPLOADED metadata record.
-2. Queues each file in a background worker pool so the browser does not wait on OCI processing.
-3. Stores the original file in a private OCI Object Storage bucket.
-4. Validates basic upload requirements such as file count, mandatory multi-file expense name or reference, extension, empty file, and configured size limit.
-5. Extracts text locally for text-native files and PDFs with selectable text.
-6. Uses OCI Document Understanding only for images, scanned PDFs, or image-only PDFs.
-7. Splits scanned PDFs above OCI's synchronous OCR request limits into temporary chunks.
-8. Falls back to DU text-only OCR when rich table/key-value extraction fails.
-9. Sends the extracted content to OCI Generative AI for structured review.
-10. Checks the extracted content and user metadata against a curated compliance knowledge base in Object Storage.
-11. Auto-detects the document type when `Auto-detect` was selected during upload.
-12. Creates a JSON metadata record and a Markdown report.
-13. Shows the file in a clean Dashboard queue, grouped by expense name or reference when applicable.
-14. Opens the Actions page for AI review, linked-file context, human decision, lifecycle details, and downloads.
-15. Lets a reviewer assign ownership, set an SLA, add workflow comments, and inspect the audit trail.
-16. Lets failed documents be retried from the preserved local working copy.
-17. Lets a reviewer correct the document type, then approve or reject the document.
-18. Expires VM-local artifacts and Object Storage document objects after the configured retention period.
-```
-
-The goal is not to replace human approval. The goal is to give reviewers a real, end-to-end AI-assisted workflow that reduces manual reading, highlights risks, and keeps the final decision with a person.
-
-## What Happens After Upload
-
-After the user clicks Queue Document or Queue Documents, the portal accepts the file set, creates one metadata record per file, and queues the live backend workflow. Multi-file uploads share the same expense name or reference. Dashboard keeps those files together as group rows inside the same dense selectable queue table used for individual files; `Review selected` opens the best next actionable document in the selected group. Actions shows the linked files for the selected expense/reference, places the Decision panel near the top, and keeps Workflow, notes, retry, and audit inside an expander so approvers can approve or reject without scanning every operational detail first.
-
-```text
-User uploads 1 to 5 files
-  |
-  v
-Expense name or reference is required for multi-file submissions
-  |
-  v
-Local working copies are saved
-  |
-  v
-Metadata status is set to UPLOADED
-  |
-  v
-Background worker pool accepts one queued record per file
-  |
-  +--> Worker 1 processes a document
-  |
-  +--> Worker 2 processes another document
-  |
-  v
-Original file uploaded to OCI Object Storage
-  |
-  v
-Text is extracted locally or with OCI Document Understanding OCR
-  |
-  v
-Scanned PDFs over OCI request limits are split into temporary OCR chunks
-  |
-  v
-DU text-only OCR fallback is used when rich extraction fails
-  |
-  v
-OCI Generative AI creates structured review
-  |
-  v
-Public-sector expense cues are flagged for compliance attention
-  |
-  v
-Auto-detected document type is applied when requested
-  |
-  v
-Metadata and Markdown report are saved
-  |
-  v
-Dashboard shows table rows for expense groups, active elapsed time, and individual files
-  |
-  v
-Reviewer opens the Actions page
-  |
-  v
-Reviewer sees the AI summary, then the Decision panel
-  |
-  v
-Reviewer assigns owner, SLA, workflow status, or comments
-  |
-  v
-Reviewer approves or rejects the document
-```
-
-The Dashboard is intentionally action-oriented. It shows queue metrics, a next-action panel, global search, Upload and Actions shortcuts, and tabbed work queues for Ready, Processing, Failed, and Reviewed records. Individual files and multi-file expense/reference groups render in the same compact selectable table with one `Review selected` action, so large batches stay readable without duplicate cards, duplicate group expanders, or a long vertical file list.
-
-The Actions page is where review work happens. It prioritizes documents that need approval, rejection, compliance review, escalation, waiting-for-information follow-up, or a failed-processing fix. After an approver selects a file, the AI review summary appears before the Decision panel so the approver sees the executive summary, key points, items or services, risks, and recommendations before choosing `Approve` or `Reject`. Workflow fields, comments, retry, retry history, and audit events now live inside a `Workflow, notes, retry, and audit` expander to keep the main review screen focused. For multi-file expense/reference groups, Actions shows group aggregation with file counts, files needing decision or fix, total extracted items/services, total risks, and an Items / Services by file table when receipts or invoices contain line items. Reviewers can download the original source document for review when the local working copy is available. Documents that match the curated compliance knowledge base show `Compliance review` and a high-risk badge. Ordinary ready documents show `Approve or reject`. Failed documents show `Fix and retry` until a retry is queued. Reviewed documents show `Approved` or `Rejected`. Workflow fields track status, assignee, SLA due date, comments, audit events, and retry history in the local JSON metadata.
-
-Text-native files and PDFs with selectable text go directly to GenAI after local text extraction. Image files and PDFs without usable embedded text use OCI Document Understanding first. Scanned PDFs above OCI's synchronous request limits are split into temporary OCR chunks, uploaded to Object Storage, processed, merged, and cleaned up before GenAI analysis. Chunk object names keep the original file stem plus a sequence number, for example `Receipt_21Apr2026_112647_1.pdf`, `Receipt_21Apr2026_112647_2.pdf`, and so on. Public-sector expense matches are flagged as compliance attention risks and force human review. If the upload type was `Auto-detect`, GenAI classifies the document and the reviewer can still correct the type before approval.
-
-## Compliance Knowledge Base
-
-The compliance router uses a curated CSV/JSON knowledge base instead of asking GenAI to search the internet. The catalog supports `LOW`, `MEDIUM`, and `HIGH` severity levels, which the UI presents as `Risk Small`, `Risk Medium`, and `Risk High`. The default Object Storage object is:
-
-```text
-compliance/public_sector_entities.csv
-```
-
-If that object is missing, the app seeds it from:
-
-```text
-data/compliance/public_sector_entities.csv
-```
-
-During processing and backfill, the app checks extracted text, file name, business reference, notes, and selected AI fields against the catalog. Matching expense-like documents receive a `Public-sector expense compliance review` risk note with auditable evidence that includes the source object, matched term, entity type, country, source, and source date. Lower-signal cues such as routine permit fees can be `LOW`, generic public-sector cues can be `MEDIUM`, and stronger cues such as public officials, facilitation payments, political contributions, sanctions, conflicts of interest, and sole-source exceptions can be `HIGH`. Those documents stay in the Ready queue and appear in Actions as `Compliance review`.
-
-If OCI Generative AI blocks a prompt with the service content safety filter, the app no longer exposes the raw provider JSON to the reviewer. It creates a manual-review analysis with `Risk High`, explains that automatic AI analysis was blocked, keeps the extracted text preview available for review, and sanitizes existing metadata/report display paths so stored provider JSON is replaced with the reviewer-safe message.
-
-## Field Reference
-
-The portal shows a `?` marker beside the main review and file fields. Hover over it in the app to see the same definitions below.
-
-| Field | Meaning |
+| Area | Capability |
 | --- | --- |
-| Status | Processing state for the document lifecycle, from upload through approval or failure. |
-| Stage | Simplified queue state shown in the Dashboard: `Queued`, `Processing`, `Ready`, `Reviewed`, or `Failed`. |
-| Review | Human review decision state: `PENDING`, `APPROVED`, or `REJECTED`. |
-| Risk | Highest AI or compliance risk-note severity for the document, with note counts and supporting evidence shown in the Dashboard and Analysis details. Documents with no risk show only a small green signal; actionable risks use severity badges labeled `Risk Small`, `Risk Medium`, and `Risk High`, plus a reviewer-friendly Risk review panel that summarizes compliance matches and expense cues. Public-sector expense matches from the curated knowledge base are raised as compliance attention. |
-| Items / Services | Receipt or invoice line items, such as consumed food, purchased goods, services, quantities, or item amounts when visible in the document. The app does not invent items when the document does not show them. |
-| Confidence | AI confidence score returned by the review analysis, shown as 0 to 100 percent. It is not a guarantee of correctness. |
-| Action | The next human or operational step for the selected document. |
-| Workflow | Human workflow state for assignment, SLA tracking, escalation, retry planning, and closure. |
-| Assignee | Person, team, or queue responsible for the next action. |
-| SLA | Due date for the current review workflow. |
-| Retries | Number of retry attempts recorded for this document. |
-| Document type | Review category chosen during upload or detected by GenAI. Reviewers can correct it before approval. |
-| File name | Original uploaded file name. |
-| Extension | File extension from the uploaded file name. |
-| File size | Original upload size captured by the portal for new uploads. |
-| Expense name or reference | Shared expense name or reference for a multi-file upload batch, used to keep related files together. |
-| MIME type | Browser-reported file content type captured during upload. |
-| Document ID | Internal portal identifier created for this processing run. |
-| Report | Whether a Markdown review report exists on the VM. |
-| Text preview | Number of extracted characters stored for quick inspection in the portal. |
-| Storage | Whether the original file has an OCI Object Storage path recorded. |
-| Parallel jobs | Number of background worker threads allowed to process documents at the same time. |
+| Upload | Single-file upload or up to five related files per submission. Multi-file submissions require an expense name or reference so related files stay grouped. |
+| Extraction | Local extraction for text-native files and PDFs with selectable text. OCI Document Understanding OCR for images, scanned PDFs, and image-only PDFs. |
+| Large scanned PDFs | Automatic split into limit-safe temporary chunks for synchronous Document Understanding calls, with cleanup after merge. |
+| AI review | OCI Generative AI generates structured summaries, fields, risks, missing information, recommendations, and receipt or invoice line items when visible. |
+| Compliance overlay | A curated Object Storage CSV/JSON catalog flags public-sector expense cues with auditable evidence and `LOW`, `MEDIUM`, or `HIGH` severity. |
+| Workflow | Dashboard queues, Actions review screen, approve/reject decisions, owner assignment, SLA date, comments, audit trail, retry history, and source-document download. |
+| Reporting | Local JSON metadata plus Markdown review reports for download. |
+| Retention | VM-local metadata, reports, upload working copies, and Object Storage document objects are retained for 30 days by default. |
+| Optional automation | OCI Events and OCI Functions can ingest files uploaded to Object Storage under `incoming/`. |
 
-Confidence, extracted fields, recommendations, missing information, and risk notes are AI-assisted signals. A human reviewer must still verify the document and make the final approval or rejection decision.
+The Streamlit app exposes five main pages:
 
-## OCI Deployment
+- `Upload`: queue new documents and grouped submissions.
+- `Dashboard`: monitor processing, ready reviews, failures, reviewed items, search, filters, and grouped submissions.
+- `Actions`: perform approval, rejection, retry, workflow assignment, comments, source download, and audit review.
+- `How To Use`: in-app operating guidance.
+- `Settings`: runtime configuration and live OCI Preflight checks.
 
-The project is intended to be deployed from your local laptop into your own OCI compartment.
+## Architecture
 
-Source control and live deployment are separate steps. A Git commit and push updates GitHub only; it does not update the running OCI VM. To make a source change visible in the portal, commit and push the change, then run `./scripts/deploy.sh` from the repo root so Ansible unpacks the release into `/opt/oci-ai-document-review` and restarts the `oci-ai-document-review` systemd service.
+![OCI AI Document Review architecture](Architecture.png)
+
+The deployed MVP is intentionally simple and inspectable:
 
 ```text
-Name: oci-ai-document-review
-OCID: ocid1.compartment.oc1..exampleproject
-Parent: ocid1.compartment.oc1..exampleparent
++----------------+       +--------------------------+
+| User Browser   | ----> | OCI Compute VM           |
+| Streamlit UI   |       | Streamlit + worker pool  |
++----------------+       +------------+-------------+
+                                      |
+                                      v
+                         +--------------------------+
+                         | Private Object Storage   |
+                         | documents/ + compliance/ |
+                         +------------+-------------+
+                                      |
+          +---------------------------+---------------------------+
+          |                                                       |
+          v                                                       v
++----------------------+                          +----------------------------+
+| Local text extract   |                          | OCI Document Understanding |
+| TXT / CSV / PDF text |                          | OCR + rich extraction      |
++----------+-----------+                          +-------------+--------------+
+           |                                                       |
+           +---------------------------+---------------------------+
+                                       |
+                                       v
+                         +--------------------------+
+                         | OCI Generative AI        |
+                         | Structured review        |
+                         +------------+-------------+
+                                      |
+                                      v
+                         +--------------------------+
+                         | Compliance risk overlay  |
+                         | Metadata + report        |
+                         | Dashboard + Actions      |
+                         +--------------------------+
 ```
 
-Use your own compartment OCIDs, Object Storage namespace, region, SSH key, and ingress CIDR in local files only.
+Deeper diagrams, sequence flows, lifecycle states, refresh behavior, and deployment flows are in [docs/architecture_flows.md](docs/architecture_flows.md).
 
-## Platform Usage
+## Processing Flow
 
-Detailed Terraform outputs, Ansible output, deployment flow, operations commands, and portal usage instructions are in `docs/platform_usage.md`. Current review findings, cleanup decisions, and verification commands are tracked in `docs/repository_review.md`. End-to-end acceptance notes are captured in `docs/e2e_acceptance_notes.md`.
-
-## Preflight Verification
-
-The app is wired to real OCI services. It does not use simulated processing in the runtime path.
-
-Before processing customer documents, open `Settings` and run `OCI Preflight`. It performs live checks with the same credentials used by processing:
-
-- Object Storage bucket reachability plus write, read, and delete.
-- Document Understanding API access in the configured compartment.
-- Generative AI model response in the selected GenAI region.
-
-The processing path is:
+When a user queues a file set, the portal creates one metadata record per file and hands processing to the background worker pool so the browser does not wait on OCR or GenAI calls.
 
 ```text
-Uploaded file
+Upload
+  -> local working copy
+  -> UPLOADED metadata record
   -> background worker queue
-  -> private Object Storage bucket
-  -> local text extraction OR OCI Document Understanding using ObjectStorageDocumentDetails
-  -> DU text-only OCR fallback when rich table/key-value extraction fails
-  -> JSON-safe extraction result conversion when Document Understanding is used
-  -> OCI Generative AI Cohere chat model
-  -> compliance knowledge-base match from Object Storage
-  -> compliance risk overlay and Actions routing
-  -> automatic document type label when Auto-detect was selected
-  -> local metadata JSON
-  -> Markdown report
+  -> private Object Storage upload
+  -> local extraction or Document Understanding OCR
+  -> DU text-only fallback when rich extraction fails
+  -> OCI Generative AI structured review
+  -> compliance knowledge-base match
+  -> metadata JSON and Markdown report
   -> Dashboard queue
-  -> Actions page
-  -> workflow assignment, comments, audit, retry, approval/rejection
+  -> Actions human decision
+  -> approve, reject, retry, assign, comment, or audit
 ```
 
-Automatic Object Storage intake can be enabled as an optional deployment path. In that mode, external systems upload files to `incoming/` in the private bucket. OCI Object Storage emits an event, OCI Events invokes the `functions/object_intake` Function, the Function writes a JSON marker under `event-queue/`, and a VM systemd timer imports those markers into the same local metadata and worker queue used by the web upload flow. The optional first path segment after `incoming/` becomes the expense name or reference, for example `incoming/client-dinner/receipt.pdf`.
+Important behavior:
 
-If local extraction or Document Understanding returns no text, the app fails clearly instead of sending empty content to GenAI.
+- Text-native documents skip Document Understanding and go directly to GenAI after local extraction.
+- Images and scanned PDFs use Document Understanding before GenAI.
+- Empty extraction fails clearly instead of sending empty content to GenAI.
+- GenAI content-safety blocks are converted into reviewer-safe manual-review messages instead of exposing raw provider JSON.
+- Documents matching the compliance catalog stay in the Ready queue as `Compliance review`.
+- Failed documents can be retried from the preserved local working copy.
 
-PDFs that contain scanned pages or embedded images are handled through OCI Document Understanding OCR. They can take much longer than PDFs with selectable text because OCI must read the pixels on each page. The app uses synchronous Document Understanding requests and automatically splits scanned PDFs into chunks when the page count or chunk file size is above the OCI per-request limits. Chunk object names are based on the original file name plus `_1`, `_2`, and so on, which makes service logs and Object Storage activity easier to trace back to the source document. Very large, low-quality, rotated, password-protected, image-heavy, or single-page scans above the OCI synchronous file-size limit may still fail or return little text. For best results, use clear scans, normal page orientation, and files below the configured upload limit.
+## Quick Start
 
-Document Understanding calls are bounded by runtime settings:
-
-```text
-DOCUMENT_AI_TIMEOUT_SECONDS=180
-DOCUMENT_AI_RETRY_ATTEMPTS=2
-STALE_PROCESSING_MINUTES=12
-MAX_PARALLEL_JOBS=2
-```
-
-Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a browser session is interrupted or a processing run stays in an active stage beyond the stale window, the portal marks it as `FAILED` with a retry message instead of leaving it stuck.
-
-## Cost Estimate
-
-An illustrative cost estimate and pricing worksheet is available in `docs/cost_estimate.md`. It includes Small and Enterprise examples, Document Understanding transaction assumptions, OCI Generative AI character-based billing assumptions for the default Cohere Command R+ model, OCI Functions free-tier assumptions, and cost-control guidance.
-
-This estimate is not an official Oracle quote and may not be realistic for your tenancy, usage, region, discount terms, or free tier eligibility. Use the Oracle Cost Estimator and request a formal quote from your Oracle representative before using it for budgeting or production planning.
-
-## Prerequisites
+### Prerequisites
 
 - Python 3.11 or later
 - Terraform 1.x
-- Ansible
-- An OCI account with an API key and IAM policies for Object Storage, Document Understanding, and Generative AI
-- An SSH key pair for VM access
+- Ansible and `ansible-galaxy`
+- OCI CLI config with an API key
+- OCI IAM permissions for Object Storage, Document Understanding, Generative AI, Compute, Networking, and the target compartment resources
+- SSH public/private key pair for VM access
 
-## Setup
+### End-to-end laptop deployment
 
-### Recommended: end-to-end setup
-
-For a new laptop-driven deployment, run the root setup script:
+Run the root setup wrapper from the repository root:
 
 ```bash
 ./setup.sh
 ```
 
-`setup.sh` creates or refreshes `.venv`, installs Python dependencies, runs the guided OCI configuration wizard, validates the repository, runs Terraform, deploys the app with Ansible, waits for the Streamlit port, and prints the ready-to-use portal URL plus SSH and operations commands.
+The wrapper:
+
+1. creates or refreshes `.venv`;
+2. installs Python dependencies;
+3. runs the guided OCI setup wizard;
+4. writes local `.env` and `terraform/terraform.tfvars`;
+5. runs `ruff`, `pytest`, Terraform validation, and Ansible syntax validation;
+6. provisions or updates OCI infrastructure;
+7. deploys the app with Ansible;
+8. restarts the Streamlit service;
+9. prints the portal URL, SSH command, and operations commands.
 
 Useful modes:
 
 ```bash
-./setup.sh --configure-only   # write .env and terraform/terraform.tfvars, then stop before deploy
-./setup.sh --deploy-only      # deploy from existing .env and terraform/terraform.tfvars
-./setup.sh --skip-checks      # skip local validation before deploy
+./setup.sh --configure-only
+./setup.sh --deploy-only
+./setup.sh --skip-checks
 ```
 
-All other flags are passed to `scripts/setup.py`, so non-interactive deployments can still use the setup wizard flags shown below.
+Pass setup wizard flags through the wrapper for repeatable deployments:
 
-### Manual path: create the virtual environment
+```bash
+./setup.sh --non-interactive --yes \
+  --compartment-id ocid1.compartment.oc1..exampleproject \
+  --parent-compartment-id ocid1.compartment.oc1..exampleparent \
+  --home-region us-ashburn-1 \
+  --runtime-region us-ashburn-1 \
+  --allowed-ingress-cidr 203.0.113.10/32
+```
+
+### Manual local environment
+
+For development or advanced recovery:
 
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
-```
-
-### Manual path: run the setup wizard
-
-`scripts/setup.py` collects your environment-specific values. It reads your existing OCI CLI profile, probes live OCI services, and writes the two local files that Terraform and the app need. It does not create any OCI resources when run directly.
-
-```bash
 python scripts/setup.py
 ```
 
-The wizard walks through five steps:
+After the wizard writes `.env` and `terraform/terraform.tfvars`, deploy:
 
-```text
-Step 1 — OCI Credentials
-  Reads ~/.oci/config (or --config-file) and validates the API key.
-  Confirms tenancy, user, and profile region before continuing.
-
-Step 2 — Project Compartment
-  Asks for the parent compartment OCID and the project compartment OCID.
-
-Step 3 — Regions
-  Lists your READY subscribed OCI regions.
-  Selects the home/IAM region and the runtime region separately.
-
-Step 4 — Storage, Network, and Runtime
-  Object Storage bucket name and namespace (auto-discovered from OCI).
-  Allowed ingress CIDR (auto-discovers your current public IP as /32).
-  SSH public key path (offers to generate an RSA key pair if none exists).
-  Compute shape, OCPU count, and memory.
-  Processing limits: upload size, parallel jobs, DU timeout and retries.
-  Retention period for VM-local data and Object Storage document objects.
-  Optional OCI Events and Functions automatic intake settings.
-
-Step 5 — Generative AI
-  Probes all subscribed regions in parallel for active Cohere chat models.
-  Shows only supported GenAI regions for this app.
-  Prompts you to select a region and a model.
+```bash
+./scripts/deploy.sh
 ```
 
-After you confirm, the wizard writes:
+Run the Streamlit app locally when `.env` is already configured:
 
-```text
-.env                        Runtime configuration for the Streamlit app
-terraform/terraform.tfvars  Infrastructure variables for Terraform
+```bash
+streamlit run app.py
 ```
 
-Neither file is committed to Git. Both are in `.gitignore`.
+## Configuration
 
-### Setup flags
+The setup wizard is the recommended way to create configuration. It reads your OCI profile, validates OCI access, discovers subscribed regions, discovers the Object Storage namespace, normalizes ingress CIDR values, probes supported OCI Generative AI Cohere chat models, and writes local-only files.
 
-| Flag | Default | Purpose |
+Generated files:
+
+```text
+.env
+terraform/terraform.tfvars
+```
+
+Neither file should be committed.
+
+Core runtime settings:
+
+| Setting | Default | Purpose |
 | --- | --- | --- |
-| `--config-file` | `~/.oci/config` | OCI config file path |
-| `--profile` | `DEFAULT` | OCI config profile name |
-| `--compartment-id` | — | Project compartment OCID |
-| `--parent-compartment-id` | — | Parent compartment OCID |
-| `--tenancy-id` | OCI profile tenancy | Tenancy OCID required for automatic processing IAM |
-| `--home-region` | — | Home/IAM region |
-| `--runtime-region` | OCI profile region | Region for compute, Object Storage, and DU |
-| `--allowed-ingress-cidr` | auto-discovered `/32` | Trusted CIDR for SSH and portal access |
-| `--ssh-public-key-path` | `~/.ssh/id_rsa.pub` | Public key deployed to the VM |
-| `--generate-ssh-key` | `false` | Generate an RSA key pair if none exists |
-| `--instance-shape` | `VM.Standard.A1.Flex` | Compute shape |
-| `--instance-ocpus` | `1` | OCPU count |
-| `--instance-memory-gbs` | `6` | Memory in GB |
-| `--max-parallel-jobs` | `2` | Background worker thread count |
-| `--max-upload-mb` | `10` | Maximum upload size in MB |
-| `--max-document-chars` | `50000` | Maximum extracted characters sent to GenAI |
-| `--retention-days` | `30` | Days to retain VM-local artifacts and Object Storage document objects |
-| `--enable-automatic-processing` | `false` | Enable Object Storage Events and OCI Functions intake |
-| `--automatic-processing-function-image` | — | OCIR image URI for `functions/object_intake` when automatic processing is enabled |
-| `--event-intake-incoming-prefix` | `incoming/` | Object Storage prefix watched for external uploads |
-| `--event-intake-queue-prefix` | `event-queue/` | Object Storage prefix where the Function writes queue markers |
-| `--event-intake-poll-seconds` | `60` | VM timer interval for importing Function queue markers |
-| `--non-interactive` | `false` | Skip all prompts (requires compartment and regions) |
-| `--yes` | `false` | Skip the final write confirmation |
+| `OCI_REGION` | wizard selected | Runtime region for Compute, Object Storage, and Document Understanding. |
+| `GENAI_REGION` | wizard selected | OCI Generative AI inference region. |
+| `OCI_BUCKET_NAME` | `doc-review-input` | Private bucket for source documents and compliance catalog. |
+| `GENAI_MODEL_ID` | `cohere.command-r-plus-08-2024` | Cohere chat model used by the runtime. |
+| `MAX_PARALLEL_JOBS` | `2` | Background worker thread count. |
+| `MAX_UPLOAD_MB` | `10` | Per-file upload size limit. |
+| `MAX_DOCUMENT_CHARS` | `50000` | Extracted character limit sent to GenAI. |
+| `RETENTION_DAYS` | `30` | VM-local artifact and Object Storage document retention period. |
+| `COMPLIANCE_ENTITIES_OBJECT_NAME` | `compliance/public_sector_entities.csv` | Object Storage path for the compliance knowledge base. |
+| `EVENT_INTAKE_ENABLED` | `false` | Enables optional Object Storage Events and Functions intake. |
 
-### Non-interactive mode
+Full setup flags are documented in [docs/platform_usage.md](docs/platform_usage.md) and [terraform/README.md](terraform/README.md).
 
-For repeatable or automated setups, pass all required values as flags:
+## Compliance Knowledge Base
+
+The compliance router uses a curated file instead of asking GenAI to search the internet. By default the app reads:
+
+```text
+compliance/public_sector_entities.csv
+```
+
+If the object is missing, the app seeds it from:
+
+```text
+data/compliance/public_sector_entities.csv
+```
+
+During processing, the app checks extracted text, file name, expense name or reference, notes, and selected AI fields against the catalog. Matches create a public-sector expense compliance risk note with evidence such as source object, matched term, entity type, country, source, and source date. This is a routing control for reviewers, not a legal determination.
+
+## Optional Automatic Intake
+
+The standard path is browser upload. Automatic intake can be enabled when external systems need to drop files into Object Storage.
+
+```text
+external system
+  -> Object Storage incoming/<expense-name-or-reference>/<file>
+  -> OCI Events
+  -> functions/object_intake
+  -> Object Storage event-queue/<marker>.json
+  -> VM polling timer
+  -> normal metadata and worker queue
+```
+
+Enable it only after building and pushing the Function image to OCIR:
 
 ```bash
 python scripts/setup.py \
@@ -376,93 +272,111 @@ python scripts/setup.py \
   --home-region us-ashburn-1 \
   --runtime-region us-ashburn-1 \
   --allowed-ingress-cidr 203.0.113.10/32 \
-  --non-interactive
+  --enable-automatic-processing \
+  --automatic-processing-function-image <region-key>.ocir.io/<namespace>/<repo>:<tag>
 ```
 
-### After the manual wizard finishes
+Function-specific details are in [functions/object_intake/README.md](functions/object_intake/README.md).
 
-The wizard prints these next steps on completion:
+## Operations
 
-```text
-1. Review .env and terraform/terraform.tfvars
-2. cd terraform && terraform plan
-3. ./scripts/deploy.sh
-4. Open Settings in the portal and run OCI Preflight
-```
+### Deploy code changes
 
-Ingress CIDR notes:
-
-- A single host IP such as `203.0.113.10` is automatically normalized to `203.0.113.10/32`.
-- Open ingress such as `0.0.0.0/0` is rejected by setup and again by Terraform variable validation.
-- If setup cannot reach the IP-discovery service, re-run with `--allowed-ingress-cidr` set explicitly.
-
-## Infrastructure
-
-Terraform files are ready under `terraform/`.
-
-This repository is designed for local laptop deployment. It does not include GitHub Actions or any Git-based deployment automation. Your local OCI config, API keys, `.env`, Terraform state, and real `terraform.tfvars` are ignored and must not be committed. The Terraform provider lock file is tracked so provider resolution stays consistent across machines.
-
-The setup wizard is the recommended way to create local variables. For manual recovery or advanced edits, you can copy the sample:
-
-```bash
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-```
-
-Then edit `terraform/terraform.tfvars` with your own compartment OCIDs, namespace, regions, ingress CIDR, and SSH public key path.
-
-```bash
-cd terraform
-terraform init
-terraform plan
-```
-
-The plan prepares a private Object Storage bucket, a lifecycle policy that deletes uploaded objects under `documents/` after the configured retention period, VCN, public subnet, private subnet, security lists, public and private route tables, Internet Gateway, NAT Gateway, Service Gateway, and compute VM. It does not use NSGs. Terraform validates network CIDR syntax, rejects open ingress, and requires positive flexible-shape sizing before apply.
-
-Deploy end to end:
+GitHub is source control, not the live deployment target. A commit and push do not update the running VM. To deploy a source change:
 
 ```bash
 ./setup.sh --deploy-only
 ```
 
-You can also call `./scripts/deploy.sh` directly after `.env` and `terraform/terraform.tfvars` exist. The deployed VM uses the existing OCI API key and policies from your local OCI profile. For code-only changes, Terraform should normally report no infrastructure changes, while Ansible still refreshes the app archive, writes runtime configuration, installs dependencies if needed, installs the daily local retention timer, and restarts Streamlit.
+For code-only changes, Terraform should normally show no infrastructure changes while Ansible refreshes `/opt/oci-ai-document-review`, writes runtime config, installs dependencies if needed, and restarts the service.
 
-`scripts/deploy.sh` builds the temporary Ansible inventory from Terraform outputs. It uses the private key path derived from `ssh_public_key_path`, or the explicit `SSH_PRIVATE_KEY_PATH` environment override when you need to use a different local key.
+### Verify the live VM
 
-After deployment, verify the live VM rather than relying on GitHub state:
+Use the Terraform output or setup summary for the VM IP, then verify service health:
 
 ```bash
-ssh -i ~/.ssh/id_rsa opc@<vm-public-ip> "grep -n 'def dashboard_metrics_html' /opt/oci-ai-document-review/app.py && sudo systemctl is-active oci-ai-document-review"
+ssh -i ~/.ssh/id_rsa opc@<vm-public-ip> \
+  "sudo systemctl is-active oci-ai-document-review"
+
 curl -fsS -I http://<vm-public-ip>:8501
 ```
 
-If the browser still shows an old dashboard after a successful deploy, reload the page so the Streamlit session reconnects to the restarted service.
+Before processing real documents, open `Settings` in the portal and run `OCI Preflight`. It checks Object Storage write/read/delete, Document Understanding access, and Generative AI response with the same credentials the worker path uses.
 
-The release package excludes local-only files and runtime-unneeded artifacts such as `.git/`, `.env`, `.oci/`, `.venv/`, Python caches, `terraform.tfvars`, Terraform state, API keys, private keys, and local metadata. Ansible also scrubs sensitive file patterns after unpacking before writing the intended runtime `.env` and OCI SDK config.
-
-## Run Locally
+### Local validation
 
 ```bash
-streamlit run app.py
+source .venv/bin/activate
+ruff check .
+pytest
+terraform -chdir=terraform fmt -check -diff
+terraform -chdir=terraform validate
+ansible-playbook --syntax-check ansible/playbook.yml
 ```
 
-The app supports:
+### Cost awareness
 
-- One-to-five-file upload with required expense name or reference for multi-file submissions
-- Object Storage upload
-- Optional OCI Events and Functions automatic intake for objects uploaded under `incoming/`
-- Document Understanding extraction
-- GenAI JSON analysis
-- Background worker queue with parallel processing
-- Configurable 30-day default retention for VM metadata/reports/uploads and Object Storage document objects
-- Markdown report generation
-- Local JSON metadata
-- Approve and reject review actions
-- Dashboard queue view with metrics, next-action guidance, search, active elapsed time, tabbed queue sections, shortcuts, and selectable tables containing both individual files and multi-file group rows
-- Dashboard status filters for queue, approval, rejection, retry, failed, processing, and compliance-review states
-- Actions page for prioritized approvals, top Decision panel, linked-file context, group aggregation, source-document download, workflow expander, assignment, SLA tracking, comments, audit trail, retry history, failed-document follow-up, AI summary, lifecycle, extracted text, and downloads
-- Processing lifecycle view for each document
-- Field guide with `?` explanations for review and file metadata fields
-- OCI Preflight checks in Settings
+The variable costs are mainly Document Understanding pages and Generative AI input/output characters. Start with clear scans, appropriate upload limits, and a conservative `MAX_DOCUMENT_CHARS` setting. See [docs/cost_estimate.md](docs/cost_estimate.md) for illustrative worksheets and cost-control guidance.
+
+## Security Model
+
+MVP controls:
+
+- Object Storage buckets are private.
+- Ingress is limited to `allowed_ingress_cidr`; open ingress such as `0.0.0.0/0` is rejected by setup and Terraform validation.
+- Local `.env`, `.oci/`, `.deploy/`, Terraform state, `terraform.tfvars`, API keys, private keys, generated metadata, reports, and uploaded files are ignored by Git.
+- The deployed release package excludes local secrets and runtime artifacts.
+- Uploaded document data is retained for 30 days by default unless changed during setup.
+- Human review remains mandatory for approval and rejection.
+
+Current credential model:
+
+- deployment runs from a local laptop;
+- Ansible copies the OCI API key referenced by the local OCI profile to the VM;
+- the runtime uses that config for Object Storage, Document Understanding, and Generative AI.
+
+For production hardening, replace copied API keys with instance principals or another approved workload identity pattern, move secrets to OCI Vault, add OCI Logging and monitoring, review least-privilege IAM policies, and validate retention and audit requirements with the owning compliance team. More detail is in [docs/security_notes.md](docs/security_notes.md).
+
+## Project Layout
+
+```text
+app.py                         Streamlit portal
+src/                           Runtime clients, processors, config, models, reports
+tests/                         Unit and workflow tests
+terraform/                     OCI infrastructure
+ansible/                       VM deployment playbook
+functions/object_intake/       Optional Object Storage intake Function
+scripts/setup.py               Guided OCI configuration wizard
+scripts/deploy.sh              Terraform + Ansible deployment runner
+scripts/cleanup_retention.py   VM-local retention cleanup helper
+data/compliance/               Seed compliance catalog
+docs/                          Architecture, usage, cost, security, and release notes
+```
+
+## Documentation
+
+| Document | Use |
+| --- | --- |
+| [docs/platform_usage.md](docs/platform_usage.md) | End-to-end deployment, Terraform outputs, portal usage, and operations. |
+| [docs/architecture_flows.md](docs/architecture_flows.md) | ASCII architecture, processing sequence, lifecycle, and deployment flows. |
+| [docs/security_notes.md](docs/security_notes.md) | MVP controls, credential model, retention, and production hardening notes. |
+| [docs/cost_estimate.md](docs/cost_estimate.md) | Illustrative OCI cost assumptions and cost-control guidance. |
+| [docs/e2e_acceptance_notes.md](docs/e2e_acceptance_notes.md) | End-to-end acceptance notes. |
+| [docs/repository_review.md](docs/repository_review.md) | Repository review findings and cleanup decisions. |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and unreleased changes. |
+
+## Roadmap
+
+Planned enterprise evolution:
+
+- Autonomous Database for durable metadata and workflow history.
+- APEX or Visual Builder frontend for enterprise users.
+- OCI Vault for secret management.
+- OCI Logging, monitoring, budgets, and audit reporting.
+- Broader event automation for external systems.
+- Read-only customer chatbot for document status, rejection reason, retry guidance, owner, SLA, and risk-summary questions.
+
+The chatbot should answer only from trusted application data such as metadata, audit events, workflow comments, generated reports, extracted summaries, and reviewer decisions. It should not make approval decisions or invent missing information.
 
 ## Versioning
 
@@ -472,4 +386,8 @@ The project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - `MINOR`: visible workflow, cloud integration, or capability changes.
 - `PATCH`: bug fixes, documentation updates, and small UX refinements.
 
-The current source-of-truth version is `src/version.py`. Release notes are tracked in `CHANGELOG.md` and summarized for documentation readers in `docs/release_notes.md`.
+The source-of-truth version is [src/version.py](src/version.py). Release notes are tracked in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).
