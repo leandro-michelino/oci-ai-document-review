@@ -59,7 +59,7 @@ The Streamlit app exposes five main pages:
 
 ## Architecture
 
-![OCI AI Document Review architecture](Architecture.png)
+![OCI AI Document Review architecture](docs/assets/oci-ai-document-review-architecture.png)
 
 The deployed MVP is intentionally simple and inspectable:
 

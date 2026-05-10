@@ -8,7 +8,7 @@ Current project version: `v0.5.1`
 
 Rendered share-ready diagram:
 
-![OCI AI Document Review architecture](../Architecture.png)
+![OCI AI Document Review architecture](assets/oci-ai-document-review-architecture.png)
 
 Editable source:
 

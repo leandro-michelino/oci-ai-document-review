@@ -8,6 +8,9 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Moved the rendered architecture diagram from the repository root into `docs/assets/` beside its Excalidraw source and updated documentation references.
+- Replaced the cumulative repository-review notes with a concise current hygiene summary.
+- Removed ignored local deployment archives, generated runtime metadata/reports/uploads, and Terraform plugin cache from the workstation while keeping deployment state and secrets untracked.
 - Polished the root README into a cleaner first-read guide with evaluator, deployment, operations, security, documentation, roadmap, and versioning sections.
 - Added a root `setup.sh` end-to-end setup wrapper that creates or refreshes `.venv`, runs the guided configuration wizard, validates the repository, deploys Terraform and Ansible, waits for the portal, and prints the ready-to-use URL.
 - Documented `setup.sh`, `--configure-only`, `--deploy-only`, and `--skip-checks` in the README, implementation guide, platform usage guide, and Terraform README.

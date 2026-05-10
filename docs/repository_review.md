@@ -6,87 +6,31 @@ Current project version: `v0.5.1`
 
 ## Scope
 
-This review covers the Streamlit app, worker queue, OCI clients, metadata store, report generation, Terraform, Ansible deployment, setup wizard, tests, documentation, and ASCII architecture flows.
+This review covers the Streamlit app, worker queue, OCI clients, metadata store, report generation, Terraform, Ansible deployment, setup wizard, tests, documentation, and architecture assets.
 
-## Fixes Applied
+## Current Hygiene State
 
-- Reworked the root README into a concise first-read guide while keeping deep implementation, platform, architecture, cost, and security detail in linked docs.
-- Added setup wizard normalization for automatic-intake Object Storage prefixes so absolute-looking inputs such as `/incoming` are written as relative prefixes.
-- Added Terraform validation for `event_intake_incoming_prefix` and `event_intake_queue_prefix`, rejecting empty, absolute, or parent-directory values before apply.
-- Narrowed the automatic-intake Functions dynamic group to the deployed `functions/object_intake` function OCID instead of every function in the project compartment.
-- Updated release notes in both `CHANGELOG.md` and `docs/release_notes.md` for the README polish, cost-estimate refresh, automatic-intake hardening, and validation pass.
-- Refreshed `docs/cost_estimate.md` with a 2026-05-10 review date, clearer worksheet assumptions, updated Small and Enterprise ranges, and additional notes about verifying dynamically rendered Oracle public pricing before customer budgeting.
-- Updated ASCII architecture flows with the current selectable Dashboard table behavior, automatic-intake IAM hardening, and cost/metering flow.
-- Reworked Dashboard and Actions around progressive disclosure: Dashboard uses tabbed queue tables with group rows for multi-file expense/reference batches, while Actions keeps Decision visible and moves workflow, notes, retry, linked files, source document, AI summary, analysis details, lifecycle, extracted text, and downloads into focused expanders.
-- Added Actions group aggregation for multi-file expense/reference submissions, including decision/fix counts, total items/services, total risk notes, and Items / Services by file.
-- Renamed OCI Document Understanding chunk object naming from opaque numbered prefixes to original-file-stem sequence names such as `Receipt_21Apr2026_112647_1.pdf`.
-- Added configurable retention with a 30-day default across VM-local metadata, Markdown reports, preserved upload copies, and Object Storage uploaded document objects.
-- Added a daily VM systemd timer for local retention cleanup so expiry is enforced even without a browser session.
-- Added an Object Storage lifecycle policy scoped to `documents/` so uploaded files expire without deleting the compliance knowledge base under `compliance/`.
-- Added optional OCI Events and Functions automatic intake: external uploads under `incoming/` create Object Storage events, invoke `functions/object_intake`, write queue markers under `event-queue/`, and are imported by a VM systemd timer into the existing worker queue.
-- Tightened Terraform validation so automatic processing cannot be enabled without both a valid tenancy OCID and an OCIR image for `functions/object_intake`.
-- Updated release notes in `CHANGELOG.md` and `docs/release_notes.md` through `v0.5.1`.
-- Updated cost estimates to use OCI Generative AI character transaction billing for the default Cohere Command R+ model, including revised Small and Enterprise totals.
-- Added Terraform outputs for `retention_days` and `ssh_private_key_path` so documented outputs match the live module.
-- Updated deployment wiring so Ansible uses the Terraform-resolved private SSH key path instead of assuming the default local key.
-- Normalized automatic-intake Function prefixes and narrowed the Function Object Storage IAM policy to the configured project bucket.
-- Updated the cost estimate for Document Understanding transaction pricing, the 5,000 transactions/month free tier, and OCI Functions free-tier assumptions.
-- Reviewed all tracked Markdown files for v0.5.1 consistency, including automatic intake setup flags, Function README wiring, and expense name/reference terminology.
-- Updated `scripts/setup.py`, `.env.example`, Terraform examples, Ansible, and deploy automation so customers can choose retention days during setup and redeploy the same value to the VM.
-- Made Actions selection clearer by documenting and testing exact selected-file labeling with file name, document ID, expense/reference, stage, upload time, linked-file count, and current action.
-- Updated all user-facing documentation for the latest review UX: Dashboard queue tables now contain both individual file rows and multi-file expense/reference group rows, with `Review selected` routing to the best next actionable file and the Actions Decision panel placed near the top.
-- Updated ASCII architecture flows with a Compact Dashboard Review Flow showing selectable queue tables, multi-file group rows, `Review selected`, and the top Decision panel.
-- Refreshed the in-app How to Use guide so uploaders see the current one-to-five-file submission flow, mandatory multi-file expense name or reference, Dashboard expense groups, active elapsed processing time, stale failure handling, and reviewer linked-file/source-download workflow.
-- Updated README, platform usage, implementation notes, and ASCII flows so the documented architecture matches the current multi-file expense grouping and stale-processing behavior.
-- Added an Upload Batch and Expense Group ASCII flow that shows how one metadata record per file stays tied together by the shared expense name or reference through Dashboard and Actions.
-- Re-reviewed tracked repository contents for secret exposure and redundant configuration. Real `.env`, Terraform state/tfvars, deployment archives, local metadata, uploads, reports, and caches are ignored; personal agent settings are not present in tracked files; tracked OCIDs are placeholders or tests.
-- Re-ran full validation across the Streamlit app, tests, Terraform, and Ansible syntax after the dashboard filter, chatbot documentation, and architecture updates.
-- Ran an end-to-end acceptance walkthrough across preflight, upload/processing, Dashboard, Actions approval/rejection, workflow comments, retry, event-intake polling, and retention cleanup. Notes are tracked in `docs/e2e_acceptance_notes.md`.
-- Fixed Actions review-comment state initialization, retry child routing, next-item selector state, and the direct retention cleanup script import path found during the walkthrough.
-- Added Dashboard status filtering documentation and ASCII flow coverage for Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, and Retry planned states.
-- Added Phase 2 customer chatbot documentation and ASCII flow coverage for read-only status, rejection reason, retry, owner, SLA, and risk-summary questions.
-- Replaced the Actions inline source preview with a `Download Doc for Review` button, avoiding optional Streamlit PDF dependencies on the VM.
-- Added runtime configuration validation for OCI auth mode, GenAI temperature, processing limits, upload limits, worker count, and compliance knowledge-base object name.
-- Added Terraform variable validation for ingress CIDR, network CIDRs, OCPU count, and memory size.
-- Updated setup validation so explicit open ingress such as `0.0.0.0/0` fails before Terraform is written.
-- Kept content-safety provider JSON sanitization in shared code so UI, metadata reloads, downloads, and regenerated reports do not expose raw provider errors.
-- Updated ASCII architecture flows for source-document download, safety-filter handling, local working copies, and deployment boundaries.
-- Expanded `.gitignore` for coverage output, local Streamlit secrets, logs, and common caches.
-- Removed generated personal agent settings from the local workspace and kept repository documentation free of named agent-tool configuration.
+- Tracked files are limited to source code, tests, Terraform, Ansible, setup scripts, documentation, the compliance seed catalog, and architecture assets.
+- Runtime files are intentionally ignored: `.env`, `.deploy/`, `.venv/`, Terraform state/tfvars, local metadata, reports, uploads, caches, logs, and private key material.
+- The rendered architecture image now lives with its editable Excalidraw source under `docs/assets/` instead of the repository root.
+- `CHANGELOG.md` remains the source of truth for full repository history. `docs/release_notes.md` provides reader-friendly release notes.
+- `README.md` is the concise front door. Deep operating detail stays in `docs/platform_usage.md`, `docs/implementation_guide.md`, `docs/security_notes.md`, `docs/cost_estimate.md`, and `docs/architecture_flows.md`.
 
-## Latest Review Notes
+## Recent Cleanup
 
-- No tracked secrets, Terraform state, real tfvars, deployment archives, runtime metadata, reports, uploads, or local OCI credentials were found in Git.
-- No redundant tracked configuration files were identified for removal. Generated local caches remain ignored and can be safely deleted from the workstation.
-- Baseline validation passed after the latest changes: ruff, pytest, Terraform validation, and Ansible syntax check.
-- The pytest run passed all 119 tests and reported only third-party dependency deprecation warnings from the Python 3.14 environment.
+- Moved `Architecture.png` to `docs/assets/oci-ai-document-review-architecture.png` and updated README plus architecture-flow references.
+- Kept the rendered architecture PNG tracked while continuing to ignore generated SVG exports.
+- Replaced the cumulative repository-review changelog with this shorter current-state hygiene note.
+- Removed local generated deployment archives, temporary Ansible inventory, local runtime metadata, local generated reports, uploaded working copies, and Terraform plugin cache from the workstation.
+- Kept local `.env`, `terraform/terraform.tfvars`, and Terraform state files out of Git. Those files are deployment inputs/state and should not be committed.
 
-## Cleanup
+## Configuration Review
 
-Generated local artifacts are safe to remove from the working tree and remain ignored by Git:
-
-```text
-__pycache__/
-scripts/__pycache__/
-src/__pycache__/
-tests/__pycache__/
-.pytest_cache/
-.ruff_cache/
-.deploy/*.tar.gz
-```
-
-The following local runtime files remain intentionally ignored and must not be committed:
-
-```text
-.env
-.deploy/
-.venv/
-terraform/terraform.tfvars
-terraform/terraform.tfstate*
-data/metadata/*.json
-data/reports/*.md
-data/uploads/*
-```
+- Setup normalizes automatic-intake Object Storage prefixes as relative paths.
+- Terraform rejects empty, absolute, or parent-directory event-intake prefixes.
+- Terraform rejects open ingress such as `0.0.0.0/0` and validates network CIDRs, OCPU count, memory size, retention days, automatic-intake tenancy OCID, and Function image requirements.
+- The optional object-intake Function dynamic group is scoped to the deployed Function OCID, and its object policy is scoped to the configured project bucket.
+- The Object Storage lifecycle policy deletes only `documents/` objects, leaving the compliance knowledge base under `compliance/` untouched.
 
 ## Verification
 
@@ -95,10 +39,9 @@ Run before committing or deploying:
 ```bash
 .venv/bin/ruff check .
 .venv/bin/pytest
+terraform -chdir=terraform fmt -check -diff
 terraform -chdir=terraform validate
 ansible-playbook --syntax-check ansible/playbook.yml
 ```
 
-Latest validation for `v0.5.1` also included `terraform plan -detailed-exitcode -input=false`, which reported output-only state additions for `retention_days` and `ssh_private_key_path` and no real infrastructure changes.
-
-For live OCI deployment, `git push` is not enough. Run `./scripts/deploy.sh` from the repo root, then verify the VM service and portal URL.
+For live OCI deployment, `git push` is not enough. Run `./setup.sh --deploy-only` or `./scripts/deploy.sh` from the repo root, then verify the VM service and portal URL.

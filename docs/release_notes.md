@@ -10,6 +10,8 @@ Release notes summarize user-visible workflow, infrastructure, documentation, an
 
 ### Documentation Polish
 
+- Moved the rendered architecture diagram into `docs/assets/` so generated and editable architecture assets live together.
+- Simplified `docs/repository_review.md` into a current-state hygiene note instead of a long cumulative change log.
 - Reworked the root README into a clearer first-read guide for evaluators, deployers, and operators.
 - Kept deep operational detail in the supporting docs and linked README readers to architecture flows, platform usage, security notes, cost estimates, acceptance notes, repository review notes, and changelog history.
 - Refreshed repository review notes and architecture docs so they reflect current Dashboard group-row behavior and the latest deployment wiring.

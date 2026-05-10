@@ -24,7 +24,6 @@ oci_api_key*
 data/metadata/*.json
 data/reports/*.md
 data/uploads/*
-docs/assets/oci-ai-document-review-architecture.png
 docs/assets/oci-ai-document-review-architecture.svg
 terraform/.terraform/
 terraform/terraform.tfstate*
