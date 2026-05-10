@@ -6,8 +6,15 @@ Current version: `v0.5.1`
 
 Maintainer: Leandro Michelino | Oracle ACE | leandro.michelino@oracle.com
 
+## Work In Progress
+
+A quick, honest note: OCI AI Document Review Portal is still an active work in progress. The core platform, deployment path, document-processing flow, and reviewer dashboard experience are evolving quickly, but it is not being presented as a fully finished product yet.
+
+Some live-provider workflows depend on OCI account details, IAM policies, subscribed regions, service limits, Object Storage configuration, Document Understanding access, Generative AI model availability, and customer document samples that are not all available in every test environment. If you are interested in running a real pilot, validating it with your own OCI tenancy and document data, or shaping the next set of features, please get in touch.
+
 ## Contents
 
+- [Work In Progress](#work-in-progress)
 - [Why This Exists](#why-this-exists)
 - [What It Does](#what-it-does)
 - [Architecture](#architecture)
