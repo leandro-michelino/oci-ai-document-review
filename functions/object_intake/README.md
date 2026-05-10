@@ -12,6 +12,9 @@ and sends it through the normal document processing workflow.
 Build and push this function image to OCIR with the OCI Functions tooling, then
 set `enable_automatic_processing = true`, `tenancy_id`, and
 `automatic_processing_function_image` in `terraform/terraform.tfvars`.
+The setup wizard normalizes incoming and queue prefixes as relative Object
+Storage prefixes, and Terraform rejects empty, absolute, or parent-directory
+prefix values before apply.
 
 The Function intentionally does not write VM-local metadata, approve documents,
 or call Document Understanding or Generative AI. It only creates durable queue

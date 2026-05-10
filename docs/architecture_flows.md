@@ -323,39 +323,47 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 ## Compact Dashboard Review Flow
 
 ```text
-+----------------------------+
-| Dashboard Phase Queue      |
-| Processing / Ready / ...   |
-+-------------+--------------+
-              |
-              +----------------------------+----------------------------+
-              |                            |                            |
-              v                            v                            |
-+----------------------------+  +----------------------------+          |
-| Selectable File Table      |  | Multi-File Expense Group   |          |
-| Review Selected Button     |  | Compact Summary Card       |          |
-+-------------+--------------+  +-------------+--------------+          |
-              |                               |                         |
-              |                               v                         |
-              |                 +----------------------------+          |
-              |                 | Review Button              |          |
-              |                 | Best Next Actionable File  |          |
-              |                 +-------------+--------------+          |
-              |                               |                         |
-              |                               v                         |
-              |                 +----------------------------+          |
-              |                 | Show Files Expander        |          |
-              |                 | Collapsed By Default       |          |
-              |                 +-------------+--------------+          |
-              |                               |                         |
-              +---------------+---------------+                         |
-                              |                                         |
-                              v                                         |
-                +----------------------------+                          |
-                | Actions Page               |                          |
-                | Decision Panel Near Top    |                          |
-                | Approve / Reject / Type    |                          |
-                +----------------------------+                          |
++-----------------------------+
+| Dashboard                   |
+| Search + Status Filter      |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| Phase Queue Tabs            |
+| Ready / Processing / Failed |
+| Reviewed                    |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| One Selectable Queue Table  |
+| File Rows + Group Rows      |
++--------------+--------------+
+               |
+               +---------------------------+---------------------------+
+               |                           |                           |
+               v                           v                           v
++----------------------+     +----------------------+     +----------------------+
+| Individual File Row  |     | Expense Group Row    |     | Active/Failed Row    |
+| File action context  |     | file count, risk,    |     | elapsed or fix state |
++----------+-----------+     | SLA, owner, target   |     +----------+-----------+
+           |                 +----------+-----------+                |
+           |                            |                            |
+           +--------------+-------------+-------------+--------------+
+                          |
+                          v
+              +---------------------------+
+              | Review Selected           |
+              | Opens best next file      |
+              +-------------+-------------+
+                            |
+                            v
+              +---------------------------+
+              | Actions Page              |
+              | AI Summary + Decision     |
+              | Workflow expanders below  |
+              +---------------------------+
 ```
 
 ## OCI Events And Functions Intake Flow
@@ -416,6 +424,42 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +-----------------------------+
 | Dashboard + Actions         |
 | Human Approval Workflow     |
++-----------------------------+
+```
+
+## Automatic Intake IAM Flow
+
+```text
++-----------------------------+
+| Terraform Variables         |
+| tenancy_id, image URI,      |
+| relative intake prefixes    |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| Prefix Validation           |
+| non-empty, relative,        |
+| no parent segments          |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| OCI Function                |
+| object_intake OCID          |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| Dynamic Group               |
+| resource.id = function OCID |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| IAM Policy                  |
+| manage objects only in      |
+| configured project bucket   |
 +-----------------------------+
 ```
 
@@ -612,6 +656,40 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                      +----------------------+
                      | Pass / Fail Results  |
                      +----------------------+
+```
+
+## Cost And Metering Flow
+
+```text
++--------------------------+
+| Upload Volume            |
+| documents, pages, chars  |
++------------+-------------+
+             |
+             +--------------------------+--------------------------+
+             |                          |                          |
+             v                          v                          v
++----------------------+   +----------------------+   +----------------------+
+| Text PDFs / Text     |   | Images / Scans      |   | External Uploads     |
+| Local extraction     |   | DU OCR / Extraction |   | Events + Functions   |
+| No DU transaction    |   | page transactions   |   | usually free-tier    |
++----------+-----------+   +----------+-----------+   +----------+-----------+
+           |                          |                          |
+           +-------------+------------+-------------+------------+
+                         |
+                         v
+              +----------------------+
+              | Generative AI        |
+              | prompt + response    |
+              | character units      |
+              +----------+-----------+
+                         |
+                         v
+              +----------------------+
+              | Monthly Estimate     |
+              | compute, storage,    |
+              | DU, GenAI, add-ons   |
+              +----------------------+
 ```
 
 ## Extraction Decision Flow

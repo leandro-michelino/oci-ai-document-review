@@ -6,6 +6,7 @@ from scripts.setup import (
     choose_model,
     discover_current_ip_cidr,
     normalize_cidr,
+    normalize_object_prefix,
     prompt_for_compartments,
     summary_values,
     supported_chat_models,
@@ -61,6 +62,19 @@ def test_validate_positive_integer_rejects_retention_zero():
 
     with pytest.raises(SystemExit, match="positive integer"):
         validate_positive_integer("0", "retention days")
+
+
+def test_normalize_object_prefix_makes_prefix_relative_and_slash_terminated():
+    assert normalize_object_prefix("/incoming", "incoming prefix") == "incoming/"
+    assert normalize_object_prefix("event-queue", "queue prefix") == "event-queue/"
+
+
+def test_normalize_object_prefix_rejects_empty_or_parent_segments():
+    with pytest.raises(SystemExit, match="non-empty"):
+        normalize_object_prefix("/", "incoming prefix")
+
+    with pytest.raises(SystemExit, match="parent directory"):
+        normalize_object_prefix("incoming/../secrets", "incoming prefix")
 
 
 def test_setup_summary_includes_retention_days():

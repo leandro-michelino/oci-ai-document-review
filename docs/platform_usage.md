@@ -384,6 +384,7 @@ Dashboard
 Automatic Object Storage intake
   - Enable with `enable_automatic_processing = true` and an OCIR image URI for `functions/object_intake`.
   - Keep `tenancy_id` populated so Terraform can create the Function dynamic group.
+  - Keep incoming and queue prefixes as relative Object Storage prefixes; setup normalizes them and Terraform rejects empty, absolute, or parent-directory values.
   - Upload external documents to `incoming/<expense-name-or-reference>/<file>` or `incoming/<file>`.
   - OCI Events invokes the Function for Object Storage create events in the bucket.
   - The Function writes queue markers under `event-queue/`; it does not process documents directly.

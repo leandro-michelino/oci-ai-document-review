@@ -152,6 +152,12 @@ def parse_args() -> argparse.Namespace:
     args.profile = args.profile or "DEFAULT"
     args.bucket_name = args.bucket_name or DEFAULT_BUCKET
     args.preferred_model = args.preferred_model or DEFAULT_MODEL
+    args.event_intake_incoming_prefix = normalize_object_prefix(
+        args.event_intake_incoming_prefix, "event intake incoming prefix"
+    )
+    args.event_intake_queue_prefix = normalize_object_prefix(
+        args.event_intake_queue_prefix, "event intake queue prefix"
+    )
     validate_positive_integer(args.retention_days, "retention days")
     validate_positive_integer(
         args.event_intake_poll_seconds, "event intake poll seconds"
@@ -497,8 +503,14 @@ def prompt_for_runtime(
         args.event_intake_incoming_prefix = ask(
             "Incoming Object Storage prefix", args.event_intake_incoming_prefix
         )
+        args.event_intake_incoming_prefix = normalize_object_prefix(
+            args.event_intake_incoming_prefix, "event intake incoming prefix"
+        )
         args.event_intake_queue_prefix = ask(
             "Function queue marker prefix", args.event_intake_queue_prefix
+        )
+        args.event_intake_queue_prefix = normalize_object_prefix(
+            args.event_intake_queue_prefix, "event intake queue prefix"
         )
         args.event_intake_poll_seconds = ask(
             "VM event-intake poll seconds", args.event_intake_poll_seconds
@@ -576,6 +588,16 @@ def normalize_cidr(value: str) -> str:
 
 def validate_cidr(value: str) -> None:
     normalize_cidr(value)
+
+
+def normalize_object_prefix(value: str, label: str) -> str:
+    cleaned = (value or "").strip().lstrip("/")
+    if not cleaned:
+        raise SystemExit(f"The {label} must be a non-empty relative prefix.")
+    parts = [part for part in cleaned.split("/") if part]
+    if any(part == ".." for part in parts):
+        raise SystemExit(f"The {label} must not contain parent directory segments.")
+    return cleaned if cleaned.endswith("/") else f"{cleaned}/"
 
 
 def validate_positive_integer(value: str, label: str) -> None:

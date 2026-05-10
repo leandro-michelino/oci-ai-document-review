@@ -8,9 +8,10 @@ Current project version: `v0.5.1`
 
 ## Read This First
 
-- Prices are illustrative public-list planning inputs reviewed on 2026-05-09.
+- Prices are illustrative public-list planning inputs reviewed on 2026-05-10.
 - Real cost depends on region, tenancy discounts, free-tier eligibility, selected model, document volume, scan quality, retries, and retention.
 - Use the Oracle Cost Estimator, OCI Cost Analysis, and an Oracle representative quote before budgeting production use.
+- Oracle pricing pages can render numeric values dynamically and may differ by geography, currency, contract, and date. Treat the values below as worksheet inputs to verify, not as a quote.
 
 ## Quick Estimate
 
@@ -27,7 +28,7 @@ Current project version: `v0.5.1`
 +----------------------+--------------------------+----------------------------+
 ```
 
-These ranges assume the default Cohere Command R+ model, moderate prompt sizes, default 30-day retention, and normal retry behavior. GenAI characters and Document Understanding OCR pages are the main variable costs.
+These ranges assume the default Cohere Command R+ model, moderate prompt sizes, default 30-day retention, and normal retry behavior. GenAI characters and Document Understanding OCR or extraction pages are the main variable costs.
 
 ## Main Cost Drivers
 
@@ -39,6 +40,7 @@ Generative AI
 Document Understanding
   Used only for images, scanned PDFs, and image-only PDFs.
   Text files and PDFs with selectable text avoid DU charges.
+  Rich extraction and text-only OCR fallback can have different unit prices.
 
 Compute
   Small tier can fit inside A1 Always Free if the tenancy has capacity and no other A1 resources use the allowance.
@@ -48,11 +50,16 @@ Storage and retention
 
 Retries
   Reprocessing failed scanned documents can repeat DU and GenAI calls.
+
+Optional automatic intake
+  OCI Events and Functions overhead is usually small for this workload.
+  Function invocation and GB-second charges matter only after the free tier or
+  when high-volume external uploads are enabled.
 ```
 
 ## Pricing Assumptions
 
-Verify current values before use:
+Verify current values before use. The worksheet currently uses:
 
 ```text
 VM.Standard.A1.Flex OCPU            $0.010 / OCPU-hour
@@ -73,6 +80,8 @@ OCI Functions free tier             2M invocations + 400K GB-seconds/month
 
 OCI Generative AI on-demand chat billing counts prompt plus response characters. The OCI pricing page treats 1 character as 1 transaction. Command R+ maps to the Large Cohere pricing line at the time of this review.
 
+The Oracle price-list page was checked for the current product line items and units: Document Understanding still exposes first-5,000 and greater-than-5,000 transaction tiers, Large Cohere is listed per 10,000 transactions, and Functions lists free monthly invocation and GB-second bands. Re-check the numeric rates in your region before using this worksheet for customer estimates.
+
 ## Example Assumptions
 
 ```text
@@ -82,7 +91,7 @@ Small
   40% scanned/image documents
   3 pages per document average
   20,000 GenAI characters per document
-  Estimated monthly cost: about $28 with A1 Always Free, about $55 without it
+  Estimated monthly cost: about $20 - $35 with A1 Always Free, about $35 - $70 without it
 
 Enterprise
   15,000 documents/month
@@ -90,7 +99,27 @@ Enterprise
   45% scanned/image documents
   4 pages per document average
   30,000 GenAI characters per document
-  Estimated monthly cost: about $1,406
+  3 x E5 Flex VMs assumed for the application tier
+  Estimated monthly cost: about $1,200 - $1,800 before production add-ons
+```
+
+Small estimate notes:
+
+```text
+GenAI characters: 500 x 20,000 = 10,000,000 characters
+Scanned pages:    500 x 40% x 3 = 600 DU pages
+DU free tier:     scanned-page volume remains inside the 5,000 transaction band
+Compute:          A1 may be free if capacity and tenancy allowance are available
+```
+
+Enterprise estimate notes:
+
+```text
+GenAI characters: 15,000 x 30,000 = 450,000,000 characters
+Scanned pages:    15,000 x 45% x 4 = 27,000 DU pages
+DU paid pages:    about 22,000 pages after the first 5,000 transaction band
+Add-ons:          Autonomous Database, OCI Logging, Vault, budgets, and support
+                  can dominate the final production estimate.
 ```
 
 ## Simple Formula
@@ -102,7 +131,7 @@ GenAI cost
 
 Document Understanding cost
   = max(0, scanned_pages - free_transactions) / 1,000
-  x DU extraction price
+  x DU extraction or OCR price
   + OCR_fallback_pages / 1,000
   x DU OCR price
 
@@ -128,6 +157,7 @@ Total estimate
 - Use lifecycle policies for document objects.
 - Run OCI Preflight intentionally, not in a loop.
 - Add OCI Budgets alerts and review OCI Cost Analysis after bulk processing.
+- Revisit the worksheet whenever changing `GENAI_MODEL_ID`, `MAX_DOCUMENT_CHARS`, scan quality, retry policy, or the automatic-intake volume.
 
 ## Useful References
 

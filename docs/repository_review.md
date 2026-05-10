@@ -10,6 +10,13 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 
 ## Fixes Applied
 
+- Reworked the root README into a concise first-read guide while keeping deep implementation, platform, architecture, cost, and security detail in linked docs.
+- Added setup wizard normalization for automatic-intake Object Storage prefixes so absolute-looking inputs such as `/incoming` are written as relative prefixes.
+- Added Terraform validation for `event_intake_incoming_prefix` and `event_intake_queue_prefix`, rejecting empty, absolute, or parent-directory values before apply.
+- Narrowed the automatic-intake Functions dynamic group to the deployed `functions/object_intake` function OCID instead of every function in the project compartment.
+- Updated release notes in both `CHANGELOG.md` and `docs/release_notes.md` for the README polish, cost-estimate refresh, automatic-intake hardening, and validation pass.
+- Refreshed `docs/cost_estimate.md` with a 2026-05-10 review date, clearer worksheet assumptions, updated Small and Enterprise ranges, and additional notes about verifying dynamically rendered Oracle public pricing before customer budgeting.
+- Updated ASCII architecture flows with the current selectable Dashboard table behavior, automatic-intake IAM hardening, and cost/metering flow.
 - Reworked Dashboard and Actions around progressive disclosure: Dashboard uses tabbed queue tables with group rows for multi-file expense/reference batches, while Actions keeps Decision visible and moves workflow, notes, retry, linked files, source document, AI summary, analysis details, lifecycle, extracted text, and downloads into focused expanders.
 - Added Actions group aggregation for multi-file expense/reference submissions, including decision/fix counts, total items/services, total risk notes, and Items / Services by file.
 - Renamed OCI Document Understanding chunk object naming from opaque numbered prefixes to original-file-stem sequence names such as `Receipt_21Apr2026_112647_1.pdf`.
@@ -46,6 +53,13 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 - Updated ASCII architecture flows for source-document download, safety-filter handling, local working copies, and deployment boundaries.
 - Expanded `.gitignore` for coverage output, local Streamlit secrets, logs, and common caches.
 - Removed generated personal agent settings from the local workspace and kept repository documentation free of named agent-tool configuration.
+
+## Latest Review Notes
+
+- No tracked secrets, Terraform state, real tfvars, deployment archives, runtime metadata, reports, uploads, or local OCI credentials were found in Git.
+- No redundant tracked configuration files were identified for removal. Generated local caches remain ignored and can be safely deleted from the workstation.
+- Baseline validation passed after the latest changes: ruff, pytest, Terraform validation, and Ansible syntax check.
+- The pytest run passed all 119 tests and reported only third-party dependency deprecation warnings from the Python 3.14 environment.
 
 ## Cleanup
 

@@ -8,11 +8,15 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Polished the root README into a cleaner first-read guide with evaluator, deployment, operations, security, documentation, roadmap, and versioning sections.
 - Added a root `setup.sh` end-to-end setup wrapper that creates or refreshes `.venv`, runs the guided configuration wizard, validates the repository, deploys Terraform and Ansible, waits for the portal, and prints the ready-to-use URL.
 - Documented `setup.sh`, `--configure-only`, `--deploy-only`, and `--skip-checks` in the README, implementation guide, platform usage guide, and Terraform README.
 - Updated `scripts/setup.py` completion output so the guided wizard hands back cleanly to `setup.sh` when orchestrated by the root wrapper.
 - Reworked Dashboard queue sections so individual files and multi-file expense/reference groups appear in one selectable table, with `Review selected` opening the best next actionable file.
 - Expanded Ansible deployment output with a clear deployment plan, portal access details, runtime settings, data paths, automation timers, troubleshooting commands, and security notes.
+- Tightened automatic-intake configuration by normalizing setup wizard Object Storage prefixes, validating Terraform prefixes as relative paths, and narrowing the Function dynamic group to the specific deployed intake function.
+- Refreshed release notes, repository review notes, cost-estimate review wording, and ASCII architecture flows for the README polish and automatic-intake hardening pass.
+- Re-ran repository validation with ruff, pytest, Terraform validation, and Ansible syntax checks; all checks passed, with only dependency deprecation warnings from the Python 3.14 test environment.
 
 ## v0.5.1 - 2026-05-09
 

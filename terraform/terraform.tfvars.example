@@ -20,6 +20,7 @@ bucket_name              = "doc-review-input"
 
 # Optional automatic intake through Object Storage Events and OCI Functions.
 # Build and push functions/object_intake to OCIR, then set the image URI here.
+# Prefix values must be non-empty relative Object Storage prefixes.
 tenancy_id                            = "ocid1.tenancy.oc1..exampletenancy"
 enable_automatic_processing           = false
 automatic_processing_function_image   = ""

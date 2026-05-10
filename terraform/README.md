@@ -46,7 +46,7 @@ event_intake_incoming_prefix        = "incoming/"
 event_intake_queue_prefix           = "event-queue/"
 ```
 
-Terraform validates that `tenancy_id` is a valid tenancy OCID and `automatic_processing_function_image` is populated when automatic processing is enabled. The Function dynamic-group policy is scoped to the configured project bucket. External systems then upload to `incoming/<expense-name-or-reference>/<file>`. The Function normalizes prefix slashes, writes queue markers to `event-queue/`, and the VM imports those markers through the normal processing workflow.
+Terraform validates that `tenancy_id` is a valid tenancy OCID, `automatic_processing_function_image` is populated when automatic processing is enabled, and event-intake prefixes are non-empty relative Object Storage prefixes. The Function dynamic group is scoped to the deployed `functions/object_intake` function, and its object policy is scoped to the configured project bucket. External systems then upload to `incoming/<expense-name-or-reference>/<file>`. The Function normalizes prefix slashes, writes queue markers to `event-queue/`, and the VM imports those markers through the normal processing workflow.
 
 Create or choose a project compartment before deployment:
 

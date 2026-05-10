@@ -36,7 +36,7 @@ resource "oci_identity_dynamic_group" "object_intake_function" {
   compartment_id = var.tenancy_id
   name           = "doc-review-object-intake-functions"
   description    = "OCI Functions allowed to queue Object Storage document intake events."
-  matching_rule  = "ALL {resource.type = 'fnfunc', resource.compartment.id = '${var.compartment_id}'}"
+  matching_rule  = "ALL {resource.type = 'fnfunc', resource.id = '${oci_functions_function.object_intake[0].id}'}"
   freeform_tags  = var.freeform_tags
 }
 

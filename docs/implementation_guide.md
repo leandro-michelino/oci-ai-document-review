@@ -52,7 +52,7 @@ The wizard keeps runtime and GenAI region selection separate. Runtime region hos
 
 The same retention value is written to `.env` as `RETENTION_DAYS` and to Terraform as `retention_days`. The app uses it for VM-local metadata, Markdown reports, and preserved upload copies. Ansible also installs `oci-ai-document-review-retention.timer` so the VM runs local cleanup daily even when nobody opens the Streamlit page. Terraform uses the value for the Object Storage lifecycle policy that deletes uploaded document objects under `documents/`.
 
-Optional automatic intake is configured by the same setup and Terraform path. Use `--enable-automatic-processing` only after the `functions/object_intake` image has been built and pushed to OCIR, then provide `--automatic-processing-function-image`. The setup script writes the Function image, incoming prefix, queue prefix, polling interval, and tenancy OCID into `terraform/terraform.tfvars`.
+Optional automatic intake is configured by the same setup and Terraform path. Use `--enable-automatic-processing` only after the `functions/object_intake` image has been built and pushed to OCIR, then provide `--automatic-processing-function-image`. The setup script normalizes incoming and queue prefixes as relative Object Storage prefixes, then writes the Function image, incoming prefix, queue prefix, polling interval, and tenancy OCID into `terraform/terraform.tfvars`.
 
 ## Review And Deploy
 
@@ -264,7 +264,7 @@ Terraform configures `oci_objectstorage_object_lifecycle_policy.documents_retent
 
 ## Automatic Object Intake
 
-Set `enable_automatic_processing = true` in `terraform/terraform.tfvars` only after building and pushing the `functions/object_intake` image to OCIR, setting `automatic_processing_function_image`, and keeping `tenancy_id` populated with the tenancy OCID discovered by setup. Terraform then enables Object Storage object events on the private bucket, creates the Functions application and function in the private subnet, creates an Events rule for Object Storage create events in the bucket, and creates the function resource-principal IAM dynamic group and bucket-scoped policy.
+Set `enable_automatic_processing = true` in `terraform/terraform.tfvars` only after building and pushing the `functions/object_intake` image to OCIR, setting `automatic_processing_function_image`, and keeping `tenancy_id` populated with the tenancy OCID discovered by setup. Terraform then enables Object Storage object events on the private bucket, validates the intake prefixes, creates the Functions application and function in the private subnet, creates an Events rule for Object Storage create events in the bucket, and creates a resource-principal IAM dynamic group scoped to the deployed intake function plus a bucket-scoped policy.
 
 The Function normalizes incoming and queue prefixes, filters for objects under `incoming/`, and writes queue markers under `event-queue/`. Ansible enables `oci-ai-document-review-event-intake.timer` on the VM when Terraform reports automatic processing as enabled. The timer imports queue markers every `event_intake_poll_seconds` seconds. Objects outside `incoming/` are ignored by the Function, and generated queue markers are not processed as documents.
 

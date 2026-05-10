@@ -276,6 +276,8 @@ python scripts/setup.py \
   --automatic-processing-function-image <region-key>.ocir.io/<namespace>/<repo>:<tag>
 ```
 
+Setup normalizes incoming and queue prefixes as relative Object Storage prefixes, and Terraform rejects empty, absolute, or parent-directory prefix values before apply.
+
 Function-specific details are in [functions/object_intake/README.md](functions/object_intake/README.md).
 
 ## Operations

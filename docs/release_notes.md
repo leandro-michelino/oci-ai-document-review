@@ -8,6 +8,24 @@ Release notes summarize user-visible workflow, infrastructure, documentation, an
 
 ## Unreleased
 
+### Documentation Polish
+
+- Reworked the root README into a clearer first-read guide for evaluators, deployers, and operators.
+- Kept deep operational detail in the supporting docs and linked README readers to architecture flows, platform usage, security notes, cost estimates, acceptance notes, repository review notes, and changelog history.
+- Refreshed repository review notes and architecture docs so they reflect current Dashboard group-row behavior and the latest deployment wiring.
+
+### Automatic Intake Hardening
+
+- Normalized Object Storage incoming and queue prefixes in the setup wizard so values such as `/incoming` are written as relative prefixes.
+- Added Terraform validation for automatic-intake prefixes so empty, absolute, or parent-directory prefixes fail before apply.
+- Narrowed the OCI Functions dynamic group from all functions in the compartment to the specific deployed object-intake function.
+
+### Review And Validation
+
+- Re-reviewed tracked repository files for secret exposure, redundant tracked configuration, documentation drift, Terraform validation gaps, and runtime wiring consistency.
+- Updated the cost-estimate review date and clarified that the worksheet uses planning inputs that must still be verified against the live Oracle price list, Cost Estimator, tenancy discounts, and region-specific terms.
+- Re-ran ruff, pytest, Terraform validation, and Ansible syntax checks. All checks passed; the test run only reported third-party dependency deprecation warnings under Python 3.14.
+
 ### End-To-End Setup
 
 - Added root `setup.sh` as the recommended laptop-driven deployment entry point.

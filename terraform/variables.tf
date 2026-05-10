@@ -76,12 +76,30 @@ variable "event_intake_incoming_prefix" {
   description = "Object Storage prefix watched for automatic document intake."
   type        = string
   default     = "incoming/"
+
+  validation {
+    condition = (
+      length(trimspace(var.event_intake_incoming_prefix)) > 0 &&
+      !startswith(trimspace(var.event_intake_incoming_prefix), "/") &&
+      !can(regex("(^|/)\\.\\.(/|$)", trimspace(var.event_intake_incoming_prefix)))
+    )
+    error_message = "event_intake_incoming_prefix must be a non-empty relative Object Storage prefix."
+  }
 }
 
 variable "event_intake_queue_prefix" {
   description = "Object Storage prefix where the intake Function writes VM queue markers."
   type        = string
   default     = "event-queue/"
+
+  validation {
+    condition = (
+      length(trimspace(var.event_intake_queue_prefix)) > 0 &&
+      !startswith(trimspace(var.event_intake_queue_prefix), "/") &&
+      !can(regex("(^|/)\\.\\.(/|$)", trimspace(var.event_intake_queue_prefix)))
+    )
+    error_message = "event_intake_queue_prefix must be a non-empty relative Object Storage prefix."
+  }
 }
 
 variable "event_intake_poll_seconds" {
