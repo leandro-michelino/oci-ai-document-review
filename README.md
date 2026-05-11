@@ -166,7 +166,8 @@ The wrapper:
 6. provisions or updates OCI infrastructure;
 7. deploys the app with Ansible;
 8. restarts the Streamlit service;
-9. prints the portal URL, SSH command, and operations commands.
+9. verifies the public portal URL from the laptop;
+10. prints what Terraform deployed, what Ansible configured, the portal URL, SSH command, and operations commands.
 
 Useful modes:
 
@@ -207,8 +208,10 @@ After the wizard writes `.env` and `terraform/terraform.tfvars`, deploy:
 Run the Streamlit app locally when `.env` is already configured:
 
 ```bash
-streamlit run app.py
+streamlit run app.py --server.maxUploadSize=10
 ```
+
+Use your configured `MAX_UPLOAD_MB` value if you changed the default.
 
 ## Configuration
 
@@ -232,7 +235,7 @@ Core runtime settings:
 | `OCI_BUCKET_NAME` | `doc-review-input` | Private bucket for source documents and compliance catalog. |
 | `GENAI_MODEL_ID` | `cohere.command-r-plus-08-2024` | Cohere chat model used by the runtime. |
 | `MAX_PARALLEL_JOBS` | `2` | Background worker thread count. |
-| `MAX_UPLOAD_MB` | `10` | Per-file upload size limit. |
+| `MAX_UPLOAD_MB` | `10` | Per-file upload size limit. Ansible passes the same value to Streamlit's `server.maxUploadSize` so the uploader and app validation agree. |
 | `MAX_DOCUMENT_CHARS` | `50000` | Extracted character limit sent to GenAI. |
 | `RETENTION_DAYS` | `30` | VM-local artifact and Object Storage document retention period. |
 | `COMPLIANCE_ENTITIES_OBJECT_NAME` | `compliance/public_sector_entities.csv` | Object Storage path for the compliance knowledge base. |

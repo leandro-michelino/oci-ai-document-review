@@ -177,12 +177,14 @@ The deploy script:
 3. Runs terraform init.
 4. Runs terraform apply.
 5. Writes a temporary local Ansible inventory in .deploy/.
-6. Installs required Ansible collections.
-7. Runs ansible/playbook.yml.
-8. Scrubs accidental local-only files from the VM release tree.
-9. Writes the runtime .env and OCI SDK config.
-10. Restarts the systemd service.
-11. Prints a structured deployment summary.
+6. Waits for SSH on the Terraform-created VM.
+7. Installs required Ansible collections.
+8. Runs ansible/playbook.yml.
+9. Scrubs accidental local-only files from the VM release tree.
+10. Writes the runtime .env and OCI SDK config.
+11. Restarts the systemd service.
+12. Verifies the public portal URL from the laptop.
+13. Prints a structured end-to-end deployment summary.
 ```
 
 For a code-only redeploy, Terraform should normally show `No changes`; the important app update happens in the Ansible tasks named `Unpack app release` and `Start portal service`.
@@ -265,6 +267,8 @@ Reports directory
 
 The same information is also printed by `scripts/deploy.sh`.
 
+The deploy script also writes `.deploy/platform_summary.json` from Terraform output so operators have a local machine-readable record of the deployed infrastructure.
+
 ## Using The Portal
 
 Open the `streamlit_url` output in your browser.
@@ -322,7 +326,7 @@ Workflow data is stored in the same local JSON metadata record as the processing
 
 Future phase option: add a customer document chatbot that answers read-only questions from the same workflow data. The assistant can answer questions such as `What is the status of my file?`, `Why was it rejected?`, `Who is reviewing it?`, `When is the SLA due?`, or `What do I need to retry?`. It should retrieve from document metadata, audit events, workflow comments, reports, extracted summaries, and approval decisions, then answer with the relevant document id and next step. It should not change review state or expose documents outside the authenticated customer context.
 
-Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. The app first tries rich OCR/table/key-value extraction, then falls back to text-only OCR if the rich mode fails. Scanned PDFs above OCI's synchronous request limits are split into temporary chunks and merged before GenAI analysis. Chunk object names keep the original file stem and add `_1`, `_2`, and so on, for example `Receipt_21Apr2026_112647_1.pdf`, so logs and temporary Object Storage activity remain understandable. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Password-protected, very large, low-resolution, single-page files above the synchronous OCR size limit, or heavily compressed image PDFs may still return little text or fail.
+Scanned PDFs and PDFs made from images rely on OCR. They are slower than PDFs with selectable text because Document Understanding must read page pixels. The app first tries rich OCR/table/key-value extraction, then falls back to text-only OCR if the rich mode fails. Scanned PDFs above OCI's synchronous request limits are split into temporary chunks and merged before GenAI analysis. Chunk object names keep the original file stem and add `_1`, `_2`, and so on, for example `Receipt_21Apr2026_112647_1.pdf`, so logs and temporary Object Storage activity remain understandable. Use clear, upright scans and keep files below `MAX_UPLOAD_MB`. Deployed Streamlit is started with the same value through `--server.maxUploadSize`, so the browser uploader and app validation agree. Password-protected, very large, low-resolution, single-page files above the synchronous OCR size limit, or heavily compressed image PDFs may still return little text or fail.
 
 Expense-like documents are checked against the curated compliance knowledge base after GenAI analysis. The default Object Storage object is `compliance/public_sector_entities.csv`, seeded from the bundled `data/compliance/public_sector_entities.csv` file if the object is missing. The check uses extracted text, file name, business reference, notes, and selected AI fields. Matching public-sector entities or cues add a `Public-sector expense compliance review` note, route the document to `Compliance review` in Actions, and show the risk with severity-labeled badges such as `Risk Small`, `Risk Medium`, and `Risk High`. The catalog uses `LOW`, `MEDIUM`, and `HIGH` values so routine public-service fees can be lower severity, generic public-sector cues can be medium severity, and public officials, facilitation payments, political contributions, sanctions, conflicts of interest, or sole-source exceptions can be high severity. Treat this as a reviewer-routing control, not as a final compliance determination.
 

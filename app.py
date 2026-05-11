@@ -7,6 +7,7 @@ from tempfile import NamedTemporaryFile
 
 import pandas as pd
 import streamlit as st
+from streamlit import config as streamlit_config
 
 from src.config import get_config
 from src.health_checks import run_preflight
@@ -797,6 +798,83 @@ def apply_theme() -> None:
             line-height: 1.35;
             overflow-wrap: anywhere;
         }
+        .upload-intake-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+            gap: 0.6rem;
+            margin: 0.3rem 0 0.95rem;
+        }
+        .upload-intake-item {
+            background: #fbfaf7;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.72rem 0.78rem;
+            min-width: 0;
+        }
+        .upload-intake-label {
+            color: var(--text-soft);
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            line-height: 1.2;
+            margin-bottom: 0.24rem;
+            text-transform: uppercase;
+        }
+        .upload-intake-value {
+            color: var(--text-strong);
+            font-size: 0.92rem;
+            font-weight: 800;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+        .upload-guidance {
+            background: #f5f9fc;
+            border: 1px solid #bdd1df;
+            border-left: 5px solid #2c5d7e;
+            border-radius: 8px;
+            color: var(--info-text);
+            font-size: 0.86rem;
+            line-height: 1.45;
+            margin: 0.35rem 0 0.9rem;
+            padding: 0.72rem 0.85rem;
+        }
+        .upload-file-list {
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            background: #fffefb;
+            margin: 0.4rem 0 0.9rem;
+            overflow: hidden;
+        }
+        .upload-file-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.75rem;
+            align-items: center;
+            border-top: 1px solid var(--panel-border);
+            padding: 0.56rem 0.7rem;
+        }
+        .upload-file-row:first-child {
+            border-top: 0;
+        }
+        .upload-file-name {
+            color: var(--text-strong);
+            font-size: 0.86rem;
+            font-weight: 800;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+        .upload-file-meta {
+            color: var(--text-soft);
+            font-size: 0.78rem;
+            line-height: 1.35;
+            margin-top: 0.12rem;
+        }
+        .upload-file-size {
+            color: var(--text-strong);
+            font-size: 0.82rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
         .help-dot {
             display: inline-flex;
             align-items: center;
@@ -992,6 +1070,94 @@ def validate_upload_batch_requirements(uploaded_files, job_description: str) -> 
             "Expense name or reference is required when uploading more than one file."
         )
     return errors
+
+
+def format_mb(value: float | int) -> str:
+    return f"{int(value)} MB" if float(value).is_integer() else f"{value:.1f} MB"
+
+
+def streamlit_upload_limit_mb() -> int | None:
+    try:
+        value = streamlit_config.get_option("server.maxUploadSize")
+    except Exception:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def render_upload_intake_summary(config) -> None:
+    server_limit = streamlit_upload_limit_mb()
+    limit_note = format_mb(config.max_upload_mb)
+    if server_limit is not None and server_limit != config.max_upload_mb:
+        limit_note = (
+            f"{format_mb(config.max_upload_mb)} app limit; "
+            f"{format_mb(server_limit)} Streamlit server limit"
+        )
+    allowed_types = ", ".join(sorted(ext.upper() for ext in ALLOWED_UPLOAD_EXTENSIONS))
+    st.markdown(
+        f"""
+        <div class="upload-intake-grid">
+          <div class="upload-intake-item">
+            <div class="upload-intake-label">Per-file limit</div>
+            <div class="upload-intake-value">{escape(limit_note)}</div>
+          </div>
+          <div class="upload-intake-item">
+            <div class="upload-intake-label">Files per upload</div>
+            <div class="upload-intake-value">Up to {MAX_FILES_PER_UPLOAD}</div>
+          </div>
+          <div class="upload-intake-item">
+            <div class="upload-intake-label">Parallel jobs</div>
+            <div class="upload-intake-value">{config.max_parallel_jobs}</div>
+          </div>
+          <div class="upload-intake-item">
+            <div class="upload-intake-label">GenAI region</div>
+            <div class="upload-intake-value">{escape(config.genai_region)}</div>
+          </div>
+        </div>
+        <div class="upload-guidance">
+          Supported file types: {escape(allowed_types)}. Multi-file uploads need an
+          expense name or reference so related files stay together.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if server_limit is not None and server_limit != config.max_upload_mb:
+        st.warning(
+            "Upload limit configuration mismatch: the app validates "
+            f"{config.max_upload_mb} MB per file, but Streamlit is configured for "
+            f"{server_limit} MB. Deploy with Ansible so the service starts Streamlit "
+            "with the same MAX_UPLOAD_MB value."
+        )
+
+
+def render_selected_upload_files(uploaded_files) -> None:
+    if not uploaded_files:
+        return
+    rows = []
+    for uploaded in uploaded_files:
+        extension = Path(uploaded.name).suffix.lower().lstrip(".") or "unknown"
+        rows.append(
+            f"""
+            <div class="upload-file-row">
+              <div>
+                <div class="upload-file-name">{escape(uploaded.name)}</div>
+                <div class="upload-file-meta">{escape(extension.upper())}</div>
+              </div>
+              <div class="upload-file-size">{uploaded.size / (1024 * 1024):.2f} MB</div>
+            </div>
+            """
+        )
+    st.markdown(
+        f"""
+        <div class="upload-file-list">
+          {''.join(rows)}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def load_app_config():
@@ -2977,10 +3143,8 @@ def upload_page(config, store):
         "Add a document. The app queues it, processes it in OCI, then sends it to review.",
     )
     intro_cols = st.columns([1, 0.24], vertical_alignment="center")
-    intro_cols[0].caption(
-        f"GenAI region: {config.genai_region} | Parallel jobs: {config.max_parallel_jobs} | "
-        f"Upload limit: {config.max_upload_mb} MB"
-    )
+    with intro_cols[0]:
+        render_upload_intake_summary(config)
     intro_cols[1].button(
         "How To Use",
         key="upload_howto",
@@ -3003,8 +3167,8 @@ def upload_page(config, store):
             accept_multiple_files=True,
             key=f"document_file_{st.session_state.get('upload_widget_version', 0)}",
             help=(
-                f"Select up to {MAX_FILES_PER_UPLOAD} files. Maximum file size enforced by "
-                f"the app: {config.max_upload_mb} MB."
+                f"Select up to {MAX_FILES_PER_UPLOAD} files. Maximum file size: "
+                f"{config.max_upload_mb} MB per file."
             ),
         )
         selected_count = len(uploaded_files or [])
@@ -3030,6 +3194,7 @@ def upload_page(config, store):
         if selected_count:
             names = ", ".join(file.name for file in uploaded_files)
             st.caption(f"Selected {selected_count}: {names}")
+            render_selected_upload_files(uploaded_files)
             batch_errors = validate_upload_batch_requirements(
                 uploaded_files, job_description
             )
@@ -3037,9 +3202,6 @@ def upload_page(config, store):
                 st.error(message)
             if batch_errors:
                 uploaded_ok = False
-            for uploaded in uploaded_files:
-                size_mb = uploaded.size / (1024 * 1024)
-                st.caption(f"{uploaded.name} - {size_mb:.2f} MB")
             oversized = [
                 file.name
                 for file in uploaded_files

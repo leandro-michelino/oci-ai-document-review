@@ -77,7 +77,7 @@ Deploy end to end from the repo root:
 ./setup.sh --deploy-only
 ```
 
-`setup.sh --deploy-only` runs validation and then calls `scripts/deploy.sh`. The deploy script runs Terraform, packages the app, runs Ansible, starts the systemd service, and prints the portal URL plus operations commands. If you have already validated locally and want the lower-level deploy command, run `./scripts/deploy.sh` directly.
+`setup.sh --deploy-only` runs validation and then calls `scripts/deploy.sh`. The deploy script packages the app, runs Terraform, waits for SSH on the Terraform-created VM, runs Ansible, starts the systemd service, verifies the public portal URL from the laptop, and prints an end-to-end summary of what Terraform deployed and what Ansible configured. If you have already validated locally and want the lower-level deploy command, run `./scripts/deploy.sh` directly.
 
 ## Release Package Hygiene
 
@@ -182,7 +182,7 @@ Uploads are queued into a background worker pool. The browser returns immediatel
 
 The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh stays on the Dashboard instead of returning to Upload. The Dashboard body runs inside a Streamlit fragment and refreshes every 10 seconds while the session is active. That updates metrics, queue table rows, active elapsed-time labels, stale processing cleanup, and tabbed queue sections without using a full browser reload. Dashboard metric cards are emitted as one compact HTML block through `dashboard_metrics_html()` so Streamlit Markdown does not treat later cards as escaped code text.
 
-The Upload page validates basic requirements before queueing: up to five files, mandatory expense name or reference when more than one file is selected, supported extension, non-empty file, and `MAX_UPLOAD_MB`. It also blocks image OCR uploads above the current OCI synchronous file-size limit. For PDFs, it attempts to read the local page count. PDFs above the OCI synchronous OCR page or file-size limit are allowed and the user is informed that scanned pages will be processed in chunks. If the page count cannot be read locally, the user sees a warning that encrypted, damaged, or password-protected PDFs may fail during extraction.
+The Upload page validates basic requirements before queueing: up to five files, mandatory expense name or reference when more than one file is selected, supported extension, non-empty file, and `MAX_UPLOAD_MB`. Ansible starts Streamlit with `--server.maxUploadSize` set to the same value, so the browser uploader and app validation show the same per-file limit. It also blocks image OCR uploads above the current OCI synchronous file-size limit. For PDFs, it attempts to read the local page count. PDFs above the OCI synchronous OCR page or file-size limit are allowed and the user is informed that scanned pages will be processed in chunks. If the page count cannot be read locally, the user sees a warning that encrypted, damaged, or password-protected PDFs may fail during extraction.
 
 The Dashboard and Actions page display the stored expense name or reference so reviewers can keep related files from the same multi-file upload together end to end. Dashboard shows individual files and multi-file expense/reference groups in the same compact selectable queue tables. A group row shows file count, stage summary, target action, highest risk, confidence range, SLA, owner, and the first target file; `Review selected` opens the best next actionable file, preferring compliance review and approval work before retry, active, or reviewed records. Actions keeps linked files for the same expense/reference inside an expander beside the selected document context. The Actions selector is labeled `Selected file for review`, and each option includes the exact file name, document ID, expense/reference, stage, and upload time so duplicate or similar file names are easier to distinguish. The selected record summary repeats the file name, document ID, linked-file count, workflow, SLA, current action, and risk. For multi-file expense/reference groups, Actions shows group aggregation inside the linked-files expander: total files, files needing decision, files needing fix, total extracted items/services, total risk notes, and an Items / Services by file table when line items are present. The Actions page shows the AI review summary before the Decision panel, then keeps Workflow, notes, retry, audit, source document, analysis details, lifecycle, extracted text, and downloads in expanders so reviewers expand only what they need. It uses the preserved local working copy in `data/uploads` and shows a `Download Doc for Review` button so the reviewer can open the original file locally. If the working copy is missing, the reviewer still sees metadata, lifecycle details, extracted text, and generated analysis.
 
@@ -345,5 +345,7 @@ Then on the portal:
 For local development only:
 
 ```bash
-streamlit run app.py
+streamlit run app.py --server.maxUploadSize=10
 ```
+
+Use your configured `MAX_UPLOAD_MB` value if you changed the default.

@@ -205,7 +205,7 @@
           Group={{ app_user }}
           WorkingDirectory={{ app_dir }}
           EnvironmentFile={{ app_dir }}/.env
-          ExecStart={{ app_dir }}/.venv/bin/streamlit run app.py --server.address=0.0.0.0 --server.port={{ app_port }} --server.headless=true
+          ExecStart={{ app_dir }}/.venv/bin/streamlit run app.py --server.address=0.0.0.0 --server.port={{ app_port }} --server.headless=true --server.maxUploadSize={{ max_upload_mb | default('10') }}
           Restart=always
           RestartSec=5
 

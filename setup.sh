@@ -144,13 +144,18 @@ if [[ "$RUN_CHECKS" == true ]]; then
   terraform -chdir=terraform fmt -check -diff
   terraform -chdir=terraform init
   terraform -chdir=terraform validate
-  ansible-playbook --syntax-check ansible/playbook.yml
+  mkdir -p .deploy
+  cat > .deploy/ansible_syntax_inventory.ini <<'EOF'
+[doc_review]
+doc-review-app ansible_connection=local
+EOF
+  ansible-playbook -i .deploy/ansible_syntax_inventory.ini --syntax-check ansible/playbook.yml
 else
   echo "Skipping local validation because --skip-checks was supplied"
 fi
 
 if [[ "$RUN_DEPLOY" == true ]]; then
-  echo "Deploying infrastructure and application"
+  echo "Deploying infrastructure with Terraform and application runtime with Ansible"
   ./scripts/deploy.sh
 else
   cat <<'EOF'
