@@ -47,6 +47,11 @@ Release notes summarize user-visible workflow, infrastructure, documentation, an
 - Expanded Ansible output with a human-readable deployment plan and completion summary.
 - The final Ansible summary now includes portal access, SSH and service commands, runtime settings, local VM data paths, timers, troubleshooting guidance, and security notes.
 
+### Runtime Defaults
+
+- Increased the default worker pool from 2 to 5 parallel jobs across runtime config, setup, deployment, Ansible, examples, and documentation.
+- Added queue-level test coverage to verify document submission uses the configured worker count.
+
 ## v0.5.1 - 2026-05-09
 
 ### Cost Estimate

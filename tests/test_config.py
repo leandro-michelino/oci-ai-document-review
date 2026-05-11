@@ -21,7 +21,7 @@ def test_app_config_accepts_valid_runtime_settings():
     config = AppConfig(**config_kwargs(OCI_AUTH="instance_principal"))
 
     assert config.oci_auth == "instance_principal"
-    assert config.max_parallel_jobs == 2
+    assert config.max_parallel_jobs == 5
     assert config.retention_days == 30
 
 

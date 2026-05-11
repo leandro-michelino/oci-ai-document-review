@@ -18,6 +18,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - Reworked Dashboard queue sections so individual files and multi-file expense/reference groups appear in one selectable table, with `Review selected` opening the best next actionable file.
 - Expanded Ansible deployment output with a clear deployment plan, portal access details, runtime settings, data paths, automation timers, troubleshooting commands, and security notes.
 - Tightened automatic-intake configuration by normalizing setup wizard Object Storage prefixes, validating Terraform prefixes as relative paths, and narrowing the Function dynamic group to the specific deployed intake function.
+- Increased the default background worker pool from 2 to 5 parallel jobs across runtime config, setup, deployment, Ansible, examples, and documentation.
 - Refreshed release notes, repository review notes, cost-estimate review wording, and ASCII architecture flows for the README polish and automatic-intake hardening pass.
 - Re-ran repository validation with ruff, pytest, Terraform validation, and Ansible syntax checks; all checks passed, with only dependency deprecation warnings from the Python 3.14 test environment.
 

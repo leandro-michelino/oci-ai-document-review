@@ -229,7 +229,7 @@ ansible-playbook -i "$INVENTORY" ansible/playbook.yml \
   -e "document_ai_retry_attempts=${DOCUMENT_AI_RETRY_ATTEMPTS:-2}" \
   -e "stale_processing_minutes=${STALE_PROCESSING_MINUTES:-12}" \
   -e "retention_days=${RETENTION_DAYS:-30}" \
-  -e "max_parallel_jobs=${MAX_PARALLEL_JOBS:-2}" \
+  -e "max_parallel_jobs=${MAX_PARALLEL_JOBS:-5}" \
   -e "max_document_chars=${MAX_DOCUMENT_CHARS:-50000}" \
   -e "max_upload_mb=${MAX_UPLOAD_MB:-10}" \
   -e "compliance_entities_object_name=${COMPLIANCE_ENTITIES_OBJECT_NAME:-compliance/public_sector_entities.csv}" \

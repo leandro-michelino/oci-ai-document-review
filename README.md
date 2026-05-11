@@ -234,7 +234,7 @@ Core runtime settings:
 | `GENAI_REGION` | wizard selected | OCI Generative AI inference region. |
 | `OCI_BUCKET_NAME` | `doc-review-input` | Private bucket for source documents and compliance catalog. |
 | `GENAI_MODEL_ID` | `cohere.command-r-plus-08-2024` | Cohere chat model used by the runtime. |
-| `MAX_PARALLEL_JOBS` | `2` | Background worker thread count. |
+| `MAX_PARALLEL_JOBS` | `5` | Background worker thread count. |
 | `MAX_UPLOAD_MB` | `10` | Per-file upload size limit. Ansible passes the same value to Streamlit's `server.maxUploadSize` so the uploader and app validation agree. |
 | `MAX_DOCUMENT_CHARS` | `50000` | Extracted character limit sent to GenAI. |
 | `RETENTION_DAYS` | `30` | VM-local artifact and Object Storage document retention period. |

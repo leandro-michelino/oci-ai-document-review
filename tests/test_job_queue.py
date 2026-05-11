@@ -1,6 +1,10 @@
 from types import SimpleNamespace
 
-from src.job_queue import _process_document, retry_document_processing
+from src.job_queue import (
+    _process_document,
+    retry_document_processing,
+    submit_document_processing,
+)
 from src.metadata_store import MetadataStore
 from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
 
@@ -41,6 +45,45 @@ def test_background_worker_marks_startup_failure_failed(tmp_path, monkeypatch):
     assert updated.error_message == "missing runtime config"
     assert updated.audit_events[-1].action == "PROCESSING_FAILED"
     assert not source.exists()
+
+
+def test_submit_document_processing_uses_configured_parallel_jobs(
+    tmp_path, monkeypatch
+):
+    config = SimpleNamespace(max_parallel_jobs=5)
+    captured = {}
+
+    class FakeFuture:
+        def add_done_callback(self, callback):
+            callback(self)
+
+    class FakeExecutor:
+        def submit(self, fn, *args):
+            captured["submitted_fn"] = fn
+            captured["submitted_args"] = args
+            return FakeFuture()
+
+    def fake_get_executor(max_workers):
+        captured["max_workers"] = max_workers
+        return FakeExecutor()
+
+    monkeypatch.setattr("src.job_queue.get_executor", fake_get_executor)
+
+    assert submit_document_processing(
+        config=config,
+        source_path=tmp_path / "contract.pdf",
+        document_id="doc-parallel",
+        document_name="contract.pdf",
+        document_type=DocumentType.CONTRACT,
+        business_reference=None,
+        notes=None,
+        job_description=None,
+        source_file_size_bytes=None,
+        source_file_mime_type=None,
+    )
+
+    assert captured["max_workers"] == 5
+    assert captured["submitted_args"][0] is config
 
 
 def test_retry_document_processing_creates_child_record_and_history(

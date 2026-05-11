@@ -90,7 +90,7 @@ def test_setup_summary_includes_retention_days():
         instance_shape="VM.Standard.A1.Flex",
         instance_ocpus="1",
         instance_memory_gbs="6",
-        max_parallel_jobs="2",
+        max_parallel_jobs="5",
         max_upload_mb="10",
         retention_days="30",
         enable_automatic_processing=False,
@@ -105,6 +105,7 @@ def test_setup_summary_includes_retention_days():
     )
 
     assert values["Retention"] == "30 days"
+    assert values["Processing"] == "5 workers, 10 MB upload limit"
     assert values["Automatic processing"] == "disabled"
 
 

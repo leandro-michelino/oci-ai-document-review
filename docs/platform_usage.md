@@ -350,7 +350,7 @@ Document Understanding calls are bounded by runtime settings:
 DOCUMENT_AI_TIMEOUT_SECONDS=180
 DOCUMENT_AI_RETRY_ATTEMPTS=2
 STALE_PROCESSING_MINUTES=12
-MAX_PARALLEL_JOBS=2
+MAX_PARALLEL_JOBS=5
 ```
 
 Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a processing run remains in an active stage beyond the stale window, the app marks it as `FAILED` with a retry message.

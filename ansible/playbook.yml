@@ -23,7 +23,7 @@
           - "Object Storage bucket: {{ bucket_name }}"
           - "Object Storage namespace: {{ object_storage_namespace }}"
           - "Local retention: {{ retention_days | default('30') }} days"
-          - "Parallel processing jobs: {{ max_parallel_jobs | default('2') }}"
+          - "Parallel processing jobs: {{ max_parallel_jobs | default('5') }}"
           - "Automatic Object Storage intake: {{ event_intake_enabled | default('false') }}"
           - "Ansible will refresh the app package, write runtime config, install dependencies, configure systemd, restart the portal, and wait for the app port."
 
@@ -120,7 +120,7 @@
           DOCUMENT_AI_RETRY_ATTEMPTS={{ document_ai_retry_attempts | default('2') }}
           STALE_PROCESSING_MINUTES={{ stale_processing_minutes | default('12') }}
           RETENTION_DAYS={{ retention_days | default('30') }}
-          MAX_PARALLEL_JOBS={{ max_parallel_jobs | default('2') }}
+          MAX_PARALLEL_JOBS={{ max_parallel_jobs | default('5') }}
           MAX_DOCUMENT_CHARS={{ max_document_chars | default('50000') }}
           MAX_UPLOAD_MB={{ max_upload_mb | default('10') }}
           COMPLIANCE_ENTITIES_OBJECT_NAME={{ compliance_entities_object_name | default('compliance/public_sector_entities.csv') }}
@@ -341,7 +341,7 @@
           - "  Compliance catalog object: {{ compliance_entities_object_name | default('compliance/public_sector_entities.csv') }}"
           - "  Max upload size: {{ max_upload_mb | default('10') }} MB"
           - "  Max document characters sent to GenAI: {{ max_document_chars | default('50000') }}"
-          - "  Parallel jobs: {{ max_parallel_jobs | default('2') }}"
+          - "  Parallel jobs: {{ max_parallel_jobs | default('5') }}"
           - "  Stale processing timeout: {{ stale_processing_minutes | default('12') }} minutes"
           - "  Document AI timeout: {{ document_ai_timeout_seconds | default('180') }} seconds"
           - "  Document AI retry attempts: {{ document_ai_retry_attempts | default('2') }}"

@@ -132,7 +132,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--event-intake-incoming-prefix", default="incoming/")
     parser.add_argument("--event-intake-queue-prefix", default="event-queue/")
     parser.add_argument("--event-intake-poll-seconds", default="60")
-    parser.add_argument("--max-parallel-jobs", default="2")
+    parser.add_argument("--max-parallel-jobs", default="5")
     parser.add_argument("--max-document-chars", default="50000")
     parser.add_argument("--max-upload-mb", default="10")
     parser.add_argument(

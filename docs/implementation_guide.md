@@ -171,7 +171,7 @@ Document Understanding calls use a bounded timeout and retry configuration:
 DOCUMENT_AI_TIMEOUT_SECONDS=180
 DOCUMENT_AI_RETRY_ATTEMPTS=2
 STALE_PROCESSING_MINUTES=12
-MAX_PARALLEL_JOBS=2
+MAX_PARALLEL_JOBS=5
 ```
 
 The app validates runtime configuration before startup. Invalid OCI auth modes, zero or negative processing limits, out-of-range GenAI temperature, and unsafe compliance knowledge-base object names fail fast.
