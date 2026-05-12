@@ -2,11 +2,15 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.1`
+Current project version: `v0.6.0`
 
 Release notes summarize user-visible workflow, infrastructure, documentation, and cost-estimate changes. `CHANGELOG.md` remains the source of truth for full repository history.
 
 ## Unreleased
+
+No unreleased changes.
+
+## v0.6.0 - 2026-05-12
 
 ### Reviewed Archive
 

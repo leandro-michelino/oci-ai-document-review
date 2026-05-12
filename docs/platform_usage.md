@@ -4,7 +4,7 @@ This guide explains how to deploy, operate, and use the OCI AI Document Review P
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.1`
+Current project version: `v0.6.0`
 
 The repository does not include GitHub Actions or CI deployment workflows. Terraform and Ansible are run locally from your laptop with your existing OCI config and policies.
 
