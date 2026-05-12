@@ -14,6 +14,7 @@ This walkthrough exercised the documented MVP paths as a human uploader, reviewe
 - How To Use guide, including uploader, approver, and operator paths
 - Dashboard queues, expense groups, and existing uploaded document records
 - Actions review page using the already-uploaded E2E records
+- Reviewed archive page for approved and rejected records
 - Settings page and live OCI Preflight
 - Local metadata, reports, preserved upload copies, and source-download readiness
 - Public-sector expense compliance routing evidence
@@ -47,26 +48,30 @@ The run reused ignored local runtime artifacts already present under `data/uploa
    Result: The Actions page rendered the existing review queue state, including
    reviewed records and the failed retry-planned parent record.
 
-6. Opened Settings.
+6. Opened Reviewed.
+   Result: The Reviewed page rendered the closed approved/rejected records as a
+   searchable archive separate from open Actions work.
+
+7. Opened Settings.
    Result: Settings rendered the OCI Preflight controls and runtime settings.
 
-7. Ran live OCI Preflight.
+8. Ran live OCI Preflight.
    Result: Object Storage, Document Understanding, and Generative AI all passed
    with the configured runtime credentials.
 
-8. Checked existing uploaded document artifacts.
+9. Checked existing uploaded document artifacts.
    Result: Five local metadata records were present. Approved, rejected, failed,
    retry-planned, risk-noted, report-backed, and upload-copy states were all
    represented.
 
-9. Ran optional event-intake importer.
+10. Ran optional event-intake importer.
    Result: The command completed successfully and reported that event intake is
    disabled for the current deployment.
 
-10. Ran local retention cleanup.
+11. Ran local retention cleanup.
     Result: The command completed successfully and removed no active artifacts.
 
-11. Ran full repository validation.
+12. Ran full repository validation.
     Result: Ruff, pytest, Terraform validation, and Ansible syntax checks passed.
 ```
 

@@ -8,6 +8,16 @@ Release notes summarize user-visible workflow, infrastructure, documentation, an
 
 ## Unreleased
 
+### Reviewed Archive
+
+- Added a dedicated `Reviewed` page in the sidebar between Actions and How To Use.
+- The Reviewed page shows approved and rejected documents as an audit/archive view with summary metrics, search, and Approved/Rejected filtering.
+- Reviewed rows use `Open selected` instead of review-oriented action text because the decision is already closed.
+
+### Upload UX
+
+- Fixed the selected-file preview after upload selection so the compact file list renders visually instead of exposing raw HTML markup.
+
 ### Documentation Polish
 
 - Moved the rendered architecture diagram into `docs/assets/` so generated and editable architecture assets live together.

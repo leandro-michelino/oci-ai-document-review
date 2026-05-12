@@ -23,6 +23,7 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 - Replaced the cumulative repository-review changelog with this shorter current-state hygiene note.
 - Removed local generated deployment archives, temporary Ansible inventory, local runtime metadata, local generated reports, uploaded working copies, and Terraform plugin cache from the workstation.
 - Kept local `.env`, `terraform/terraform.tfvars`, and Terraform state files out of Git. Those files are deployment inputs/state and should not be committed.
+- Added the Reviewed archive page and upload-preview rendering regression coverage without introducing new tracked runtime artifacts.
 
 ## Configuration Review
 

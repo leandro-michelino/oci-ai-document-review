@@ -88,8 +88,17 @@ CONTACT_MESSAGE = (
 PAGE_UPLOAD = "Upload"
 PAGE_DASHBOARD = "Dashboard"
 PAGE_DETAIL = "Actions"
+PAGE_REVIEWED = "Reviewed"
 PAGE_HELP = "How To Use"
 PAGE_SETTINGS = "Settings"
+NAVIGATION_PAGES = [
+    PAGE_UPLOAD,
+    PAGE_DASHBOARD,
+    PAGE_DETAIL,
+    PAGE_REVIEWED,
+    PAGE_HELP,
+    PAGE_SETTINGS,
+]
 PAGE_QUERY_PARAM = "page"
 DETAIL_ACTION_PICKER_KEY = "detail_action_item"
 DETAIL_GROUP_PICKER_KEY = "detail_action_group"
@@ -99,6 +108,7 @@ LEGACY_PAGE_NAMES = {
     "Review Dashboard": PAGE_DASHBOARD,
     "Document Details": PAGE_DETAIL,
     "Document": PAGE_DETAIL,
+    "Reviewed Documents": PAGE_REVIEWED,
     "How to Use": PAGE_HELP,
 }
 RISK_TONE = {
@@ -1133,31 +1143,28 @@ def render_upload_intake_summary(config) -> None:
         )
 
 
-def render_selected_upload_files(uploaded_files) -> None:
-    if not uploaded_files:
-        return
+def selected_upload_files_html(uploaded_files) -> str:
     rows = []
     for uploaded in uploaded_files:
         extension = Path(uploaded.name).suffix.lower().lstrip(".") or "unknown"
         rows.append(
-            f"""
-            <div class="upload-file-row">
-              <div>
-                <div class="upload-file-name">{escape(uploaded.name)}</div>
-                <div class="upload-file-meta">{escape(extension.upper())}</div>
-              </div>
-              <div class="upload-file-size">{uploaded.size / (1024 * 1024):.2f} MB</div>
-            </div>
-            """
+            (
+                '<div class="upload-file-row">'
+                "<div>"
+                f'<div class="upload-file-name">{escape(uploaded.name)}</div>'
+                f'<div class="upload-file-meta">{escape(extension.upper())}</div>'
+                "</div>"
+                f'<div class="upload-file-size">{uploaded.size / (1024 * 1024):.2f} MB</div>'
+                "</div>"
+            )
         )
-    st.markdown(
-        f"""
-        <div class="upload-file-list">
-          {''.join(rows)}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    return f'<div class="upload-file-list">{"".join(rows)}</div>'
+
+
+def render_selected_upload_files(uploaded_files) -> None:
+    if not uploaded_files:
+        return
+    st.markdown(selected_upload_files_html(uploaded_files), unsafe_allow_html=True)
 
 
 def load_app_config():
@@ -1776,6 +1783,14 @@ def reviewer_action_count(records: list[DocumentRecord]) -> int:
     return sum(1 for record in records if is_actionable_record(record))
 
 
+def reviewed_record_count(records: list[DocumentRecord]) -> int:
+    return sum(
+        1
+        for record in records
+        if record.review_status.value in {"APPROVED", "REJECTED"}
+    )
+
+
 def processing_stage_rows(record) -> list[dict[str, str]]:
     has_extraction = bool(record.extracted_text_preview)
     has_report = bool(record.report_path and Path(record.report_path).exists())
@@ -2201,8 +2216,9 @@ def render_dashboard_queue_table(
     selected_index = selected_rows[0] if selected_rows else 0
     selected = table.iloc[selected_index]
     review_cols = st.columns([0.28, 1.72], vertical_alignment="center")
+    action_label = "Open selected" if view == "Reviewed" else "Review selected"
     if review_cols[0].button(
-        "Review selected",
+        action_label,
         type="primary" if view == "Ready" else "secondary",
         key=f"{key_prefix}_review_selected_{view}_{selected['Document ID']}",
         width="stretch",
@@ -3411,6 +3427,104 @@ def dashboard_page(config, store):
     render_dashboard_live_content(config, store)
 
 
+def reviewed_page(config, store):
+    page_header(
+        "Review",
+        "Reviewed",
+        "Browse approved and rejected documents for audit and follow-up.",
+    )
+    records = store.list_records()
+    if not records:
+        with st.container(border=True):
+            st.info("No documents processed yet.")
+            st.button(
+                "Upload",
+                type="primary",
+                key="reviewed_empty_upload",
+                on_click=open_page,
+                args=(PAGE_UPLOAD,),
+            )
+        return
+
+    approved_count = sum(
+        1 for record in records if record.review_status.value == "APPROVED"
+    )
+    rejected_count = sum(
+        1 for record in records if record.review_status.value == "REJECTED"
+    )
+    reviewed_count = approved_count + rejected_count
+    st.markdown(
+        dashboard_metrics_html(
+            [
+                (
+                    "Reviewed",
+                    reviewed_count,
+                    "Approved or rejected",
+                    "good" if reviewed_count else "info",
+                ),
+                ("Approved", approved_count, "Accepted documents", "good"),
+                (
+                    "Rejected",
+                    rejected_count,
+                    "Declined documents",
+                    "danger" if rejected_count else "good",
+                ),
+            ]
+        ),
+        unsafe_allow_html=True,
+    )
+
+    rows = [record_to_row(record) for record in records]
+    df = pd.DataFrame(rows)
+    search_cols = st.columns([1.05, 0.42, 0.3, 0.3], vertical_alignment="bottom")
+    search = search_cols[0].text_input(
+        "Search reviewed documents",
+        placeholder="Name, reference, decision, owner, or summary",
+        key="reviewed_search",
+    )
+    decision_filter = search_cols[1].selectbox(
+        "Decision filter",
+        ["Reviewed", "Approved", "Rejected"],
+        key="reviewed_decision_filter",
+    )
+    if search_cols[2].button(
+        "Dashboard",
+        key="reviewed_dashboard_action",
+        width="stretch",
+    ):
+        open_page(PAGE_DASHBOARD)
+        st.rerun()
+    if search_cols[3].button(
+        "Upload",
+        key="reviewed_upload_action",
+        width="stretch",
+    ):
+        open_page(PAGE_UPLOAD)
+        st.rerun()
+
+    filtered = filter_queue_rows(
+        df=df,
+        view="Reviewed",
+        query=search,
+        status_filter=decision_filter,
+    )
+    filter_label = (
+        "" if decision_filter == "Reviewed" else f" | Filter: {decision_filter}"
+    )
+    st.caption(
+        f"Showing {len(filtered)} of {reviewed_count} reviewed documents{filter_label}"
+    )
+    if filtered.empty:
+        st.info("No reviewed documents match this search.")
+        return
+
+    render_dashboard_queue_table(
+        view="Reviewed",
+        rows=filtered,
+        key_prefix="reviewed",
+    )
+
+
 def detail_page(config, store):
     page_header(
         "Review",
@@ -3710,7 +3824,7 @@ def howto_page(config, store):
         ),
         (
             "Approve or reject",
-            "Approve clean items or reject with comments. The page advances to the next action item automatically.",
+            "Approve clean items or reject with comments. The page advances to the next action item automatically, and closed decisions move into Reviewed.",
         ),
     ]
     operator_steps = [
@@ -3774,7 +3888,7 @@ def howto_page(config, store):
     metric_cols[1].metric("Ready for decision", ready_count)
     metric_cols[2].metric("Needs retry", failed_count)
 
-    nav_cols = st.columns(3)
+    nav_cols = st.columns(4)
     nav_cols[0].button(
         "Upload Document",
         type="primary",
@@ -3797,6 +3911,13 @@ def howto_page(config, store):
         on_click=open_page,
         args=(PAGE_DETAIL,),
     )
+    nav_cols[3].button(
+        "Reviewed",
+        key="howto_reviewed",
+        width="stretch",
+        on_click=open_page,
+        args=(PAGE_REVIEWED,),
+    )
 
 
 def main():
@@ -3815,9 +3936,10 @@ def main():
             f"{'s were' if compliance_backfill_count != 1 else ' was'} flagged for compliance attention."
         )
 
-    pages = [PAGE_UPLOAD, PAGE_DASHBOARD, PAGE_DETAIL, PAGE_HELP, PAGE_SETTINGS]
+    pages = NAVIGATION_PAGES
     nav_records = store.list_records()
     action_count = reviewer_action_count(nav_records)
+    reviewed_count = reviewed_record_count(nav_records)
     st.sidebar.title(config.app_title)
     st.sidebar.caption(f"AI document review on OCI | {VERSION_LABEL}")
     current_page = query_page() or (
@@ -3836,6 +3958,8 @@ def main():
         nav_label = (
             f"{PAGE_DETAIL} ({action_count})"
             if nav_page == PAGE_DETAIL and action_count
+            else f"{PAGE_REVIEWED} ({reviewed_count})"
+            if nav_page == PAGE_REVIEWED and reviewed_count
             else nav_page
         )
         if (
@@ -3863,6 +3987,8 @@ def main():
         dashboard_page(config, store)
     elif page == PAGE_DETAIL:
         detail_page(config, store)
+    elif page == PAGE_REVIEWED:
+        reviewed_page(config, store)
     elif page == PAGE_HELP:
         howto_page(config, store)
     else:

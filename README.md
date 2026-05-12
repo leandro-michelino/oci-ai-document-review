@@ -51,16 +51,17 @@ It is not a blind auto-approval system. It is a human-in-the-loop review platfor
 | Large scanned PDFs | Automatic split into limit-safe temporary chunks for synchronous Document Understanding calls, with cleanup after merge. |
 | AI review | OCI Generative AI generates structured summaries, fields, risks, missing information, recommendations, and receipt or invoice line items when visible. |
 | Compliance overlay | A curated Object Storage CSV/JSON catalog flags public-sector expense cues with auditable evidence and `LOW`, `MEDIUM`, or `HIGH` severity. |
-| Workflow | Dashboard queues, Actions review screen, approve/reject decisions, owner assignment, SLA date, comments, audit trail, retry history, and source-document download. |
+| Workflow | Dashboard queues, Actions review screen, dedicated Reviewed archive, approve/reject decisions, owner assignment, SLA date, comments, audit trail, retry history, and source-document download. |
 | Reporting | Local JSON metadata plus Markdown review reports for download. |
 | Retention | VM-local metadata, reports, upload working copies, and Object Storage document objects are retained for 30 days by default. |
 | Optional automation | OCI Events and OCI Functions can ingest files uploaded to Object Storage under `incoming/`. |
 
-The Streamlit app exposes five main pages:
+The Streamlit app exposes six main pages:
 
 - `Upload`: queue new documents and grouped submissions.
 - `Dashboard`: monitor processing, ready reviews, failures, reviewed items, search, filters, and grouped submissions.
 - `Actions`: perform approval, rejection, retry, workflow assignment, comments, source download, and audit review.
+- `Reviewed`: browse approved and rejected documents with search and decision filters.
 - `How To Use`: in-app operating guidance.
 - `Settings`: runtime configuration and live OCI Preflight checks.
 
@@ -126,6 +127,7 @@ Upload
   -> Dashboard queue
   -> Actions human decision
   -> approve, reject, retry, assign, comment, or audit
+  -> Reviewed archive for closed decisions
 ```
 
 Important behavior:

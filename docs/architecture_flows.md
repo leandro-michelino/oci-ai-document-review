@@ -25,7 +25,8 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
 +--------------------------+
 | Streamlit Web Portal     |
 | Upload / Dashboard /     |
-| Actions / Settings       |
+| Actions / Reviewed /     |
+| Settings                 |
 | 1-5 Files Per Submission |
 +------------+-------------+
              |
@@ -364,6 +365,13 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
               | AI Summary + Decision     |
               | Workflow expanders below  |
               +---------------------------+
+                            |
+                            v
+              +---------------------------+
+              | Reviewed Page             |
+              | Closed decision archive   |
+              | Search + decision filter  |
+              +---------------------------+
 ```
 
 ## OCI Events And Functions Intake Flow
@@ -496,6 +504,13 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                          | Processing / Ready /      |
                          | Failed / Reviewed         |
                          | Compact Review Groups     |
+                         +---------------------------+
+                                     |
+                                     v
+                         +---------------------------+
+                         | Reviewed Page             |
+                         | Approved / Rejected only  |
+                         | Open Selected for audit   |
                          +---------------------------+
 ```
 

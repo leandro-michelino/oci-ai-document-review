@@ -8,6 +8,8 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Added a first-class `Reviewed` page between Actions and How To Use so approved and rejected documents have a dedicated audit/archive view with search and decision filters.
+- Fixed the selected-upload file preview so Streamlit renders the compact file list as HTML instead of showing escaped `<div>` markup as a code block.
 - Moved the rendered architecture diagram from the repository root into `docs/assets/` beside its Excalidraw source and updated documentation references.
 - Replaced the cumulative repository-review notes with a concise current hygiene summary.
 - Removed ignored local deployment archives, generated runtime metadata/reports/uploads, and Terraform plugin cache from the workstation while keeping deployment state and secrets untracked.

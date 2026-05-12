@@ -8,6 +8,13 @@ from streamlit.testing.v1 import AppTest
 
 from app import (
     DASHBOARD_STATUS_FILTERS,
+    NAVIGATION_PAGES,
+    PAGE_DASHBOARD,
+    PAGE_DETAIL,
+    PAGE_HELP,
+    PAGE_REVIEWED,
+    PAGE_SETTINGS,
+    PAGE_UPLOAD,
     action_badge,
     action_group_for_document,
     action_group_options,
@@ -40,7 +47,9 @@ from app import (
     reviewer_action_count,
     render_howto_panel,
     risk_detail_label,
+    reviewed_record_count,
     selected_file_notice,
+    selected_upload_files_html,
     source_download_mime,
     source_download_name,
     sort_action_records,
@@ -128,6 +137,39 @@ def test_record_to_row_adds_dashboard_fields():
     assert "contract.pdf" in row["Search Text"]
     assert "q1 vendor onboarding" in row["Search Text"]
     assert "new" in row["Search Text"]
+
+
+def test_navigation_pages_include_reviewed_after_actions():
+    assert NAVIGATION_PAGES == [
+        PAGE_UPLOAD,
+        PAGE_DASHBOARD,
+        PAGE_DETAIL,
+        PAGE_REVIEWED,
+        PAGE_HELP,
+        PAGE_SETTINGS,
+    ]
+
+
+def test_selected_upload_files_html_is_not_markdown_code_block():
+    uploaded = SimpleNamespace(name="Receipt_<April>.pdf", size=127 * 1024)
+
+    html = selected_upload_files_html([uploaded])
+
+    assert html.startswith('<div class="upload-file-list">')
+    assert "\n    <div" not in html
+    assert "Receipt_&lt;April&gt;.pdf" in html
+    assert '<div class="upload-file-meta">PDF</div>' in html
+    assert '<div class="upload-file-size">0.12 MB</div>' in html
+
+
+def test_reviewed_record_count_counts_closed_decisions_only():
+    pending = make_record("doc-pending", "pending.pdf")
+    approved = make_record("doc-approved", "approved.pdf")
+    approved.review_status = ReviewStatus.APPROVED
+    rejected = make_record("doc-rejected", "rejected.pdf")
+    rejected.review_status = ReviewStatus.REJECTED
+
+    assert reviewed_record_count([pending, approved, rejected]) == 2
 
 
 def test_expense_reference_groups_keep_multi_file_uploads_together():
@@ -827,6 +869,13 @@ def test_sidebar_upload_settings_and_query_navigation(monkeypatch, tmp_path):
                 break
         assert app.session_state["page"] == "Settings"
         assert query_value(app.query_params, "page") == "Settings"
+
+        for button in app.sidebar.button:
+            if button.label == "Reviewed":
+                app = button.click().run()
+                break
+        assert app.session_state["page"] == "Reviewed"
+        assert query_value(app.query_params, "page") == "Reviewed"
 
         refreshed = AppTest.from_file("app.py", default_timeout=5)
         refreshed.query_params["page"] = "Dashboard"

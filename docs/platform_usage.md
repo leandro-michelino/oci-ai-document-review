@@ -304,7 +304,7 @@ Recommended processing flow:
 7. The portal validates file count, required expense name or reference, extension, empty-file state, configured size limit, and PDF page-count warning before queueing.
 8. The portal saves the local working copies and queues one document record per file.
 9. Choose the next action shown by the app:
-   View Dashboard, Open Actions, or Upload Another.
+   View Dashboard, Open Actions, or Upload Another. After a document is approved or rejected, use Reviewed from the sidebar to revisit the closed decision.
 10. Use Dashboard to watch the queue while the worker pool runs the live steps:
    Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, automatic limit-safe OCR chunks for scanned PDFs above OCI's synchronous request limits, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
 11. Use Dashboard to scan Ready, Processing, Failed, and Reviewed tabs. Individual files and multi-file uploads appear in the same compact selectable tables; multi-file uploads stay grouped under their shared Expense name or reference as one group row with file count, stage summary, action, risk, confidence, SLA, owner, and a details hint. Active rows show how long they have been working, and stale runs are marked failed automatically during Dashboard refresh. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
@@ -313,11 +313,12 @@ Recommended processing flow:
 14. Correct the document type from the top Decision panel if the detected label needs adjustment.
 15. Approve or reject the review from the top Decision panel. Rejections require comments.
 16. Open the `Workflow, notes, retry, and audit` expander to set the workflow status, assignee, and SLA due date.
-17. Add workflow comments when the reviewer needs extra context or follow-up.
-18. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
-19. Inspect the audit trail and retry history in the same Workflow expander.
-20. Open the AI review summary expander to review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details when the decision needs deeper analysis.
-21. Download Markdown or JSON results from the Downloads section.
+17. Use Reviewed to search approved and rejected documents, filter by decision, and open the stored record for audit context.
+18. Add workflow comments when the reviewer needs extra context or follow-up.
+19. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
+20. Inspect the audit trail and retry history in the same Workflow expander.
+21. Open the AI review summary expander to review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details when the decision needs deeper analysis.
+22. Download Markdown or JSON results from the Downloads section.
 ```
 
 Processing fails clearly if a required live service step fails. For example, if local extraction and Document Understanding OCR return no extractable text, the app records a failed status instead of sending empty content to GenAI.
@@ -384,6 +385,12 @@ Dashboard
   - Keeps the route in the browser URL with `?page=Dashboard`.
   - Refreshes Dashboard components with a Streamlit fragment instead of full browser reloads.
   - Marks stale active records as failed during refresh so stuck uploads do not remain in Processing forever.
+
+Reviewed
+  - Appears as a dedicated sidebar page after Actions.
+  - Counts approved and rejected documents separately from open Actions work.
+  - Shows reviewed metrics plus search and Approved/Rejected filters.
+  - Opens closed records with `Open selected` for audit and follow-up context.
 
 Automatic Object Storage intake
   - Enable with `enable_automatic_processing = true` and an OCIR image URI for `functions/object_intake`.
@@ -490,6 +497,8 @@ curl -fsS -I http://<vm-public-ip>:8501
 
 For the Dashboard `At a glance` cards specifically, the deployed `app.py` should contain `dashboard_metrics_html()`. That helper emits the metric cards as one compact HTML block, which prevents Streamlit Markdown from treating later card markup as an indented code block.
 
+For the Upload selected-file preview, the deployed `app.py` should contain `selected_upload_files_html()`. That helper emits the selected-file list as compact HTML so Streamlit does not render raw upload preview markup as visible code text.
+
 For Actions source downloads, the deployed `app.py` should contain `render_source_document_download()`. It reads the local working copy from `/opt/oci-ai-document-review/data/uploads` and exposes it through a `Download Doc for Review` button for the approver.
 
 For OCI Generative AI content-safety failures, the deployed source should contain `src/safety_messages.py`. That helper replaces raw provider JSON such as `InvalidParameter` and `Inappropriate content detected` before it reaches UI display, metadata reloads, JSON downloads, or regenerated Markdown reports.
@@ -519,6 +528,7 @@ Use this checklist after any wiring or deployment change:
 16. Confirm Dashboard Review opens the selected single file or the best next actionable file from a compact multi-file group.
 17. Confirm Actions shows the Decision panel near the top and the `Download Doc for Review` button when the local working copy exists.
 18. Confirm approve or reject updates the review state.
+19. Confirm Reviewed shows the closed record and that Approved/Rejected filters behave as expected.
 ```
 
 Useful VM commands:
