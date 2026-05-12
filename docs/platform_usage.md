@@ -392,6 +392,11 @@ Reviewed
   - Shows reviewed metrics plus search and Approved/Rejected filters.
   - Opens closed records with `Open selected` for audit and follow-up context.
 
+ERP handoff
+  - The architecture diagram reserves a downstream handoff step after Actions review.
+  - Intended targets include SAP, Oracle Fusion, or another finance-system API.
+  - The current MVP does not post approved records into ERP; this is the integration slot for a future connector or approval export.
+
 Automatic Object Storage intake
   - Enable with `enable_automatic_processing = true` and an OCIR image URI for `functions/object_intake`.
   - Keep `tenancy_id` populated so Terraform can create the Function dynamic group.

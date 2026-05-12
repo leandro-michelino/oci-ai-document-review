@@ -8,7 +8,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
-No unreleased changes.
+- Added an ERP handoff step after Actions review in the architecture diagram and documentation, positioning SAP, Oracle Fusion, or another finance API as a future outbound integration target.
 
 ## v0.6.0 - 2026-05-12
 

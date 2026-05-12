@@ -368,6 +368,13 @@ docs/assets/oci-ai-document-review-architecture.excalidraw
                             |
                             v
               +---------------------------+
+              | ERP Handoff               |
+              | SAP / Oracle Fusion / API |
+              | outbound integration slot |
+              +---------------------------+
+                            |
+                            v
+              +---------------------------+
               | Reviewed Page             |
               | Closed decision archive   |
               | Search + decision filter  |

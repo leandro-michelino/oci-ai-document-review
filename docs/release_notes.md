@@ -8,7 +8,10 @@ Release notes summarize user-visible workflow, infrastructure, documentation, an
 
 ## Unreleased
 
-No unreleased changes.
+### Architecture
+
+- Added an ERP handoff step after Actions review in the architecture diagram and documentation.
+- Documented SAP, Oracle Fusion, or another finance-system API as future outbound integration targets, not current MVP posting behavior.
 
 ## v0.6.0 - 2026-05-12
 

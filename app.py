@@ -2642,9 +2642,14 @@ def expense_reference_file_card_html(
 
 
 def expense_reference_action_html(record: DocumentRecord) -> str:
+    label = (
+        "Decision"
+        if record.review_status.value in {"APPROVED", "REJECTED"}
+        else "Next action"
+    )
     return (
         '<div class="expense-file-next-action">'
-        '<span class="expense-file-next-action-label">Next action</span>'
+        f'<span class="expense-file-next-action-label">{escape(label)}</span>'
         f"{action_badge(next_action(record))}"
         "</div>"
     )

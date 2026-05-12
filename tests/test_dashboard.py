@@ -367,6 +367,8 @@ def test_expense_reference_action_html_makes_next_action_visible():
     assert "Next action" in ready_html
     assert "Approve or reject" in ready_html
     assert "state-warn" in ready_html
+    assert "Next action" not in rejected_html
+    assert "Decision" in rejected_html
     assert "Rejected" in rejected_html
     assert "state-bad" in rejected_html
 
