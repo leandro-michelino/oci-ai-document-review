@@ -679,6 +679,26 @@ def apply_theme() -> None:
             padding: 0.2rem 0.52rem;
             text-transform: uppercase;
         }
+        .expense-file-next-action {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            align-items: flex-start;
+            min-width: 0;
+        }
+        .expense-file-next-action-label {
+            color: var(--text-soft);
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
+        .expense-file-next-action .badge {
+            font-size: 0.8rem;
+            font-weight: 900;
+            padding: 0.34rem 0.7rem;
+        }
         .current-file-action {
             border: 1px solid #d6875f;
             border-radius: 8px;
@@ -2575,7 +2595,7 @@ def render_expense_reference_panel(
 
         st.markdown("#### Files in this group")
         for record in related:
-            cols = st.columns([1.2, 0.42, 0.45, 0.32], vertical_alignment="center")
+            cols = st.columns([1.2, 0.36, 0.58, 0.32], vertical_alignment="center")
             is_current = record.document_id == current.document_id
             cols[0].markdown(
                 expense_reference_file_card_html(record, is_current),
@@ -2585,7 +2605,10 @@ def render_expense_reference_panel(
                 badge(queue_stage(record), state_tone(record.status.value)),
                 unsafe_allow_html=True,
             )
-            cols[2].caption(next_action(record))
+            cols[2].markdown(
+                expense_reference_action_html(record),
+                unsafe_allow_html=True,
+            )
             if is_current:
                 cols[3].markdown(
                     '<div class="current-file-action">Selected</div>',
@@ -2616,6 +2639,15 @@ def expense_reference_file_card_html(
       {selected_html}
     </div>
     """
+
+
+def expense_reference_action_html(record: DocumentRecord) -> str:
+    return (
+        '<div class="expense-file-next-action">'
+        '<span class="expense-file-next-action-label">Next action</span>'
+        f"{action_badge(next_action(record))}"
+        "</div>"
+    )
 
 
 def open_page(page: str, document_id: str | None = None) -> None:

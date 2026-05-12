@@ -31,6 +31,7 @@ from app import (
     expense_group_badges_html,
     expense_group_aggregation,
     expense_group_item_rows,
+    expense_reference_action_html,
     expense_reference_file_card_html,
     expense_row_group_target,
     expense_reference_groups,
@@ -352,6 +353,22 @@ def test_expense_reference_file_card_html_highlights_selected_file():
     assert "expense-file-card selected" in selected
     assert "Selected now" in selected
     assert "expense-file-card selected" not in normal
+
+
+def test_expense_reference_action_html_makes_next_action_visible():
+    ready = make_record("doc-ready", "ready.pdf")
+    rejected = make_record("doc-rejected", "rejected.pdf")
+    rejected.review_status = ReviewStatus.REJECTED
+
+    ready_html = expense_reference_action_html(ready)
+    rejected_html = expense_reference_action_html(rejected)
+
+    assert "expense-file-next-action" in ready_html
+    assert "Next action" in ready_html
+    assert "Approve or reject" in ready_html
+    assert "state-warn" in ready_html
+    assert "Rejected" in rejected_html
+    assert "state-bad" in rejected_html
 
 
 def test_risk_detail_label_explains_missing_and_multiple_risks():
