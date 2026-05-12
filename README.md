@@ -366,6 +366,7 @@ functions/object_intake/       Optional Object Storage intake Function
 scripts/setup.py               Guided OCI configuration wizard
 scripts/deploy.sh              Terraform + Ansible deployment runner
 scripts/cleanup_retention.py   VM-local retention cleanup helper
+scripts/render_architecture.mjs Render the architecture PNG from Excalidraw
 data/compliance/               Seed compliance catalog
 docs/                          Architecture, usage, cost, security, and release notes
 ```

@@ -16,6 +16,14 @@ Editable source:
 docs/assets/oci-ai-document-review-architecture.excalidraw
 ```
 
+Regenerate the PNG after editing the Excalidraw source:
+
+```bash
+npm install
+npx playwright install chromium
+npm run docs:render-architecture
+```
+
 ```text
 +---------------+
 | Business User |
