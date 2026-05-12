@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 from src.text_extraction import extract_text_locally, pdf_page_count, write_pdf_page_chunks
 
 

@@ -2,6 +2,7 @@
   "type": "excalidraw",
   "version": 2,
   "source": "https://excalidraw.com",
+  "maintainer": "Leandro Michelino | ACE | leandro.michelino@oracle.com",
   "elements": [
     {
       "id": "title",

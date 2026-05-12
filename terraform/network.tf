@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 resource "oci_core_vcn" "app" {
   compartment_id = var.compartment_id
   display_name   = "doc-review-vcn"

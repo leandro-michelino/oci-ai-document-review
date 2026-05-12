@@ -1,2 +1,3 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 fdk>=0.1.94
 oci>=2.160.0

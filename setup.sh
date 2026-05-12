@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

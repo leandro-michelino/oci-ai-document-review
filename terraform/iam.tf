@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 resource "oci_identity_policy" "admin_group" {
   provider       = oci.home
   count          = var.enable_admin_group_policy && trimspace(var.admin_group_name) != "" ? 1 : 0

@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 output "bucket_name" {
   value = oci_objectstorage_bucket.documents.name
 }

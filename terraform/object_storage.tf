@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 resource "oci_objectstorage_bucket" "documents" {
   compartment_id = var.compartment_id
   namespace      = var.object_storage_namespace

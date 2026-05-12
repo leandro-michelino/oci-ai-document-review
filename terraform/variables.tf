@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 variable "region" {
   description = "Primary OCI region for Object Storage and Document Understanding."
   type        = string

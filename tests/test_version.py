@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 import re
 
 from src.version import VERSION_LABEL, __version__

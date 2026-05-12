@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 import os
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace

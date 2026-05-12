@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 -r requirements.txt
 pytest>=8.2.0
 ruff>=0.5.0

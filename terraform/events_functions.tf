@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 resource "oci_functions_application" "object_intake" {
   count          = var.enable_automatic_processing ? 1 : 0
   compartment_id = var.compartment_id

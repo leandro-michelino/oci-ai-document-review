@@ -1,5 +1,7 @@
 # Changelog
 
+Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+
 This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 - `MAJOR`: production-breaking architecture or data model changes.

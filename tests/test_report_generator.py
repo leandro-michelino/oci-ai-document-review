@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 from src.models import (
     DocumentAnalysis,
     DocumentRecord,

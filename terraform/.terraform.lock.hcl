@@ -1,3 +1,4 @@
+# Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 # This file is maintained automatically by "terraform init".
 # Manual edits may be lost in future updates.
 
