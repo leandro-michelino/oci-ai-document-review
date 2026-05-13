@@ -4,11 +4,11 @@ This is a simple planning estimate for the OCI AI Document Review Portal. It is 
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.6.0`
+Current project version: `v0.6.1`
 
 ## Read This First
 
-- Prices are illustrative public-list planning inputs reviewed on 2026-05-10.
+- Prices are illustrative public-list planning inputs reviewed on 2026-05-13.
 - Real cost depends on region, tenancy discounts, free-tier eligibility, selected model, document volume, scan quality, retries, and retention.
 - Use the Oracle Cost Estimator, OCI Cost Analysis, and an Oracle representative quote before budgeting production use.
 - Oracle pricing pages can render numeric values dynamically and may differ by geography, currency, contract, and date. Treat the values below as worksheet inputs to verify, not as a quote.
@@ -28,7 +28,7 @@ Current project version: `v0.6.0`
 +----------------------+--------------------------+----------------------------+
 ```
 
-These ranges assume the default Cohere Command R+ model, moderate prompt sizes, default 30-day retention, and normal retry behavior. GenAI characters and Document Understanding OCR or extraction pages are the main variable costs.
+These ranges assume the default Cohere Command R+ model, moderate prompt sizes, default 30-day retention, and normal retry behavior. GenAI characters and Document Understanding OCR or extraction pages are the main variable costs. VM boot volumes, networking egress, logging volume, support, taxes, and enterprise add-ons can move real totals outside these ranges.
 
 ## Main Cost Drivers
 
@@ -59,7 +59,7 @@ Optional automatic intake
 
 ## Pricing Assumptions
 
-Verify current values before use. The worksheet currently uses:
+Verify current values before use. The worksheet currently uses Oracle public-list units checked on 2026-05-13:
 
 ```text
 VM.Standard.A1.Flex OCPU            $0.010 / OCPU-hour
@@ -80,7 +80,7 @@ OCI Functions free tier             2M invocations + 400K GB-seconds/month
 
 OCI Generative AI on-demand chat billing counts prompt plus response characters. The OCI pricing page treats 1 character as 1 transaction. Command R+ maps to the Large Cohere pricing line at the time of this review.
 
-The Oracle price-list page was checked for the current product line items and units: Document Understanding still exposes first-5,000 and greater-than-5,000 transaction tiers, Large Cohere is listed per 10,000 transactions, and Functions lists free monthly invocation and GB-second bands. Re-check the numeric rates in your region before using this worksheet for customer estimates.
+The Oracle price-list page was checked for the current product line items and units: Document Understanding still exposes first-5,000 and greater-than-5,000 transaction tiers, Large Cohere is listed per 10,000 transactions, Object Storage Standard is listed per GB-month, and Functions lists free monthly invocation and GB-second bands. Re-check the numeric rates in your region before using this worksheet for customer estimates.
 
 ## Example Assumptions
 
@@ -107,17 +107,22 @@ Small estimate notes:
 
 ```text
 GenAI characters: 500 x 20,000 = 10,000,000 characters
+GenAI estimate:   10,000,000 / 10,000 x $0.0156 = $15.60
 Scanned pages:    500 x 40% x 3 = 600 DU pages
 DU free tier:     scanned-page volume remains inside the 5,000 transaction band
-Compute:          A1 may be free if capacity and tenancy allowance are available
+Compute:          1 OCPU + 6 GB memory is about $13.87/month before Always Free
+Total shape:      about $20 - $35 with A1 Always Free; about $35 - $70 without it
 ```
 
 Enterprise estimate notes:
 
 ```text
 GenAI characters: 15,000 x 30,000 = 450,000,000 characters
+GenAI estimate:   450,000,000 / 10,000 x $0.0156 = $702.00
 Scanned pages:    15,000 x 45% x 4 = 27,000 DU pages
 DU paid pages:    about 22,000 pages after the first 5,000 transaction band
+DU extraction:    22,000 / 1,000 x $10.00 = $220.00
+Compute:          3 x E5 Flex nodes at 1 OCPU / 8 GB each is about $81.03/month
 Add-ons:          Autonomous Database, OCI Logging, Vault, budgets, and support
                   can dominate the final production estimate.
 ```
@@ -158,6 +163,7 @@ Total estimate
 - Run OCI Preflight intentionally, not in a loop.
 - Add OCI Budgets alerts and review OCI Cost Analysis after bulk processing.
 - Revisit the worksheet whenever changing `GENAI_MODEL_ID`, `MAX_DOCUMENT_CHARS`, scan quality, retry policy, or the automatic-intake volume.
+- Re-check estimates after enabling enterprise services such as Autonomous Database, OCI Logging, Vault, private networking, or larger compute shapes.
 
 ## Useful References
 

@@ -46,7 +46,7 @@ class UI:
     def banner(self) -> None:
         text = (
             "OCI AI Document Review Portal setup\n"
-            "Customer-friendly guided configuration for v0.5.1"
+            "Customer-friendly guided configuration for v0.6.1"
         )
         if self.console and Panel:
             self.console.print(Panel.fit(text, subtitle="no cloud resources created"))

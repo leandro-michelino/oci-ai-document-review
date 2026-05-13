@@ -2,7 +2,7 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.5.1`
+Current project version: `v0.6.1`
 
 This OCI Function receives Object Storage create events for objects under
 `incoming/` and writes a small JSON marker under `event-queue/`. The VM imports

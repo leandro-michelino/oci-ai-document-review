@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 from streamlit import config as streamlit_config
 
-from src.compliance import load_compliance_catalog, load_local_compliance_catalog
+from src.compliance import load_local_compliance_catalog
 from src.config import get_config
 from src.health_checks import run_preflight
 from src.job_queue import (
@@ -19,7 +19,6 @@ from src.job_queue import (
 )
 from src.metadata_store import MetadataStore
 from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
-from src.object_storage_client import ObjectStorageClient
 from src.processor import (
     PUBLIC_SECTOR_EXPENSE_RISK,
     apply_compliance_attention,
@@ -2742,13 +2741,9 @@ def refresh_markdown_report(config, record) -> None:
     )
 
 
-def compliance_catalog_for_app(config):
-    try:
-        return load_compliance_catalog(
-            config, object_storage=ObjectStorageClient(config)
-        )
-    except Exception:
-        return load_local_compliance_catalog()
+def compliance_catalog_for_app(_config):
+    # Keep page render local; the processor loads/seeds the Object Storage catalog.
+    return load_local_compliance_catalog()
 
 
 def backfill_compliance_attention(config, store, catalog=None) -> int:

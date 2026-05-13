@@ -2,7 +2,7 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.6.0`
+Current project version: `v0.6.1`
 
 ## End-to-End MVP Flow
 
@@ -716,6 +716,13 @@ npm run docs:render-architecture
                          |
                          v
               +----------------------+
+              | Free Tier / Credits  |
+              | DU and Functions     |
+              | tenancy-dependent    |
+              +----------+-----------+
+                         |
+                         v
+              +----------------------+
               | Monthly Estimate     |
               | compute, storage,    |
               | DU, GenAI, add-ons   |
@@ -909,6 +916,29 @@ npm run docs:render-architecture
 | Expected Runtime    |
 | .env + .oci/config  |
 +---------------------+
+```
+
+Release and documentation ownership:
+
+```text
++----------------------------+
+| CHANGELOG.md               |
+| single release history     |
++-------------+--------------+
+              |
+              v
++----------------------------+
+| README.md                  |
+| front-door project guide   |
++-------------+--------------+
+              |
+              +----------------------+----------------------+----------------------+
+              |                      |                      |
+              v                      v                      v
++-------------------+  +----------------------+  +--------------------------+
+| Architecture Docs |  | Cost Estimate        |  | Repository Review        |
+| ASCII + PNG       |  | planning worksheet   |  | hygiene and findings     |
++-------------------+  +----------------------+  +--------------------------+
 ```
 
 ## Configuration Boundary Flow

@@ -10,7 +10,16 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
-- Added an ERP handoff step after Actions review in the architecture diagram and documentation, positioning SAP, Oracle Fusion, or another finance API as a future outbound integration target.
+- None.
+
+## v0.6.1 - 2026-05-13
+
+- Removed redundant tracked release notes in `docs/release_notes.md`; `CHANGELOG.md` is now the only release-history source.
+- Fixed Streamlit UI test/runtime wiring so compliance backfill uses the bundled local compliance catalog instead of attempting Object Storage reads and seed writes during page render.
+- Updated cost-estimate planning inputs, review date, and worksheet notes for the current configuration.
+- Refreshed ASCII architecture flows for release hygiene, documentation ownership, and cost/metering boundaries.
+- Updated documentation references after removing duplicate release notes and corrected stale setup/function version text.
+- Re-ran ruff, pytest, Terraform validation, Ansible syntax validation, and architecture rendering.
 
 ## v0.6.0 - 2026-05-12
 

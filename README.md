@@ -4,7 +4,7 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 
 OCI AI Document Review Portal is a deployable Oracle Cloud Infrastructure reference application for AI-assisted business document review. It gives reviewers a working upload, OCR, generative AI, compliance routing, dashboard, approval, rejection, retry, audit, and report-download workflow while keeping the final business decision with a human.
 
-Current version: `v0.6.0`
+Current version: `v0.6.1`
 
 Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 
@@ -385,7 +385,7 @@ scripts/deploy.sh              Terraform + Ansible deployment runner
 scripts/cleanup_retention.py   VM-local retention cleanup helper
 scripts/render_architecture.mjs Render the architecture PNG from Excalidraw
 data/compliance/               Seed compliance catalog
-docs/                          Architecture, usage, cost, security, and release notes
+docs/                          Architecture, usage, cost, security, and review notes
 ```
 
 ## Documentation
