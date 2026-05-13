@@ -1,5 +1,9 @@
 # Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
-from src.text_extraction import extract_text_locally, pdf_page_count, write_pdf_page_chunks
+from src.text_extraction import (
+    extract_text_locally,
+    pdf_page_count,
+    write_pdf_page_chunks,
+)
 
 
 def test_extract_text_locally_reads_text_file(tmp_path):

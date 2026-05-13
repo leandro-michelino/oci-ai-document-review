@@ -1,6 +1,7 @@
 # Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
-import pytest
 from argparse import Namespace
+
+import pytest
 
 from scripts.setup import (
     GenAIRegion,
