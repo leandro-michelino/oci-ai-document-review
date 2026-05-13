@@ -11,8 +11,10 @@ from src.models import (
     ReviewStatus,
     WorkflowStatus,
 )
-from src.safety_messages import GENAI_SAFETY_REVIEW_MESSAGE
-from src.safety_messages import DOCUMENT_UNDERSTANDING_PAGE_LIMIT_MESSAGE
+from src.safety_messages import (
+    DOCUMENT_UNDERSTANDING_PAGE_LIMIT_MESSAGE,
+    GENAI_SAFETY_REVIEW_MESSAGE,
+)
 
 
 def test_list_records_skips_invalid_metadata(tmp_path):

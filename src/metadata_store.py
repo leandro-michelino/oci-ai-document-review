@@ -374,7 +374,7 @@ class MetadataStore:
         candidates = [self.reports_root / f"{record.document_id}.md"]
         if record.report_path:
             report_path = Path(record.report_path)
-            candidates.append(report_path if report_path.is_absolute() else report_path)
+            candidates.append(report_path)
         return self._remove_unique_paths(candidates)
 
     def _delete_uploads(self, record: DocumentRecord) -> int:

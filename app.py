@@ -9,6 +9,7 @@ import pandas as pd
 import streamlit as st
 from streamlit import config as streamlit_config
 
+from src.compliance import load_compliance_catalog, load_local_compliance_catalog
 from src.config import get_config
 from src.health_checks import run_preflight
 from src.job_queue import (
@@ -18,7 +19,6 @@ from src.job_queue import (
 )
 from src.metadata_store import MetadataStore
 from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
-from src.compliance import load_compliance_catalog, load_local_compliance_catalog
 from src.object_storage_client import ObjectStorageClient
 from src.processor import (
     PUBLIC_SECTOR_EXPENSE_RISK,
@@ -1168,15 +1168,13 @@ def selected_upload_files_html(uploaded_files) -> str:
     for uploaded in uploaded_files:
         extension = Path(uploaded.name).suffix.lower().lstrip(".") or "unknown"
         rows.append(
-            (
-                '<div class="upload-file-row">'
-                "<div>"
-                f'<div class="upload-file-name">{escape(uploaded.name)}</div>'
-                f'<div class="upload-file-meta">{escape(extension.upper())}</div>'
-                "</div>"
-                f'<div class="upload-file-size">{uploaded.size / (1024 * 1024):.2f} MB</div>'
-                "</div>"
-            )
+            '<div class="upload-file-row">'
+            "<div>"
+            f'<div class="upload-file-name">{escape(uploaded.name)}</div>'
+            f'<div class="upload-file-meta">{escape(extension.upper())}</div>'
+            "</div>"
+            f'<div class="upload-file-size">{uploaded.size / (1024 * 1024):.2f} MB</div>'
+            "</div>"
         )
     return f'<div class="upload-file-list">{"".join(rows)}</div>'
 

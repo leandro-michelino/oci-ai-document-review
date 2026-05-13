@@ -10,10 +10,10 @@ from src.models import (
     RiskNote,
 )
 from src.processor import (
-    DocumentProcessor,
     GENAI_SAFETY_REVIEW_MESSAGE,
     GENAI_SAFETY_REVIEW_RISK,
     PUBLIC_SECTOR_EXPENSE_RISK,
+    DocumentProcessor,
     apply_compliance_attention,
     chunk_document_name,
     detected_document_type,
