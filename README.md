@@ -53,7 +53,7 @@ It is not a blind auto-approval system. It is a human-in-the-loop review platfor
 | Large scanned PDFs | Automatic split into limit-safe temporary chunks for synchronous Document Understanding calls, with cleanup after merge. |
 | AI review | OCI Generative AI generates structured summaries, fields, risks, missing information, recommendations, and receipt or invoice line items when visible. |
 | Compliance overlay | A curated Object Storage CSV/JSON catalog flags public-sector expense cues with auditable evidence and `LOW`, `MEDIUM`, or `HIGH` severity. |
-| Workflow | Dashboard queues, Actions review screen, dedicated Reviewed archive, approve/reject decisions, owner assignment, SLA date, comments, audit trail, retry history, source-document download, and an architecture placeholder for ERP handoff. |
+| Workflow | Dashboard queues, Actions review screen, dedicated Reviewed archive, approve/reject decisions, owner assignment, SLA date, comments, audit trail, retry history, source-document download, and an ERP handoff integration slot after decisions targeting SAP, Oracle Fusion, or a custom API. |
 | Reporting | Local JSON metadata plus Markdown review reports for download. |
 | Retention | VM-local metadata, reports, upload working copies, and Object Storage document objects are retained for 30 days by default. |
 | Optional automation | OCI Events and OCI Functions can ingest files uploaded to Object Storage under `incoming/`. |
@@ -105,7 +105,24 @@ The deployed MVP is intentionally simple and inspectable:
                          +--------------------------+
                          | Compliance risk overlay  |
                          | Metadata + report        |
+                         +------------+-------------+
+                                      |
+                                      v
+                         +--------------------------+
                          | Dashboard + Actions      |
+                         +------------+-------------+
+                                      |
+                                      v
+                         +--------------------------+
+                         | ERP Handoff (optional)   |
+                         | SAP / Oracle Fusion /    |
+                         | Custom API               |
+                         +------------+-------------+
+                                      |
+                                      v
+                         +--------------------------+
+                         | Reviewed archive         |
+                         | Closed decisions         |
                          +--------------------------+
 ```
 
