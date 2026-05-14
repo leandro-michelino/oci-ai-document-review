@@ -10,7 +10,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
-- None.
+- Refreshed the README opening copy and search-friendly keywords so the public repository is easier to understand from Google, Bing, GitHub search, and social previews.
 
 ## v0.6.1 - 2026-05-13
 

@@ -1,8 +1,12 @@
-# OCI AI Document Review Portal
+# OCI AI Document Review - Oracle Cloud AI Review Portal
 
-Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
+Questions, pilot ideas, or OCI deployment notes? Reach out to Leandro Michelino | ACE | leandro.michelino@oracle.com.
 
-OCI AI Document Review Portal is a deployable Oracle Cloud Infrastructure reference application for AI-assisted business document review. It gives reviewers a working upload, OCR, generative AI, compliance routing, dashboard, approval, rejection, retry, audit, and report-download workflow while keeping the final business decision with a human.
+OCI AI Document Review is a deployable Oracle Cloud Infrastructure (OCI) reference application for AI-assisted business document review. It combines Streamlit, OCI Object Storage, OCI Document Understanding OCR, OCI Generative AI, Terraform, and Ansible into a working human-in-the-loop review portal for receipts, invoices, contracts, reports, compliance files, and other business documents.
+
+The short version: upload a document, extract the text, get an AI-generated review summary, route compliance signals, let a reviewer approve or reject the result, and keep the audit trail clear enough for real teams to inspect later.
+
+Search-friendly topics: Oracle Cloud Infrastructure, OCI AI, AI document review, document understanding, OCR, generative AI, Streamlit dashboard, Terraform deployment, Ansible deployment, human-in-the-loop review, invoice review, receipt review, contract review, compliance workflow.
 
 Current version: `v0.6.1`
 
