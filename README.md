@@ -35,6 +35,7 @@ Some live-provider workflows depend on OCI account details, IAM policies, subscr
 - [Documentation](#documentation)
 - [Roadmap](#roadmap)
 - [Versioning](#versioning)
+- [Support](#support)
 - [License](#license)
 
 ## Why This Exists
@@ -428,6 +429,10 @@ The project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - `PATCH`: bug fixes, documentation updates, and small UX refinements.
 
 The source-of-truth version is [src/version.py](src/version.py). Release notes are tracked in [CHANGELOG.md](CHANGELOG.md).
+
+## Support
+
+If this project helps you evaluate, prototype, or explain OCI AI document review workflows, you can support its maintenance through GitHub Sponsors.
 
 ## License
 
