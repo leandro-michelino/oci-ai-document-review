@@ -1,6 +1,6 @@
 # Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 import inspect
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -496,6 +496,20 @@ def test_display_error_message_hides_raw_document_ai_page_limit_json():
     assert "automatically splits" in message
 
 
+def test_display_error_message_hides_raw_retired_model_provider_payload():
+    raw = (
+        "{'target_service': 'generative_ai_inference', 'opc-request-id': 'secret', "
+        "'request_endpoint': 'https://inference.example', 'message': "
+        "'Model cohere.command-r-plus-08-2024 2.0 is retired'}"
+    )
+
+    message = display_error_message(raw)
+
+    assert "retired" in message.lower()
+    assert "opc-request-id" not in message
+    assert "request_endpoint" not in message
+
+
 def test_upload_requirement_validation_alerts_for_invalid_file(tmp_path):
     source = tmp_path / "document.exe"
     source.write_bytes(b"binary")
@@ -824,7 +838,7 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
                 document_name="test-contract.png",
                 document_type=DocumentType.CONTRACT,
                 status=ProcessingStatus.REVIEW_REQUIRED,
-                uploaded_at=datetime(2026, 5, 6, tzinfo=timezone.utc),
+                    uploaded_at=datetime.now(timezone.utc),
                 analysis=DocumentAnalysis(
                     document_class="CONTRACT",
                     executive_summary="Synthetic test summary.",
@@ -961,7 +975,7 @@ def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):
                 document_name="test-contract.png",
                 document_type=DocumentType.CONTRACT,
                 status=ProcessingStatus.REVIEW_REQUIRED,
-                uploaded_at=datetime(2026, 5, 6, tzinfo=timezone.utc),
+                    uploaded_at=datetime.now(timezone.utc),
                 analysis=DocumentAnalysis(
                     document_class="CONTRACT",
                     executive_summary="Synthetic test summary.",
@@ -1002,9 +1016,9 @@ def test_approve_advances_actions_picker_to_next_item(monkeypatch, tmp_path):
         config = get_config()
         store = MetadataStore(config)
         current = make_record("doc-current", "current-contract.pdf")
-        current.uploaded_at = datetime(2026, 5, 7, 12, 0, tzinfo=timezone.utc)
+        current.uploaded_at = datetime.now(timezone.utc)
         next_record = make_record("doc-next", "next-contract.pdf")
-        next_record.uploaded_at = datetime(2026, 5, 7, 11, 0, tzinfo=timezone.utc)
+        next_record.uploaded_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         store.save(next_record)
         store.save(current)
 

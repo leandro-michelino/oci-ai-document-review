@@ -4,7 +4,7 @@ This project is deployed from a local laptop. It does not use GitHub Actions or 
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.6.1`
+Current project version: `v0.6.2`
 
 ## Local Preparation
 
@@ -269,6 +269,30 @@ Set `enable_automatic_processing = true` in `terraform/terraform.tfvars` only af
 The Function normalizes incoming and queue prefixes, filters for objects under `incoming/`, and writes queue markers under `event-queue/`. Ansible enables `oci-ai-document-review-event-intake.timer` on the VM when Terraform reports automatic processing as enabled. The timer imports queue markers every `event_intake_poll_seconds` seconds. Objects outside `incoming/` are ignored by the Function, and generated queue markers are not processed as documents.
 
 The Function is deliberately small: it writes queue markers only. It does not write VM-local metadata, call Document Understanding, call Generative AI, approve documents, or bypass the normal Dashboard and Actions review workflow.
+
+### Validate the event path before relying on a VM timer
+
+The application can be operated locally during development. The OCI Function
+and Events rule are cloud resources, while the queue importer can be run once
+from a configured laptop. This provides a focused acceptance test before
+depending on the VM's `oci-ai-document-review-event-intake.timer` for
+unattended operation.
+
+After Terraform has enabled automatic processing, upload a synthetic document
+under `incoming/`, allow the Events rule to invoke `functions/object_intake`,
+then run:
+
+```bash
+.venv/bin/python scripts/poll_event_queue.py --limit 10
+```
+
+The command reports imported, skipped, and failed markers. A successful
+`imported=1` result proves that the Function wrote a marker and that the laptop
+can download and submit the source object through the normal processing queue.
+Confirm the resulting record in Dashboard and Actions. This test does not need
+a running Streamlit VM, but the repository's standard Terraform path still
+creates a VM; use separate infrastructure management if a Function-only test
+environment is required.
 
 ## Next Phase: Customer Document Chatbot
 

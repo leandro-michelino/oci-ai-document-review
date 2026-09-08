@@ -2,7 +2,7 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.6.1`
+Current project version: `v0.6.2`
 
 This OCI Function receives Object Storage create events for objects under
 `incoming/` and writes a small JSON marker under `event-queue/`. The VM imports
@@ -20,6 +20,12 @@ The Function intentionally does not write VM-local metadata, approve documents,
 or call Document Understanding or Generative AI. It only creates durable queue
 markers in the private bucket so the VM can import them through the same worker
 queue, retention, Dashboard, and Actions workflow used by portal uploads.
+
+For a focused acceptance test, a configured laptop can run
+`scripts/poll_event_queue.py --limit 10` after uploading a synthetic object to
+`incoming/`. A result with `imported=1` confirms the Event rule and Function
+created a usable queue marker. The production VM is still the intended
+always-on importer through its systemd timer.
 
 Object naming convention:
 

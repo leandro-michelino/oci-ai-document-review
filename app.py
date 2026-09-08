@@ -4001,9 +4001,8 @@ def main():
             )
             and not action_navigation
         ):
-            st.session_state["page"] = nav_page
-            st.session_state.pop("requested_page", None)
-            sync_page_query(nav_page)
+            open_page(nav_page)
+            st.rerun()
     page = st.session_state["page"]
     st.sidebar.divider()
     st.sidebar.metric("GenAI region", config.genai_region)

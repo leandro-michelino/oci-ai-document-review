@@ -12,7 +12,7 @@ def config_kwargs(**overrides):
         "OCI_COMPARTMENT_ID": "ocid1.compartment.oc1..exampleproject",
         "OCI_NAMESPACE": "example",
         "OCI_BUCKET_NAME": "doc-review-input",
-        "GENAI_MODEL_ID": "cohere.command-r-plus-08-2024",
+        "GENAI_MODEL_ID": "cohere.command-a-03-2025",
     }
     values.update(overrides)
     return values

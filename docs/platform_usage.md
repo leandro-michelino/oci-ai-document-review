@@ -4,7 +4,7 @@ This guide explains how to deploy, operate, and use the OCI AI Document Review P
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.6.1`
+Current project version: `v0.6.2`
 
 The repository does not include GitHub Actions or CI deployment workflows. Terraform and Ansible are run locally from your laptop with your existing OCI config and policies.
 
@@ -405,6 +405,29 @@ Automatic Object Storage intake
   - OCI Events invokes the Function for Object Storage create events in the bucket.
   - The Function writes queue markers under `event-queue/`; it does not process documents directly.
   - The VM imports markers through `oci-ai-document-review-event-intake.timer` and sends files through the normal worker queue, Dashboard, and Actions flow.
+
+### Validate Events and Functions from a laptop
+
+Use this operator test after automatic processing has been deployed and before
+relying on the VM timer in an unattended pilot. It validates the actual cloud
+event path while keeping diagnosis on the laptop:
+
+```bash
+set -a; source .env; set +a
+oci os object put \
+  --bucket-name "$OCI_BUCKET_NAME" \
+  --file output/pdf/01_synthetic_invoice.pdf \
+  --name incoming/validation/01_synthetic_invoice.pdf
+
+.venv/bin/python scripts/poll_event_queue.py --limit 10
+```
+
+Expect `event_intake imported=1 skipped=0 failed=0`, then verify the new item
+in Dashboard and Actions. The VM is not a technical prerequisite for this
+one-off importer test. It is required for the standard always-on deployment,
+where the systemd timer polls `event-queue/` while the laptop is off. The
+repository's normal Terraform deployment creates both the VM and optional event
+resources; a Function-only environment is a separate infrastructure choice.
 
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.

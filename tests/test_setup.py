@@ -17,10 +17,14 @@ from scripts.setup import (
 )
 
 
-def test_supported_chat_models_filters_to_cohere_ids():
-    models = ["meta.llama-3.1", "cohere.command-r-plus-08-2024"]
+def test_supported_chat_models_filters_retired_cohere_ids():
+    models = [
+        "meta.llama-3.1",
+        "cohere.command-r-plus-08-2024",
+        "cohere.command-a-03-2025",
+    ]
 
-    assert supported_chat_models(models) == ["cohere.command-r-plus-08-2024"]
+    assert supported_chat_models(models) == ["cohere.command-a-03-2025"]
 
 
 def test_choose_model_rejects_unsupported_chat_models():
@@ -28,7 +32,7 @@ def test_choose_model_rejects_unsupported_chat_models():
 
     with pytest.raises(SystemExit):
         choose_model(
-            region, preferred="cohere.command-r-plus-08-2024", non_interactive=True
+            region, preferred="cohere.command-a-03-2025", non_interactive=True
         )
 
 
@@ -102,7 +106,7 @@ def test_setup_summary_includes_retention_days():
         args=args,
         runtime_region="us-ashburn-1",
         genai_region="us-ashburn-1",
-        model_id="cohere.command-r-plus-08-2024",
+        model_id="cohere.command-a-03-2025",
         os_namespace="example",
     )
 

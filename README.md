@@ -10,7 +10,7 @@ The short version: upload a document, extract the text, get an AI-generated revi
 
 Search-friendly topics: Oracle Cloud Infrastructure, OCI AI, AI document review, document understanding, OCR, generative AI, Streamlit dashboard, Terraform deployment, Ansible deployment, human-in-the-loop review, invoice review, receipt review, contract review, compliance workflow.
 
-Current version: `v0.6.1`
+Current version: `v0.6.2`
 
 Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 
@@ -262,7 +262,7 @@ Core runtime settings:
 | `OCI_REGION` | wizard selected | Runtime region for Compute, Object Storage, and Document Understanding. |
 | `GENAI_REGION` | wizard selected | OCI Generative AI inference region. |
 | `OCI_BUCKET_NAME` | `doc-review-input` | Private bucket for source documents and compliance catalog. |
-| `GENAI_MODEL_ID` | `cohere.command-r-plus-08-2024` | Cohere chat model used by the runtime. |
+| `GENAI_MODEL_ID` | `cohere.command-a-03-2025` | Active Cohere Command A chat model used by the runtime. |
 | `MAX_PARALLEL_JOBS` | `5` | Background worker thread count. |
 | `MAX_UPLOAD_MB` | `10` | Per-file upload size limit. Ansible passes the same value to Streamlit's `server.maxUploadSize` so the uploader and app validation agree. |
 | `MAX_DOCUMENT_CHARS` | `50000` | Extracted character limit sent to GenAI. |
@@ -318,6 +318,33 @@ python scripts/setup.py \
 Setup normalizes incoming and queue prefixes as relative Object Storage prefixes, and Terraform rejects empty, absolute, or parent-directory prefix values before apply.
 
 Function-specific details are in [functions/object_intake/README.md](functions/object_intake/README.md).
+
+### Test Events and Functions from a laptop
+
+The portal, OCR, GenAI, and human-review workflows can run from a configured
+laptop. A VM is only required for the always-on deployment: it hosts Streamlit
+and its systemd timer imports Function queue markers when no laptop is running.
+
+After the Function, Object Storage event rule, and bucket object-event emission
+are deployed, an operator can validate the cloud event path from a laptop by
+uploading a synthetic file to `incoming/` and running the importer once:
+
+```bash
+set -a; source .env; set +a
+oci os object put \
+  --bucket-name "$OCI_BUCKET_NAME" \
+  --file output/pdf/01_synthetic_invoice.pdf \
+  --name incoming/validation/01_synthetic_invoice.pdf
+
+.venv/bin/python scripts/poll_event_queue.py --limit 10
+```
+
+The expected flow is `imported=1`, followed by the same worker, Dashboard, and
+Actions lifecycle as a browser upload. The importer is a diagnostic bridge, not
+a replacement for the VM timer in an unattended deployment. The current
+Terraform deployment creates the VM together with the optional automation; a
+Function-only deployment must be managed separately if you deliberately do not
+want a VM.
 
 ## Operations
 

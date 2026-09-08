@@ -23,8 +23,16 @@ except Exception:  # pragma: no cover - fallback before dependencies are install
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BUCKET = "doc-review-input"
-DEFAULT_MODEL = "cohere.command-r-plus-08-2024"
+DEFAULT_MODEL = "cohere.command-a-03-2025"
 SUPPORTED_CHAT_MODEL_PREFIXES = ("cohere.",)
+RETIRED_CHAT_MODEL_IDS = {
+    "cohere.command-r-plus-08-2024",
+    "cohere.command-r-08-2024",
+    "cohere.command-r-plus",
+    "cohere.command-r-16k",
+    "cohere.command",
+    "cohere.command-light",
+}
 
 
 @dataclass
@@ -46,7 +54,7 @@ class UI:
     def banner(self) -> None:
         text = (
             "OCI AI Document Review Portal setup\n"
-            "Customer-friendly guided configuration for v0.6.1"
+            "Customer-friendly guided configuration for v0.6.2"
         )
         if self.console and Panel:
             self.console.print(Panel.fit(text, subtitle="no cloud resources created"))
@@ -369,6 +377,7 @@ def supported_chat_models(models: list[str]) -> list[str]:
         model
         for model in models
         if model.lower().startswith(SUPPORTED_CHAT_MODEL_PREFIXES)
+        and model.lower() not in RETIRED_CHAT_MODEL_IDS
     ]
 
 

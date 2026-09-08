@@ -10,6 +10,9 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Replaced the retired Cohere Command R+ 08-2024 default with Cohere Command A, excluded known retired Cohere models during setup discovery, and sanitized OCI provider payloads before they reach reviewer pages, metadata, reports, or audit events.
+- Fixed sidebar navigation to force a Streamlit rerun after a page change, keeping rendered content, session state, and query parameters aligned.
+- Documented a laptop-operated acceptance test for the deployed Object Storage Events and OCI Functions intake path, while keeping the VM timer as the always-on production importer.
 - Refreshed the README opening copy and search-friendly keywords so the public repository is easier to understand from Google, Bing, GitHub search, and social previews.
 
 ## v0.6.1 - 2026-05-13
