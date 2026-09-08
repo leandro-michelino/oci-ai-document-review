@@ -26,6 +26,8 @@ This walkthrough exercised the documented MVP paths as a human uploader, reviewe
 
 The run reused ignored local runtime artifacts already present under `data/uploads`, `data/metadata`, and `data/reports`. Those artifacts represent repository documentation uploads plus a synthetic public-sector receipt used for compliance routing.
 
+This acceptance record predates the Upload form-reset behavior. Validate that behavior separately by queueing a disposable synthetic file and confirming that the selected file and entered upload context are cleared after the success message appears.
+
 ## Human Walkthrough Notes
 
 ```text

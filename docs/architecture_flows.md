@@ -175,6 +175,9 @@ npm run docs:render-architecture
 | Streamlit Upload     |
 +----------+-----------+
            |
+           +--> Successful queue clears the intake form
+           |    Fresh uploader key + blank upload context
+           |
            v
 +----------------------+
 | Local Working Copy   |
