@@ -319,8 +319,9 @@ Recommended processing flow:
 19. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
 20. To permanently remove a failed upload, use `Discard Failed Document` and type the exact document ID when prompted. The button explains the missing confirmation if it is clicked too early. After confirmation, it deletes only the portal-managed Object Storage copy and local working artifacts, then retains a local deletion tombstone in `data/deleted` for audit. If Object Storage deletion fails, the local recovery copy remains. It does not delete an external intake object, and it is unavailable while a document is still processing.
 21. Inspect the audit trail and retry history in the same Workflow expander.
-22. Open the AI review summary expander to review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details when the decision needs deeper analysis.
-23. Download Markdown or JSON results from the Downloads section.
+22. Use `AI quality feedback` to flag an incorrect classification, extracted field, summary, risk, recommendation, or missing-information item. The feedback is auditable and appears in regenerated reports.
+23. Open the AI review summary expander to review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details when the decision needs deeper analysis.
+24. Download Markdown or JSON results from the Downloads section when the document is not restricted.
 ```
 
 Processing fails clearly if a required live service step fails. For example, if local extraction and Document Understanding OCR return no extractable text, the app records a failed status instead of sending empty content to GenAI.

@@ -1,0 +1,23 @@
+[
+  {
+    "name": "fictional-passport.txt",
+    "document_type": "GENERAL",
+    "text": "Passport No: YA1234567\nEmail: maria.rossi@example.test\nPhone: +39 333 123 4567",
+    "sensitivity": "RESTRICTED",
+    "labels": ["IDENTITY_DOCUMENT", "GOVERNMENT_IDENTIFIER", "EMAIL_ADDRESS", "PHONE_NUMBER"]
+  },
+  {
+    "name": "synthetic-invoice.txt",
+    "document_type": "INVOICE",
+    "text": "Invoice 1001\nCustomer email: customer@example.test\nTotal EUR 37.00",
+    "sensitivity": "RESTRICTED",
+    "labels": ["EMAIL_ADDRESS", "INVOICE_WITH_PERSONAL_DATA"]
+  },
+  {
+    "name": "vendor-agreement.txt",
+    "document_type": "CONTRACT",
+    "text": "Agreement between Example Vendor Ltd and Example Customer Ltd.",
+    "sensitivity": "STANDARD",
+    "labels": []
+  }
+]

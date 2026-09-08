@@ -133,6 +133,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--document-ai-retry-attempts", default="2")
     parser.add_argument("--stale-processing-minutes", default="12")
     parser.add_argument("--retention-days", default=os.getenv("RETENTION_DAYS", "30"))
+    parser.add_argument(
+        "--sensitive-retention-days",
+        default=os.getenv("SENSITIVE_RETENTION_DAYS", "7"),
+    )
     parser.add_argument("--enable-automatic-processing", action="store_true")
     parser.add_argument(
         "--automatic-processing-function-image",
@@ -168,6 +172,7 @@ def parse_args() -> argparse.Namespace:
         args.event_intake_queue_prefix, "event intake queue prefix"
     )
     validate_positive_integer(args.retention_days, "retention days")
+    validate_positive_integer(args.sensitive_retention_days, "sensitive retention days")
     validate_positive_integer(
         args.event_intake_poll_seconds, "event intake poll seconds"
     )
@@ -643,6 +648,7 @@ DOCUMENT_AI_TIMEOUT_SECONDS={args.document_ai_timeout_seconds}
 DOCUMENT_AI_RETRY_ATTEMPTS={args.document_ai_retry_attempts}
 STALE_PROCESSING_MINUTES={args.stale_processing_minutes}
 RETENTION_DAYS={args.retention_days}
+SENSITIVE_RETENTION_DAYS={args.sensitive_retention_days}
 MAX_PARALLEL_JOBS={args.max_parallel_jobs}
 MAX_DOCUMENT_CHARS={args.max_document_chars}
 MAX_UPLOAD_MB={args.max_upload_mb}

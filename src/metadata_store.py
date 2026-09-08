@@ -13,6 +13,7 @@ from src.models import (
     AuditEvent,
     DocumentRecord,
     ProcessingStatus,
+    QualityFeedback,
     RetryEvent,
     ReviewStatus,
     WorkflowComment,
@@ -171,6 +172,27 @@ class MetadataStore:
             "COMMENT_ADDED",
             author.strip() or "Reviewer",
             comment_text[:160],
+        )
+        self.save(record)
+        return record
+
+    def add_quality_feedback(
+        self, document_id: str, reviewer: str, field_name: str, comment: str
+    ) -> DocumentRecord:
+        record = self.load(document_id)
+        feedback = QualityFeedback(
+            reviewer=reviewer.strip() or "Reviewer",
+            field_name=field_name.strip(),
+            comment=comment.strip(),
+        )
+        if not feedback.field_name or not feedback.comment:
+            raise ValueError("Choose an AI field and provide a correction note.")
+        record.quality_feedback.append(feedback)
+        self._append_audit(
+            record,
+            "AI_FIELD_FLAGGED",
+            feedback.reviewer,
+            f"Field={feedback.field_name}; Note={feedback.comment[:120]}",
         )
         self.save(record)
         return record
@@ -335,7 +357,8 @@ class MetadataStore:
         protected_document_ids: set[str] | None = None,
     ) -> RetentionCleanupResult:
         protected_document_ids = protected_document_ids or set()
-        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(days=retention_days)
         metadata_records = 0
         invalid_metadata_files = 0
         reports = 0
@@ -364,7 +387,10 @@ class MetadataStore:
                 continue
             if record.document_id in protected_ids:
                 continue
-            if not self._record_is_older_than(record, cutoff):
+            record_cutoff = now - timedelta(
+                days=record.retention_days_override or retention_days
+            )
+            if not self._record_is_older_than(record, record_cutoff):
                 continue
 
             reports += self._delete_report(record)

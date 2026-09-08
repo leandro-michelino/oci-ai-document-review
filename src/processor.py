@@ -28,6 +28,8 @@ from src.models import (
 )
 from src.object_storage_client import ObjectStorageClient
 from src.prompts import build_prompt
+from src.prompts import PROMPT_VERSION
+from src.privacy import assess_privacy
 from src.report_generator import generate_markdown_report
 from src.safety_messages import (
     GENAI_SAFETY_REVIEW_MESSAGE,
@@ -450,6 +452,11 @@ class DocumentProcessor:
                 )
             record.status = ProcessingStatus.EXTRACTED
             record.extracted_text_preview = extraction.text[:2000]
+            privacy = assess_privacy(record.document_name, record.document_type, extraction.text)
+            record.sensitivity = privacy.sensitivity
+            record.pii_labels = privacy.labels
+            if privacy.labels:
+                record.retention_days_override = self.config.sensitive_retention_days
             self.store.save(record)
             progress("Prepared extracted text for OCI Generative AI")
 
@@ -473,7 +480,15 @@ class DocumentProcessor:
                 analysis = fallback_safety_analysis(extraction)
             if record.document_type == DocumentType.AUTO_DETECT:
                 record.document_type = detected_document_type(analysis.document_class)
+            privacy = assess_privacy(record.document_name, record.document_type, extraction.text)
+            record.sensitivity = privacy.sensitivity
+            record.pii_labels = privacy.labels
+            record.retention_days_override = (
+                self.config.sensitive_retention_days if privacy.labels else None
+            )
             record.analysis = analysis
+            record.model_id = self.config.genai_model_id
+            record.prompt_version = PROMPT_VERSION
             apply_compliance_attention(
                 record, extraction.text, catalog=self.compliance_catalog
             )

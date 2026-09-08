@@ -42,6 +42,11 @@ class WorkflowStatus(str, Enum):
     CLOSED = "CLOSED"
 
 
+class SensitivityLevel(str, Enum):
+    STANDARD = "STANDARD"
+    RESTRICTED = "RESTRICTED"
+
+
 class WorkflowComment(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     author: str = "Reviewer"
@@ -60,6 +65,13 @@ class RetryEvent(BaseModel):
     actor: str = "Reviewer"
     reason: str | None = None
     new_document_id: str | None = None
+
+
+class QualityFeedback(BaseModel):
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    reviewer: str = "Reviewer"
+    field_name: str
+    comment: str
 
 
 class RiskNote(BaseModel):
@@ -217,14 +229,22 @@ class DocumentRecord(BaseModel):
     audit_events: list[AuditEvent] = Field(default_factory=list)
     retry_count: int = 0
     retry_history: list[RetryEvent] = Field(default_factory=list)
+    quality_feedback: list[QualityFeedback] = Field(default_factory=list)
     analysis: DocumentAnalysis | None = None
     extracted_text_preview: str | None = None
     extraction_source: str | None = None
+    extraction_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    model_id: str | None = None
+    prompt_version: str | None = None
+    sensitivity: SensitivityLevel = SensitivityLevel.STANDARD
+    pii_labels: list[str] = Field(default_factory=list)
+    retention_days_override: int | None = Field(default=None, ge=1)
     report_path: str | None = None
     error_message: str | None = None
 
     @field_validator(
-        "workflow_comments", "audit_events", "retry_history", mode="before"
+        "workflow_comments", "audit_events", "retry_history", "quality_feedback",
+        "pii_labels", mode="before"
     )
     @classmethod
     def none_to_empty_workflow_lists(cls, value):

@@ -57,6 +57,12 @@ OCI Generative AI content-safety provider JSON is treated as operational noise, 
 
 For production, replace the copied API key with instance principals or another approved workload identity pattern, store secrets in OCI Vault, and add OCI Logging, audit review, budgets, and lifecycle policies.
 
+## AI Quality And Privacy Controls
+
+Each completed record stores the OCI model ID and prompt version. Reviewers can flag an incorrect AI field with a correction note; the feedback is retained in metadata, report output, and the audit trail for later evaluation. The bundled synthetic golden cases cover a passport, an invoice containing contact data, and a non-sensitive contract.
+
+The portal classifies identity-document, government-identifier, email, phone, and invoice-with-personal-data signals. Restricted records show redacted text/analysis previews and block source and result downloads in this unauthenticated MVP. This is a conservative portal-wide block, not user-specific authorization. `SENSITIVE_RETENTION_DAYS` defaults to 7 and overrides local metadata/report/upload retention for restricted records; set it through setup or `.env` according to the approved retention policy.
+
 ## Runtime Validation
 
 Use `Settings -> OCI Preflight` to validate live service access before processing documents. It checks Object Storage write/read/delete, Document Understanding API access, and Generative AI response with the same credentials used by processing.

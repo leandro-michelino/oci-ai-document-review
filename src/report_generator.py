@@ -54,6 +54,16 @@ def generate_markdown_report(record: DocumentRecord, model_id: str) -> str:
 
     generated_at = datetime.now(timezone.utc).isoformat()
     due_at = record.due_at.date().isoformat() if record.due_at else "No SLA"
+    feedback = record.quality_feedback
+    feedback_lines = (
+        "\n".join(
+            f"- {item.created_at.isoformat()} | {item.reviewer} | "
+            f"{item.field_name}: {item.comment}"
+            for item in feedback
+        )
+        if feedback
+        else "- None"
+    )
     return f"""# Document Intelligence Report
 
 ## Document Metadata
@@ -65,6 +75,9 @@ def generate_markdown_report(record: DocumentRecord, model_id: str) -> str:
 - Processing Status: {record.status.value}
 - Expense Name or Reference: {record.job_description or "Not provided"}
 - Business Reference: {record.business_reference or "Not provided"}
+- Sensitivity: {record.sensitivity.value}
+- PII Labels: {", ".join(record.pii_labels) or "None detected"}
+- Retention Override: {record.retention_days_override or "Default"} days
 
 ## Executive Summary
 
@@ -106,9 +119,15 @@ def generate_markdown_report(record: DocumentRecord, model_id: str) -> str:
 - Workflow Comments: {len(record.workflow_comments)}
 - Audit Events: {len(record.audit_events)}
 
+## AI Quality Feedback
+
+{feedback_lines}
+
 ## Processing Metadata
 
-- Model ID: {model_id}
+- Model ID: {record.model_id or model_id}
+- Prompt Version: {record.prompt_version or "Not recorded"}
 - Confidence Score: {analysis.confidence_score}
+- Extraction Confidence: {record.extraction_confidence if record.extraction_confidence is not None else "Not provided by extractor"}
 - Generated At: {generated_at}
 """

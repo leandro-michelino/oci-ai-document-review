@@ -148,6 +148,29 @@ def test_add_comment_appends_comment_and_audit(tmp_path):
     assert updated.audit_events[-1].action == "COMMENT_ADDED"
 
 
+def test_quality_feedback_is_persisted_with_an_audit_event(tmp_path):
+    config = SimpleNamespace(local_metadata_dir=tmp_path)
+    store = MetadataStore(config)
+    store.save(
+        DocumentRecord(
+            document_id="doc-feedback",
+            document_name="invoice.pdf",
+            document_type=DocumentType.INVOICE,
+        )
+    )
+
+    updated = store.add_quality_feedback(
+        "doc-feedback",
+        reviewer="Finance",
+        field_name="Extracted fields",
+        comment="The invoice number needs correction.",
+    )
+
+    assert updated.quality_feedback[-1].reviewer == "Finance"
+    assert updated.quality_feedback[-1].field_name == "Extracted fields"
+    assert updated.audit_events[-1].action == "AI_FIELD_FLAGGED"
+
+
 def test_set_review_closes_workflow_and_records_audit(tmp_path):
     config = SimpleNamespace(local_metadata_dir=tmp_path)
     store = MetadataStore(config)
@@ -321,6 +344,31 @@ def test_cleanup_expired_local_data_keeps_active_records_even_when_old(tmp_path)
     assert result.total == 0
     assert (config.local_metadata_dir / "doc-active.json").exists()
     assert (config.local_uploads_dir / "doc-active-active.pdf").exists()
+
+
+def test_cleanup_uses_shorter_sensitive_retention_override(tmp_path):
+    config = SimpleNamespace(
+        local_metadata_dir=tmp_path / "metadata",
+        local_reports_dir=tmp_path / "reports",
+        local_uploads_dir=tmp_path / "uploads",
+    )
+    config.local_reports_dir.mkdir()
+    config.local_uploads_dir.mkdir()
+    store = MetadataStore(config)
+    record = DocumentRecord(
+        document_id="doc-sensitive",
+        document_name="passport.pdf",
+        document_type=DocumentType.GENERAL,
+        status=ProcessingStatus.REVIEW_REQUIRED,
+        uploaded_at=datetime.now(timezone.utc) - timedelta(days=10),
+        retention_days_override=7,
+    )
+    store.save(record)
+
+    result = store.cleanup_expired_local_data(retention_days=30)
+
+    assert result.metadata_records == 1
+    assert not store.path_for("doc-sensitive").exists()
 
 
 def test_cleanup_expired_local_data_removes_old_orphan_artifacts(tmp_path):

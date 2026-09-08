@@ -19,7 +19,14 @@ from src.job_queue import (
     submitted_document_ids,
 )
 from src.metadata_store import MetadataStore
-from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
+from src.models import (
+    DocumentRecord,
+    DocumentType,
+    ProcessingStatus,
+    SensitivityLevel,
+    WorkflowStatus,
+)
+from src.privacy import redact_preview
 from src.processor import (
     PUBLIC_SECTOR_EXPENSE_RISK,
     apply_compliance_attention,
@@ -1386,6 +1393,12 @@ def source_download_name(record) -> str:
 
 
 def render_source_document_download(config, record) -> None:
+    if record.sensitivity == SensitivityLevel.RESTRICTED:
+        st.warning(
+            "Source download is blocked for this restricted document. Use an approved "
+            "access-controlled channel for the original file."
+        )
+        return
     working_copy = local_working_copy_path(config, record)
     if not working_copy.exists():
         st.info(
@@ -1833,7 +1846,8 @@ def processing_stage_rows(record) -> list[dict[str, str]]:
             "Stage": "Extraction",
             "State": "Complete" if has_extraction else "Not complete",
             "Evidence": (
-                f"{extraction_source}; text preview saved"
+                f"{extraction_source}; confidence "
+                f"{f'{record.extraction_confidence:.0%}' if record.extraction_confidence is not None else 'not provided'}"
                 if has_extraction
                 else "No extracted text"
             ),
@@ -1882,11 +1896,21 @@ def render_lifecycle(record) -> None:
 
 def record_summary(record) -> str:
     if record.analysis:
-        return record.analysis.executive_summary
+        summary = record.analysis.executive_summary
+        return (
+            redact_preview(summary)
+            if record.sensitivity == SensitivityLevel.RESTRICTED
+            else summary
+        )
     if record.error_message:
         return display_error_message(record.error_message)
     if record.extracted_text_preview:
-        return record.extracted_text_preview
+        preview = record.extracted_text_preview
+        return (
+            redact_preview(preview)
+            if record.sensitivity == SensitivityLevel.RESTRICTED
+            else preview
+        )
     return "No analysis available yet."
 
 
@@ -3039,6 +3063,47 @@ def render_workflow_comments(config, store, record, key_prefix: str) -> None:
         st.info("No workflow comments yet.")
 
 
+def render_quality_feedback_panel(config, store, record, key_prefix: str) -> None:
+    st.markdown("### AI quality feedback")
+    reviewer = st.text_input(
+        "Feedback reviewer",
+        value=record.assignee or "Reviewer",
+        key=f"{key_prefix}_feedback_reviewer_{record.document_id}",
+    )
+    field_name = st.selectbox(
+        "AI field to flag",
+        [
+            "Document classification",
+            "Executive summary",
+            "Extracted fields",
+            "Items / services",
+            "Risk notes",
+            "Recommendations",
+            "Missing information",
+        ],
+        key=f"{key_prefix}_feedback_field_{record.document_id}",
+    )
+    comment = st.text_area(
+        "Correction or feedback",
+        key=f"{key_prefix}_feedback_comment_{record.document_id}",
+        height=90,
+    )
+    if st.button(
+        "Flag AI Field",
+        key=f"{key_prefix}_feedback_submit_{record.document_id}",
+        disabled=not comment.strip(),
+        width="stretch",
+    ):
+        updated = store.add_quality_feedback(
+            record.document_id, reviewer, field_name, comment
+        )
+        refresh_markdown_report(config, updated)
+        st.success("AI quality feedback recorded for audit and evaluation.")
+        st.rerun()
+    if record.quality_feedback:
+        st.caption(f"Recorded feedback: {len(record.quality_feedback)}")
+
+
 def render_audit_trail(record) -> None:
     st.markdown("### Audit trail")
     if not record.audit_events:
@@ -3135,6 +3200,7 @@ def render_workflow_panel(config, store, record, key_prefix: str) -> None:
     render_retry_panel(config, store, record, key_prefix)
     render_discard_failed_document_panel(config, store, record, key_prefix)
     render_workflow_comments(config, store, record, key_prefix)
+    render_quality_feedback_panel(config, store, record, key_prefix)
     render_retry_history(record)
     render_audit_trail(record)
 
@@ -3173,11 +3239,24 @@ def render_analysis_overview(record) -> None:
         return
 
     analysis = record.analysis
-    render_summary_panel("Executive Summary", analysis.executive_summary)
+    summary = (
+        redact_preview(analysis.executive_summary)
+        if record.sensitivity == SensitivityLevel.RESTRICTED
+        else analysis.executive_summary
+    )
+    render_summary_panel("Executive Summary", summary)
     st.caption(
         f"Document class: {analysis.document_class} | "
-        f"Confidence: {confidence_percent(record)}% | Risk: {highest_risk_level(record)}"
+        f"AI confidence: {confidence_percent(record)}% | "
+        f"Extraction confidence: "
+        f"{f'{record.extraction_confidence:.0%}' if record.extraction_confidence is not None else 'Not provided'} | "
+        f"Risk: {highest_risk_level(record)}"
     )
+    if record.sensitivity == SensitivityLevel.RESTRICTED:
+        st.warning(
+            "Restricted document: reviewer previews are redacted and source download is blocked. "
+            f"Detected: {', '.join(record.pii_labels)}."
+        )
     render_risk_review_panel(record)
 
     col_left, col_right = st.columns(2, gap="large")
@@ -3185,13 +3264,17 @@ def render_analysis_overview(record) -> None:
         st.markdown("### Key Points")
         if analysis.key_points:
             for item in analysis.key_points[:8]:
-                st.write(f"- {item}")
+                st.write(
+                    f"- {redact_preview(item) if record.sensitivity == SensitivityLevel.RESTRICTED else item}"
+                )
         else:
             st.info("No key points found.")
         if analysis.extracted_fields.line_items:
             st.markdown("### Items / Services")
             for item in analysis.extracted_fields.line_items[:8]:
-                st.write(f"- {item}")
+                st.write(
+                    f"- {redact_preview(item) if record.sensitivity == SensitivityLevel.RESTRICTED else item}"
+                )
     with col_right:
         st.markdown("### Recommendations")
         if analysis.recommendations:
@@ -3208,15 +3291,26 @@ def render_analysis_details(record) -> None:
         return
 
     st.markdown("### Extracted Fields")
-    st.json(analysis.extracted_fields.model_dump())
+    extracted_fields = analysis.extracted_fields.model_dump()
+    if record.sensitivity == SensitivityLevel.RESTRICTED:
+        extracted_fields = json.loads(redact_preview(json.dumps(extracted_fields)))
+    st.json(extracted_fields)
 
     st.markdown("### Risk Notes")
     if analysis.risk_notes:
         risk_rows = [
             {
                 "Severity": risk.severity,
-                "Risk note": risk.risk,
-                "Supporting evidence": risk.evidence or "No evidence returned",
+                "Risk note": (
+                    redact_preview(risk.risk)
+                    if record.sensitivity == SensitivityLevel.RESTRICTED
+                    else risk.risk
+                ),
+                "Supporting evidence": (
+                    redact_preview(risk.evidence or "No evidence returned")
+                    if record.sensitivity == SensitivityLevel.RESTRICTED
+                    else risk.evidence or "No evidence returned"
+                ),
             }
             for risk in analysis.risk_notes
         ]
@@ -3231,12 +3325,20 @@ def render_analysis_details(record) -> None:
     st.markdown("### Missing Information")
     if analysis.missing_information:
         for item in analysis.missing_information:
-            st.write(f"- {item}")
+            st.write(
+                f"- {redact_preview(item) if record.sensitivity == SensitivityLevel.RESTRICTED else item}"
+            )
     else:
         st.info("None found.")
 
 
 def render_downloads(record, document_id: str) -> None:
+    if record.sensitivity == SensitivityLevel.RESTRICTED:
+        st.warning(
+            "Result downloads are blocked for this restricted document. Use an approved "
+            "access-controlled channel for any unredacted export."
+        )
+        return
     metadata_json = json.dumps(record.model_dump(mode="json"), indent=2)
     st.download_button(
         "Download JSON Result",
@@ -3803,8 +3905,12 @@ def detail_page(config, store):
     with st.expander("Extracted text", expanded=False):
         st.text_area(
             "Preview",
-            value=record.extracted_text_preview
-            or "No extracted text preview available.",
+            value=(
+                redact_preview(record.extracted_text_preview)
+                if record.sensitivity == SensitivityLevel.RESTRICTED
+                and record.extracted_text_preview
+                else record.extracted_text_preview or "No extracted text preview available."
+            ),
             height=220,
             disabled=True,
             label_visibility="collapsed",

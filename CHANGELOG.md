@@ -10,6 +10,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Added model/prompt traceability, reviewer AI-quality feedback, synthetic golden privacy cases, restricted-document preview redaction, portal download blocking, and configurable shorter sensitive-document retention.
 - Added a guarded `Discard Failed Document` workflow in Actions. It requires exact document-ID confirmation, removes only the portal-managed `documents/<document-id>/...` Object Storage copy and local artifacts, and keeps a local deletion tombstone for audit. Active records remain protected.
 - Improved the discard confirmation UX: the button remains available and explains the missing confirmation instead of appearing unavailable.
 - Clear the Upload form after a successful queue operation so a previously submitted file is not carried into the next submission.

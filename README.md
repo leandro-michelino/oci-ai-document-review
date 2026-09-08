@@ -63,6 +63,7 @@ It is not a blind auto-approval system. It is a human-in-the-loop review platfor
 | Workflow | Dashboard queues, Actions review screen, dedicated Reviewed archive, approve/reject decisions, owner assignment, SLA date, comments, audit trail, retry history, guarded failed-document discard, source-document download, and an ERP handoff integration slot after decisions targeting SAP, Oracle Fusion, or a custom API. |
 | Reporting | Local JSON metadata plus Markdown review reports for download. |
 | Retention | VM-local metadata, reports, upload working copies, and Object Storage document objects are retained for 30 days by default. |
+| AI quality and privacy | Records model and prompt versions, lets reviewers flag AI fields, classifies detected PII, redacts restricted previews, blocks portal downloads, and applies a configurable 7-day sensitive-document retention override. |
 | Optional automation | OCI Events and OCI Functions can ingest files uploaded to Object Storage under `incoming/`. |
 
 The Streamlit app exposes six main pages:

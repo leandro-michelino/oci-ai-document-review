@@ -114,3 +114,28 @@ def test_generate_markdown_report_contains_workflow_metadata():
     assert "- Workflow Status: Escalated" in report
     assert "- Assignee: Legal" in report
     assert "- Retry Count: 2" in report
+
+
+def test_generate_markdown_report_includes_ai_traceability_and_feedback():
+    record = DocumentRecord(
+        document_id="doc-traceability",
+        document_name="invoice.pdf",
+        document_type=DocumentType.INVOICE,
+        status=ProcessingStatus.REVIEW_REQUIRED,
+        model_id="cohere.command-a-03-2025",
+        prompt_version="2026-09-08.1",
+        pii_labels=["EMAIL_ADDRESS", "INVOICE_WITH_PERSONAL_DATA"],
+        retention_days_override=7,
+        analysis=DocumentAnalysis(
+            document_class="INVOICE",
+            executive_summary="Synthetic summary.",
+            confidence_score=0.8,
+        ),
+    )
+
+    report = generate_markdown_report(record, model_id="fallback-model")
+
+    assert "cohere.command-a-03-2025" in report
+    assert "2026-09-08.1" in report
+    assert "EMAIL_ADDRESS, INVOICE_WITH_PERSONAL_DATA" in report
+    assert "Retention Override: 7 days" in report

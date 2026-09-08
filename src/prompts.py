@@ -1,6 +1,8 @@
 # Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 from src.models import DocumentType
 
+PROMPT_VERSION = "2026-09-08.1"
+
 GENERAL_SCHEMA = """{
   "document_class": "CONTRACT | INVOICE | COMPLIANCE | TECHNICAL_REPORT | GENERAL | UNKNOWN",
   "executive_summary": "string",

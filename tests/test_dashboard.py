@@ -664,7 +664,7 @@ def test_processing_stage_rows_show_backend_lifecycle():
         "Workflow",
     ]
     assert rows[1]["State"] == "Complete"
-    assert rows[2]["Evidence"] == "Extraction source not recorded; text preview saved"
+    assert rows[2]["Evidence"] == "Extraction source not recorded; confidence not provided"
     assert rows[-2]["Evidence"] == "Approve or reject"
     assert rows[-1]["State"] == "Assigned"
     assert "Legal" in rows[-1]["Evidence"]

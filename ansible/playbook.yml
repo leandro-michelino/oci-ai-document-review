@@ -121,6 +121,7 @@
           DOCUMENT_AI_RETRY_ATTEMPTS={{ document_ai_retry_attempts | default('2') }}
           STALE_PROCESSING_MINUTES={{ stale_processing_minutes | default('12') }}
           RETENTION_DAYS={{ retention_days | default('30') }}
+          SENSITIVE_RETENTION_DAYS={{ sensitive_retention_days | default('7') }}
           MAX_PARALLEL_JOBS={{ max_parallel_jobs | default('5') }}
           MAX_DOCUMENT_CHARS={{ max_document_chars | default('50000') }}
           MAX_UPLOAD_MB={{ max_upload_mb | default('10') }}
