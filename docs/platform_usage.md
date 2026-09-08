@@ -301,7 +301,7 @@ Recommended processing flow:
    Auto-detect, CONTRACT, INVOICE, COMPLIANCE, TECHNICAL_REPORT, or GENERAL.
 4. Upload one to five PDFs, images, or text-native files such as TXT, Markdown, CSV, JSON, XML, HTML, LOG, YAML, or YML.
 5. If more than one file is selected, enter an Expense name or reference. The app requires it for multi-file uploads and stores it on every file in that upload.
-6. Click Queue Document or Queue Documents.
+6. Click Queue Document or Queue Documents. After a successful queue, the portal clears the selected files, document type, expense/reference, and notes for the next submission.
 7. The portal validates file count, required expense name or reference, extension, empty-file state, configured size limit, and PDF page-count warning before queueing.
 8. The portal saves the local working copies and queues one document record per file.
 9. Choose the next action shown by the app:

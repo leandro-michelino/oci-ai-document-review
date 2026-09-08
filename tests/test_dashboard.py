@@ -55,6 +55,7 @@ from app import (
     sort_action_records,
     source_download_mime,
     source_download_name,
+    reset_upload_form_state,
     upload_document_type_options,
     validate_upload_batch_requirements,
     validate_upload_requirements,
@@ -956,6 +957,20 @@ def test_upload_page_uses_single_expense_reference_field(monkeypatch, tmp_path):
         ]
     finally:
         get_config.cache_clear()
+
+
+def test_reset_upload_form_state_recreates_uploader_and_clears_form_values():
+    state = {
+        "upload_widget_version": 4,
+        "upload_document_type": "INVOICE",
+        "upload_job_description": "May expenses",
+        "upload_notes": "Urgent",
+        "unrelated": "kept",
+    }
+
+    reset_upload_form_state(state)
+
+    assert state == {"upload_widget_version": 5, "unrelated": "kept"}
 
 
 def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):

@@ -162,6 +162,7 @@ Important behavior:
 - Text-native documents skip Document Understanding and go directly to GenAI after local extraction.
 - Images and scanned PDFs use Document Understanding before GenAI.
 - Empty extraction fails clearly instead of sending empty content to GenAI.
+- After a document is queued successfully, the Upload form clears its selected files, document type, expense/reference, and notes so the next submission starts cleanly.
 - GenAI content-safety blocks are converted into reviewer-safe manual-review messages instead of exposing raw provider JSON.
 - Documents matching the compliance catalog stay in the Ready queue as `Compliance review`.
 - Failed documents can be retried from the preserved local working copy. If a failed upload must be removed, Actions provides `Discard Failed Document`. The reviewer types the document ID and then confirms the action; clicking early explains the missing confirmation without deleting anything. A successful discard removes only the portal-managed `documents/<document-id>/...` Object Storage copy plus local metadata, report, and working copy, preserves a local deletion tombstone, and does not delete an externally supplied intake object. Active processing records cannot be discarded.

@@ -63,6 +63,11 @@ DASHBOARD_STATUS_FILTERS = [
     "Reviewed",
 ]
 MAX_FILES_PER_UPLOAD = 5
+UPLOAD_FORM_STATE_KEYS = (
+    "upload_document_type",
+    "upload_job_description",
+    "upload_notes",
+)
 ALLOWED_UPLOAD_EXTENSIONS = [
     "csv",
     "htm",
@@ -2674,6 +2679,13 @@ def open_fresh_upload() -> None:
     open_page(PAGE_UPLOAD)
 
 
+def reset_upload_form_state(state) -> None:
+    """Clear upload form widgets by giving the file uploader a fresh key."""
+    state["upload_widget_version"] = state.get("upload_widget_version", 0) + 1
+    for key in UPLOAD_FORM_STATE_KEYS:
+        state.pop(key, None)
+
+
 def render_queued_actions(record) -> None:
     with st.container(border=True):
         st.subheader("Queued")
@@ -3247,6 +3259,10 @@ def render_downloads(record, document_id: str) -> None:
 
 
 def upload_page(config, store):
+    queued_document_ids = st.session_state.pop("queued_document_ids_after_reset", [])
+    if st.session_state.pop("clear_upload_form_after_queue", False):
+        reset_upload_form_state(st.session_state)
+
     page_header(
         "Intake",
         "Upload",
@@ -3398,12 +3414,26 @@ def upload_page(config, store):
         first_record = records[0]
         st.session_state["selected_document_id"] = first_record.document_id
         st.session_state["dashboard_selected_document"] = first_record.document_id
-        if len(records) == 1:
+        st.session_state["queued_document_ids_after_reset"] = [
+            record.document_id for record in records
+        ]
+        st.session_state["clear_upload_form_after_queue"] = True
+        st.rerun()
+
+    if queued_document_ids:
+        queued_records = [
+            store.load(document_id)
+            for document_id in queued_document_ids
+            if store.path_for(document_id).exists()
+        ]
+        if len(queued_records) == 1:
             st.success("Document was queued for background processing.")
-            render_queued_actions(first_record)
-        else:
-            st.success(f"{len(records)} documents were queued for background processing.")
-            render_batch_queued_actions(records)
+            render_queued_actions(queued_records[0])
+        elif queued_records:
+            st.success(
+                f"{len(queued_records)} documents were queued for background processing."
+            )
+            render_batch_queued_actions(queued_records)
 
 
 @st.fragment(run_every=f"{DASHBOARD_REFRESH_SECONDS}s")
