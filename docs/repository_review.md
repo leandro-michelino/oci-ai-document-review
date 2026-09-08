@@ -11,7 +11,7 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 ## Current Hygiene State
 
 - Tracked files are limited to source code, tests, Terraform, Ansible, setup scripts, documentation, the compliance seed catalog, and architecture assets.
-- Runtime files are intentionally ignored: `.env`, `.deploy/`, `.venv/`, Terraform state/tfvars, local metadata, reports, uploads, caches, logs, and private key material.
+- Runtime files are intentionally ignored: `.env`, `.deploy/`, `.venv/`, Terraform state/tfvars, local metadata, reports, uploads, deletion tombstones, caches, logs, and private key material.
 - The rendered architecture image now lives with its editable Excalidraw source under `docs/assets/` instead of the repository root.
 - `CHANGELOG.md` is the single source of truth for release history; the duplicate `docs/release_notes.md` file was removed.
 - `README.md` is the concise front door. Deep operating detail stays in `docs/platform_usage.md`, `docs/implementation_guide.md`, `docs/security_notes.md`, `docs/cost_estimate.md`, and `docs/architecture_flows.md`.
@@ -33,6 +33,7 @@ This review covers the Streamlit app, worker queue, OCI clients, metadata store,
 - Terraform rejects open ingress such as `0.0.0.0/0` and validates network CIDRs, OCPU count, memory size, retention days, automatic-intake tenancy OCID, and Function image requirements.
 - The optional object-intake Function dynamic group is scoped to the deployed Function OCID, and its object policy is scoped to the configured project bucket.
 - The Object Storage lifecycle policy deletes only `documents/` objects, leaving the compliance knowledge base under `compliance/` untouched.
+- The failed-document discard control targets only the portal-managed `documents/<document-id>/...` object, retains a local audit tombstone, and never deletes external `incoming/` objects.
 
 ## Verification
 

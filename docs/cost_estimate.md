@@ -28,7 +28,7 @@ Current project version: `v0.6.2`
 +----------------------+--------------------------+----------------------------+
 ```
 
-These ranges assume the default Cohere Command R+ model, moderate prompt sizes, default 30-day retention, and normal retry behavior. GenAI characters and Document Understanding OCR or extraction pages are the main variable costs. VM boot volumes, networking egress, logging volume, support, taxes, and enterprise add-ons can move real totals outside these ranges.
+These ranges assume the configured Cohere Command A model, moderate prompt sizes, default 30-day retention, and normal retry behavior. GenAI characters and Document Understanding OCR or extraction pages are the main variable costs. VM boot volumes, networking egress, logging volume, support, taxes, and enterprise add-ons can move real totals outside these ranges.
 
 ## Main Cost Drivers
 
@@ -74,11 +74,11 @@ Document Understanding extraction   $10.00 / 1,000 transactions
 Document Understanding OCR          $1.00 / 1,000 transactions
 Document Understanding free tier    First 5,000 transactions/month
 
-Generative AI Command R+            $0.0156 / 10,000 transactions
+Generative AI configured model       Verify current regional price before use
 OCI Functions free tier             2M invocations + 400K GB-seconds/month
 ```
 
-OCI Generative AI on-demand chat billing counts prompt plus response characters. The OCI pricing page treats 1 character as 1 transaction. Command R+ maps to the Large Cohere pricing line at the time of this review.
+OCI Generative AI on-demand chat billing counts prompt plus response characters. The OCI pricing page treats 1 character as 1 transaction. Model availability and prices change, so use the current regional price for the model in `GENAI_MODEL_ID` rather than carrying forward the retired Command R+ planning input.
 
 The Oracle price-list page was checked for the current product line items and units: Document Understanding still exposes first-5,000 and greater-than-5,000 transaction tiers, Large Cohere is listed per 10,000 transactions, Object Storage Standard is listed per GB-month, and Functions lists free monthly invocation and GB-second bands. Re-check the numeric rates in your region before using this worksheet for customer estimates.
 
@@ -176,9 +176,6 @@ https://www.oracle.com/cloud/costestimator/
 
 OCI Generative AI on-demand pricing:
 https://docs.oracle.com/en-us/iaas/Content/generative-ai/pay-on-demand.htm
-
-OCI Cohere Command R+ pricing-page mapping:
-https://docs.oracle.com/en-us/iaas/Content/generative-ai/cohere-command-r-plus-08-2024.htm
 
 OCI Document Understanding pricing:
 https://www.oracle.com/artificial-intelligence/document-understanding/pricing/

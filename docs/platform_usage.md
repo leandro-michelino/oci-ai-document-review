@@ -91,6 +91,7 @@ oci_api_key*
 data/metadata/*.json
 data/reports/*.md
 data/uploads/*
+data/deleted/*.json
 ```
 
 Ansible also scrubs these file patterns after unpacking the release on the VM. Then it writes the intended runtime `.env` and OCI SDK config under `/opt/oci-ai-document-review`.
@@ -316,7 +317,7 @@ Recommended processing flow:
 17. Use Reviewed to search approved and rejected documents, filter by decision, and open the stored record for audit context.
 18. Add workflow comments when the reviewer needs extra context or follow-up.
 19. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
-20. To permanently remove a failed upload, use `Discard Failed Document` and type the exact document ID when prompted. The button explains the missing confirmation if it is clicked too early. It deletes the portal-managed Object Storage copy and local working artifacts, then retains a local deletion tombstone for audit. It does not delete an external intake object, and it is unavailable while a document is still processing.
+20. To permanently remove a failed upload, use `Discard Failed Document` and type the exact document ID when prompted. The button explains the missing confirmation if it is clicked too early. After confirmation, it deletes only the portal-managed Object Storage copy and local working artifacts, then retains a local deletion tombstone in `data/deleted` for audit. If Object Storage deletion fails, the local recovery copy remains. It does not delete an external intake object, and it is unavailable while a document is still processing.
 21. Inspect the audit trail and retry history in the same Workflow expander.
 22. Open the AI review summary expander to review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details when the decision needs deeper analysis.
 23. Download Markdown or JSON results from the Downloads section.
@@ -440,7 +441,7 @@ Actions
   - Shows the AI review summary before the Decision panel so reviewers see the summary, key points, line items, risks, and recommendations before approving or rejecting.
   - Places the Decision panel near the top of the page after the AI summary so reviewers can correct the type, approve, or reject without scrolling through source files or full analysis details first.
   - Shows a `Download Doc for Review` button when the VM still has the local working copy.
-  - Keeps Workflow, notes, retry, retry history, and audit trail in one expander.
+  - Keeps Workflow, notes, retry, guarded failed-document discard, retry history, and audit trail in one expander.
   - Keeps source document, analysis details, file and processing details, extracted text, and downloads in expanders.
   - Requires comments before rejecting a document.
   - After approval or rejection, selects the next action item when one exists.
@@ -477,6 +478,7 @@ Remote paths:
 /opt/oci-ai-document-review/data/metadata
 /opt/oci-ai-document-review/data/reports
 /opt/oci-ai-document-review/data/uploads
+/opt/oci-ai-document-review/data/deleted
 ```
 
 Expected runtime files on the VM:
@@ -488,9 +490,10 @@ Expected runtime files on the VM:
 data/metadata/*.json
 data/reports/*.md
 data/uploads/*
+data/deleted/*.json
 ```
 
-The default retention period is 30 days. The Streamlit app deletes expired local JSON metadata, Markdown reports, and preserved upload copies from the VM while protecting active in-flight records. Ansible installs `oci-ai-document-review-retention.timer` so the same local cleanup also runs daily on the VM. Terraform configures Object Storage lifecycle deletion for uploaded objects under `documents/` after the same number of days. The compliance knowledge base object under `compliance/` is outside that lifecycle rule.
+The default retention period is 30 days. The Streamlit app deletes expired local JSON metadata, Markdown reports, and preserved upload copies from the VM while protecting active in-flight records. Ansible installs `oci-ai-document-review-retention.timer` so the same local cleanup also runs daily on the VM. Terraform configures Object Storage lifecycle deletion for uploaded objects under `documents/` after the same number of days. The compliance knowledge base object under `compliance/` is outside that lifecycle rule. Deletion tombstones in `data/deleted` are deliberately retained outside the current cleanup; operate a separate tombstone-retention policy if audit policy requires expiry.
 
 Unexpected runtime files on the VM:
 

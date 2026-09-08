@@ -152,7 +152,7 @@ Upload
   -> metadata JSON and Markdown report
   -> Dashboard queue
   -> Actions human decision
-  -> approve, reject, retry, assign, comment, or audit
+  -> approve, reject, retry, discard a failed record, assign, comment, or audit
   -> Reviewed archive for closed decisions
   -> optional ERP handoff target such as SAP, Oracle Fusion, or API
 ```
@@ -164,7 +164,7 @@ Important behavior:
 - Empty extraction fails clearly instead of sending empty content to GenAI.
 - GenAI content-safety blocks are converted into reviewer-safe manual-review messages instead of exposing raw provider JSON.
 - Documents matching the compliance catalog stay in the Ready queue as `Compliance review`.
-- Failed documents can be retried from the preserved local working copy. If a failed upload must be removed, Actions provides `Discard Failed Document` after the reviewer types the document ID to confirm. It removes only the portal-managed `documents/<document-id>/...` Object Storage copy plus local metadata, report, and working copy; it preserves a local deletion tombstone and does not delete an externally supplied intake object. Active processing records cannot be discarded.
+- Failed documents can be retried from the preserved local working copy. If a failed upload must be removed, Actions provides `Discard Failed Document`. The reviewer types the document ID and then confirms the action; clicking early explains the missing confirmation without deleting anything. A successful discard removes only the portal-managed `documents/<document-id>/...` Object Storage copy plus local metadata, report, and working copy, preserves a local deletion tombstone, and does not delete an externally supplied intake object. Active processing records cannot be discarded.
 
 ## Quick Start
 

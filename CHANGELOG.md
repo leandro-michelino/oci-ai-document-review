@@ -10,6 +10,8 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Added a guarded `Discard Failed Document` workflow in Actions. It requires exact document-ID confirmation, removes only the portal-managed `documents/<document-id>/...` Object Storage copy and local artifacts, and keeps a local deletion tombstone for audit. Active records remain protected.
+- Improved the discard confirmation UX: the button remains available and explains the missing confirmation instead of appearing unavailable.
 - Replaced the retired Cohere Command R+ 08-2024 default with Cohere Command A, excluded known retired Cohere models during setup discovery, and sanitized OCI provider payloads before they reach reviewer pages, metadata, reports, or audit events.
 - Fixed sidebar navigation to force a Streamlit rerun after a page change, keeping rendered content, session state, and query parameters aligned.
 - Documented a laptop-operated acceptance test for the deployed Object Storage Events and OCI Functions intake path, while keeping the VM timer as the always-on production importer.

@@ -42,11 +42,12 @@ terraform/terraform.tfstate*
 data/metadata/*.json
 data/reports/*.md
 data/uploads/*
+data/deleted/*.json
 local laptop .env files
 local private keys outside /opt/oci-ai-document-review/.oci/oci_api_key.pem
 ```
 
-Workflow assignment, SLA dates, comments, audit events, retry history, extracted text previews, and AI review output are stored in local JSON metadata on the VM for this MVP. Uploaded working copies are also retained locally under `/opt/oci-ai-document-review/data/uploads` so reviewers can download source documents from Actions and failed documents can be retried. `RETENTION_DAYS` defaults to 30 and controls local expiry for metadata, reports, and uploads; active in-flight processing records are protected. Local cleanup runs in the app and through the daily `oci-ai-document-review-retention.timer`. Do not move those files into Git, public buckets, public screenshots, or external posts unless they are synthetic and scrubbed.
+Workflow assignment, SLA dates, comments, audit events, retry history, extracted text previews, and AI review output are stored in local JSON metadata on the VM for this MVP. Uploaded working copies are also retained locally under `/opt/oci-ai-document-review/data/uploads` so reviewers can download source documents from Actions and failed documents can be retried. A successful failed-document discard writes a limited audit tombstone under `/opt/oci-ai-document-review/data/deleted`; it contains the document ID, name, type, prior status, actor, reason, timestamp, Object Storage URI, and cloud-deletion outcome. `RETENTION_DAYS` defaults to 30 and controls local expiry for metadata, reports, and uploads; active in-flight processing records are protected. It does not currently expire deletion tombstones, so the owner must set a separate tombstone-retention control. Local cleanup runs in the app and through the daily `oci-ai-document-review-retention.timer`. Do not move those files into Git, public buckets, public screenshots, or external posts unless they are synthetic and scrubbed.
 
 Terraform configures Object Storage lifecycle deletion for uploaded document objects under `documents/` after `retention_days`, also defaulting to 30. The compliance knowledge-base object under `compliance/` is intentionally outside that lifecycle rule.
 

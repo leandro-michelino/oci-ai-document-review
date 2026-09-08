@@ -610,8 +610,8 @@ npm run docs:render-architecture
              |                  |                  |                  |                  |
              v                  v                  v                  v                  v
 +----------------+  +----------------+  +----------------+  +----------------+  +----------------+
-| Approve/Reject |  | Assign Owner   |  | Set SLA Date   |  | Add Comment    |  | Retry Failure  |
-| Human Decision |  | Workflow State |  | Due Tracking   |  | Reviewer Notes |  | Child Queued   |
+| Approve/Reject |  | Assign Owner   |  | Set SLA Date   |  | Add Comment    |  | Failed follow-up |
+| Human Decision |  | Workflow State |  | Due Tracking   |  | Reviewer Notes |  | Retry or discard|
 +-------+--------+  +-------+--------+  +-------+--------+  +-------+--------+  +-------+--------+
           |                       |                       |                      |
           +-----------+-----------+-----------+-----------+----------+-----------+
@@ -660,7 +660,8 @@ npm run docs:render-architecture
 +----------------------+
 | Updated Queue State  |
 | Processing -> Ready  |
-| Failed -> Retry      |
+| Failed -> Retry or   |
+| guarded discard      |
 +----------------------+
 ```
 

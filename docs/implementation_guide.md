@@ -107,6 +107,7 @@ oci_api_key*
 data/metadata/*.json
 data/reports/*.md
 data/uploads/*
+data/deleted/*.json
 ```
 
 After unpacking, Ansible removes the same local-only file patterns from the app directory, excluding the intended runtime `.oci` directory. Then it writes:
@@ -143,7 +144,7 @@ Streamlit upload
   -> Markdown report
   -> Dashboard queue with URL-backed page state and fragment refresh
   -> Actions page
-  -> workflow status, assignee, SLA, comments, audit trail, retry history
+  -> workflow status, assignee, SLA, comments, audit trail, retry history, guarded failed-document discard
   -> approve or reject, then move to the next action item when available
 ```
 
@@ -252,13 +253,13 @@ set_review()
   -> appends review audit event
 ```
 
-Failed-document retry creates a new child document id, copies the preserved local working file into a retry source file, saves a child metadata record with `parent_document_id`, and submits that child record back to the background worker pool. The original failed record keeps its retry history and audit trail. When a failed upload is no longer needed, the Actions workflow also offers `Discard Failed Document`. It requires the reviewer to type the exact document ID, deletes only the portal-managed `documents/<document-id>/...` Object Storage object, and then removes the local metadata, report, and working copy. A small local deletion tombstone retains the document ID, actor, reason, timestamp, and cloud-deletion outcome. It never targets an external `incoming/` object, and it is unavailable for active processing records so the worker cannot lose data mid-run.
+Failed-document retry creates a new child document id, copies the preserved local working file into a retry source file, saves a child metadata record with `parent_document_id`, and submits that child record back to the background worker pool. The original failed record keeps its retry history and audit trail. When a failed upload is no longer needed, the Actions workflow also offers `Discard Failed Document`. The reviewer must type the exact document ID; clicking the control early explains the missing confirmation and makes no change. After confirmation, the portal deletes only the portal-managed `documents/<document-id>/...` Object Storage object and then removes the local metadata, report, and working copy. A cloud deletion failure leaves local recovery artifacts intact. A successful discard writes a local deletion tombstone at `data/deleted/<document-id>.json` with the document ID, actor, reason, timestamp, and cloud-deletion outcome. It never targets an external `incoming/` object, and it is unavailable for active processing records so the worker cannot lose data mid-run.
 
 Markdown reports are refreshed from the latest metadata when workflow fields, comments, retries, review status, or document type change.
 
 ## Retention
 
-The default retention period is 30 days. `RETENTION_DAYS` controls local cleanup on the VM for `data/metadata`, `data/reports`, and `data/uploads`. Active records in `UPLOADED`, `PROCESSING`, `EXTRACTED`, or `AI_ANALYZED` are protected from local cleanup so in-flight work is not removed mid-processing. Closed, failed, approved, rejected, and review-required records expire from their `processed_at` timestamp when available, otherwise from `uploaded_at`. Cleanup runs when the app starts/renders and through the daily `oci-ai-document-review-retention.timer` systemd timer.
+The default retention period is 30 days. `RETENTION_DAYS` controls local cleanup on the VM for `data/metadata`, `data/reports`, and `data/uploads`. Active records in `UPLOADED`, `PROCESSING`, `EXTRACTED`, or `AI_ANALYZED` are protected from local cleanup so in-flight work is not removed mid-processing. Closed, failed, approved, rejected, and review-required records expire from their `processed_at` timestamp when available, otherwise from `uploaded_at`. Cleanup runs when the app starts/renders and through the daily `oci-ai-document-review-retention.timer` systemd timer. Deletion tombstones in `data/deleted` are not removed by this cleanup; set and operate a separate retention policy for them that meets the audit requirement.
 
 Terraform configures `oci_objectstorage_object_lifecycle_policy.documents_retention` for the private bucket. It deletes only objects with the `documents/` prefix after `retention_days`, so the curated compliance knowledge base at `compliance/public_sector_entities.csv` remains available.
 
@@ -358,11 +359,12 @@ Then on the portal:
 9. Confirm the Actions page shows AI summary, key points, and recommendations.
 10. Confirm the Workflow panel can assign an owner, set an SLA, add a comment, and show an audit event.
 11. For a failed document, confirm Retry Processing creates a child record and the original shows retry history.
-12. Confirm the reviewer can correct the document type if needed.
-13. Confirm JSON and Markdown downloads are available and include workflow metadata.
-14. Confirm approve or reject updates the review state, closes the workflow, and moves to the next action item when one exists.
-15. After approval or rejection, open Reviewed and confirm the closed document appears with the correct decision filter.
-16. Upload or simulate a public-sector expense and confirm the correct small, medium, or high compliance attention risk is added.
+12. For a disposable failed test record, click `Discard Failed Document` without confirmation and confirm it reports the validation message without deleting the record. Then type the exact document ID, confirm the Object Storage portal copy and local artifacts are removed, and confirm `data/deleted/<document-id>.json` exists. Do not use a production document for this test.
+13. Confirm the reviewer can correct the document type if needed.
+14. Confirm JSON and Markdown downloads are available and include workflow metadata.
+15. Confirm approve or reject updates the review state, closes the workflow, and moves to the next action item when one exists.
+16. After approval or rejection, open Reviewed and confirm the closed document appears with the correct decision filter.
+17. Upload or simulate a public-sector expense and confirm the correct small, medium, or high compliance attention risk is added.
 ```
 
 ## Local App Run

@@ -34,6 +34,8 @@ Prepared resources:
 
 Terraform does not deploy Streamlit application code. Application deployment is handled by `../scripts/deploy.sh` and `../ansible/playbook.yml` after Terraform creates or refreshes the infrastructure. Ansible writes `RETENTION_DAYS` to the VM and installs the daily local cleanup timer. When automatic processing is enabled, Ansible also installs `oci-ai-document-review-event-intake.timer` so the VM imports queue markers written by the Object Storage intake Function.
 
+The portal can explicitly discard a failed document before the lifecycle period ends. That application action deletes only its `documents/<document-id>/...` source object; it does not target automatic-intake objects under `incoming/`. Terraform lifecycle deletion remains the broad retention backstop for all `documents/` objects.
+
 The compliance knowledge-base CSV is not a Terraform resource. The app seeds it into the existing private bucket from `../data/compliance/public_sector_entities.csv` if `COMPLIANCE_ENTITIES_OBJECT_NAME` is missing at runtime. The lifecycle policy applies only to `documents/`, so the compliance KB under `compliance/` is not deleted by the document-retention rule.
 
 Automatic processing is optional because OCI Functions requires an OCIR image and tenancy-scope IAM for the Function resource principal. Build and push `../functions/object_intake`, then set:

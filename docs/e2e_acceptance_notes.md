@@ -19,6 +19,7 @@ This walkthrough exercised the documented MVP paths as a human uploader, reviewe
 - Local metadata, reports, preserved upload copies, and source-download readiness
 - Public-sector expense compliance routing evidence
 - Failed-document retry state
+- Guarded failed-document discard control was added after this acceptance record; validate its confirmation and deletion lifecycle separately with a disposable failed test record.
 - Optional OCI Events and Functions event-intake importer path
 - Local retention cleanup entrypoint
 - Terraform, Ansible, lint, and automated test validation
