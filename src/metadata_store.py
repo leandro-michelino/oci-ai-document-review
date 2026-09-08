@@ -1,4 +1,5 @@
 # Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
+import json
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -45,6 +46,18 @@ class RetentionCleanupResult:
         )
 
 
+@dataclass(frozen=True)
+class DiscardedDocumentResult:
+    metadata_records: int = 0
+    reports: int = 0
+    uploads: int = 0
+    tombstone_path: Path | None = None
+
+    @property
+    def local_artifacts(self) -> int:
+        return self.metadata_records + self.reports + self.uploads
+
+
 class MetadataStore:
     def __init__(self, config: AppConfig):
         self.root = config.local_metadata_dir
@@ -54,6 +67,7 @@ class MetadataStore:
         self.uploads_root = getattr(
             config, "local_uploads_dir", self.root.parent / "uploads"
         )
+        self.deleted_root = self.root.parent / "deleted"
         self.root.mkdir(parents=True, exist_ok=True)
 
     def path_for(self, document_id: str) -> Path:
@@ -206,6 +220,55 @@ class MetadataStore:
             self._append_audit(record, action, actor, message)
         self.save(record)
         return record
+
+    def discard_failed_document(
+        self,
+        document_id: str,
+        actor: str,
+        reason: str | None,
+        cloud_object_deleted: bool,
+    ) -> DiscardedDocumentResult:
+        """Remove portal-owned local data for a failed document and retain an audit tombstone.
+
+        The caller must delete the portal-managed Object Storage object first.  Keeping
+        that operation outside this store means a cloud deletion failure cannot remove
+        the only local recovery copy.
+        """
+        record = self.load(document_id)
+        if record.status != ProcessingStatus.FAILED:
+            raise ValueError("Only failed documents can be discarded.")
+
+        self.deleted_root.mkdir(parents=True, exist_ok=True)
+        tombstone_path = self.deleted_root / f"{document_id}.json"
+        deleted_at = datetime.now(timezone.utc)
+        tombstone = {
+            "document_id": record.document_id,
+            "document_name": record.document_name,
+            "document_type": record.document_type.value,
+            "previous_status": record.status.value,
+            "action": "FAILED_DOCUMENT_DISCARDED",
+            "deleted_at": deleted_at.isoformat(),
+            "actor": actor.strip() or "Reviewer",
+            "reason": reason.strip() if reason and reason.strip() else None,
+            "object_storage_path": record.object_storage_path,
+            "cloud_object_deleted": cloud_object_deleted,
+        }
+        tombstone_path.write_text(json.dumps(tombstone, indent=2), encoding="utf-8")
+
+        reports = self._delete_report(record)
+        uploads = self._delete_uploads(record)
+        metadata_records = self._remove_path(self.path_for(document_id))
+        logger.info(
+            "Discarded failed document %s: %s local artifact(s) removed.",
+            document_id,
+            metadata_records + reports + uploads,
+        )
+        return DiscardedDocumentResult(
+            metadata_records=metadata_records,
+            reports=reports,
+            uploads=uploads,
+            tombstone_path=tombstone_path,
+        )
 
     def set_review(
         self, document_id: str, approved: bool, comments: str | None
@@ -370,12 +433,23 @@ class MetadataStore:
             path.unlink()
         return 1
 
-    def _delete_report(self, record: DocumentRecord) -> int:
+    def _delete_report(
+        self, record: DocumentRecord, include_recorded_path: bool = True
+    ) -> int:
         candidates = [self.reports_root / f"{record.document_id}.md"]
-        if record.report_path:
+        if include_recorded_path and record.report_path:
             report_path = Path(record.report_path)
-            candidates.append(report_path)
+            if self._is_within_root(report_path, self.reports_root):
+                candidates.append(report_path)
         return self._remove_unique_paths(candidates)
+
+    @staticmethod
+    def _is_within_root(path: Path, root: Path) -> bool:
+        try:
+            path.resolve().relative_to(root.resolve())
+        except ValueError:
+            return False
+        return True
 
     def _delete_uploads(self, record: DocumentRecord) -> int:
         safe_name = safe_document_name(record.document_name)

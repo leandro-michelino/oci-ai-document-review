@@ -1005,6 +1005,46 @@ def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):
         get_config.cache_clear()
 
 
+def test_actions_requires_exact_id_before_failed_document_discard_is_enabled(
+    monkeypatch, tmp_path
+):
+    configure_streamlit_test_env(monkeypatch, tmp_path)
+
+    from src.config import get_config
+    from src.metadata_store import MetadataStore
+
+    get_config.cache_clear()
+    try:
+        config = get_config()
+        failed = make_record(
+            "doc-failed-discard", "broken-source.pdf", status=ProcessingStatus.FAILED
+        )
+        failed.uploaded_at = datetime.now(timezone.utc)
+        MetadataStore(config).save(failed)
+
+        app = AppTest.from_file("app.py", default_timeout=5)
+        app.query_params["page"] = "Actions"
+        app = app.run()
+
+        discard_button = next(
+            button for button in app.button if button.label == "Discard Failed Document"
+        )
+        assert discard_button.disabled is True
+
+        confirmation = next(
+            item
+            for item in app.text_input
+            if item.label == "Type doc-failed-discard to confirm permanent deletion"
+        )
+        app = confirmation.set_value("doc-failed-discard").run()
+        discard_button = next(
+            button for button in app.button if button.label == "Discard Failed Document"
+        )
+        assert discard_button.disabled is False
+    finally:
+        get_config.cache_clear()
+
+
 def test_approve_advances_actions_picker_to_next_item(monkeypatch, tmp_path):
     configure_streamlit_test_env(monkeypatch, tmp_path)
 

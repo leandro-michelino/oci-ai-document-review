@@ -252,7 +252,7 @@ set_review()
   -> appends review audit event
 ```
 
-Failed-document retry creates a new child document id, copies the preserved local working file into a retry source file, saves a child metadata record with `parent_document_id`, and submits that child record back to the background worker pool. The original failed record keeps its retry history and audit trail.
+Failed-document retry creates a new child document id, copies the preserved local working file into a retry source file, saves a child metadata record with `parent_document_id`, and submits that child record back to the background worker pool. The original failed record keeps its retry history and audit trail. When a failed upload is no longer needed, the Actions workflow also offers `Discard Failed Document`. It requires the reviewer to type the exact document ID, deletes only the portal-managed `documents/<document-id>/...` Object Storage object, and then removes the local metadata, report, and working copy. A small local deletion tombstone retains the document ID, actor, reason, timestamp, and cloud-deletion outcome. It never targets an external `incoming/` object, and it is unavailable for active processing records so the worker cannot lose data mid-run.
 
 Markdown reports are refreshed from the latest metadata when workflow fields, comments, retries, review status, or document type change.
 

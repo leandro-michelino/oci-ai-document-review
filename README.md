@@ -47,7 +47,7 @@ Business reviewers often receive receipts, invoices, contracts, reports, and com
 - text is extracted locally when possible and with OCI Document Understanding when OCR is needed;
 - OCI Generative AI creates a structured review summary, risks, recommendations, and extracted business details;
 - a curated compliance knowledge base adds deterministic review-routing signals;
-- reviewers approve, reject, retry, assign, comment, and download reports from a Streamlit portal.
+- reviewers approve, reject, retry, discard failed uploads, assign, comment, and download reports from a Streamlit portal.
 
 It is not a blind auto-approval system. It is a human-in-the-loop review platform that reduces manual reading and makes the decision trail easier to inspect.
 
@@ -60,7 +60,7 @@ It is not a blind auto-approval system. It is a human-in-the-loop review platfor
 | Large scanned PDFs | Automatic split into limit-safe temporary chunks for synchronous Document Understanding calls, with cleanup after merge. |
 | AI review | OCI Generative AI generates structured summaries, fields, risks, missing information, recommendations, and receipt or invoice line items when visible. |
 | Compliance overlay | A curated Object Storage CSV/JSON catalog flags public-sector expense cues with auditable evidence and `LOW`, `MEDIUM`, or `HIGH` severity. |
-| Workflow | Dashboard queues, Actions review screen, dedicated Reviewed archive, approve/reject decisions, owner assignment, SLA date, comments, audit trail, retry history, source-document download, and an ERP handoff integration slot after decisions targeting SAP, Oracle Fusion, or a custom API. |
+| Workflow | Dashboard queues, Actions review screen, dedicated Reviewed archive, approve/reject decisions, owner assignment, SLA date, comments, audit trail, retry history, guarded failed-document discard, source-document download, and an ERP handoff integration slot after decisions targeting SAP, Oracle Fusion, or a custom API. |
 | Reporting | Local JSON metadata plus Markdown review reports for download. |
 | Retention | VM-local metadata, reports, upload working copies, and Object Storage document objects are retained for 30 days by default. |
 | Optional automation | OCI Events and OCI Functions can ingest files uploaded to Object Storage under `incoming/`. |
@@ -69,7 +69,7 @@ The Streamlit app exposes six main pages:
 
 - `Upload`: queue new documents and grouped submissions.
 - `Dashboard`: monitor processing, ready reviews, failures, reviewed items, search, filters, and grouped submissions.
-- `Actions`: perform approval, rejection, retry, workflow assignment, comments, source download, and audit review.
+- `Actions`: perform approval, rejection, retry, guarded failed-document discard, workflow assignment, comments, source download, and audit review.
 - `Reviewed`: browse approved and rejected documents with search and decision filters.
 - `How To Use`: in-app operating guidance.
 - `Settings`: runtime configuration and live OCI Preflight checks.
@@ -164,7 +164,7 @@ Important behavior:
 - Empty extraction fails clearly instead of sending empty content to GenAI.
 - GenAI content-safety blocks are converted into reviewer-safe manual-review messages instead of exposing raw provider JSON.
 - Documents matching the compliance catalog stay in the Ready queue as `Compliance review`.
-- Failed documents can be retried from the preserved local working copy.
+- Failed documents can be retried from the preserved local working copy. If a failed upload must be removed, Actions provides `Discard Failed Document` after the reviewer types the document ID to confirm. It removes only the portal-managed `documents/<document-id>/...` Object Storage copy plus local metadata, report, and working copy; it preserves a local deletion tombstone and does not delete an externally supplied intake object. Active processing records cannot be discarded.
 
 ## Quick Start
 

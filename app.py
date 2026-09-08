@@ -11,6 +11,7 @@ from streamlit import config as streamlit_config
 
 from src.compliance import load_local_compliance_catalog
 from src.config import get_config
+from src.document_deletion import discard_failed_document
 from src.health_checks import run_preflight
 from src.job_queue import (
     retry_document_processing,
@@ -2922,6 +2923,61 @@ def render_retry_panel(config, store, record, key_prefix: str) -> None:
             st.rerun()
 
 
+def render_discard_failed_document_panel(config, store, record, key_prefix: str) -> None:
+    if record.status != ProcessingStatus.FAILED:
+        return
+
+    st.markdown("### Discard failed document")
+    st.warning(
+        "This permanently removes the portal-managed Object Storage copy, local source "
+        "copy, report, and dashboard record. The original external intake object is not deleted."
+    )
+    actor = st.text_input(
+        "Discard requested by",
+        value=record.assignee or "Reviewer",
+        key=f"{key_prefix}_discard_actor_{record.document_id}",
+    )
+    reason = st.text_area(
+        "Discard reason",
+        value="",
+        height=80,
+        key=f"{key_prefix}_discard_reason_{record.document_id}",
+    )
+    confirmation = st.text_input(
+        f"Type {record.document_id} to confirm permanent deletion",
+        key=f"{key_prefix}_discard_confirmation_{record.document_id}",
+    )
+    confirmed = confirmation.strip() == record.document_id
+    if st.button(
+        "Discard Failed Document",
+        key=f"{key_prefix}_discard_{record.document_id}",
+        disabled=not confirmed,
+        width="stretch",
+    ):
+        try:
+            discard_failed_document(
+                config=config,
+                store=store,
+                document_id=record.document_id,
+                actor=actor,
+                reason=reason or None,
+            )
+        except (FileNotFoundError, RuntimeError, ValueError) as exc:
+            st.error(display_error_message(str(exc)))
+        except Exception:
+            st.error(
+                "The failed document could not be discarded. Local data has been kept; "
+                "check the service logs and try again."
+            )
+        else:
+            st.session_state.pop("selected_document_id", None)
+            st.session_state.pop("dashboard_selected_document", None)
+            st.session_state.pop(PENDING_DETAIL_DOCUMENT_KEY, None)
+            st.success("Failed document discarded. A deletion tombstone was retained for audit.")
+            open_page(PAGE_DASHBOARD)
+            st.rerun()
+
+
 def render_workflow_comments(config, store, record, key_prefix: str) -> None:
     st.markdown("### Notes")
     author = st.text_input(
@@ -3058,6 +3114,7 @@ def render_workflow_panel(config, store, record, key_prefix: str) -> None:
         st.rerun()
 
     render_retry_panel(config, store, record, key_prefix)
+    render_discard_failed_document_panel(config, store, record, key_prefix)
     render_workflow_comments(config, store, record, key_prefix)
     render_retry_history(record)
     render_audit_trail(record)
@@ -3832,7 +3889,7 @@ def howto_page(config, store):
         ),
         (
             "Fix only failed items",
-            "If processing fails or becomes stale, open the item from Dashboard or Actions, check the failure detail, and retry with a corrected file.",
+            "If processing fails or becomes stale, open the item from Dashboard or Actions, check the failure detail, then retry with a corrected file or discard the failed upload after confirming its document ID.",
         ),
     ]
     approver_steps = [
