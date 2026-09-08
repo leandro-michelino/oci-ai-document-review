@@ -1005,7 +1005,7 @@ def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):
         get_config.cache_clear()
 
 
-def test_actions_requires_exact_id_before_failed_document_discard_is_enabled(
+def test_actions_requires_exact_id_before_failed_document_discard_executes(
     monkeypatch, tmp_path
 ):
     configure_streamlit_test_env(monkeypatch, tmp_path)
@@ -1020,7 +1020,8 @@ def test_actions_requires_exact_id_before_failed_document_discard_is_enabled(
             "doc-failed-discard", "broken-source.pdf", status=ProcessingStatus.FAILED
         )
         failed.uploaded_at = datetime.now(timezone.utc)
-        MetadataStore(config).save(failed)
+        store = MetadataStore(config)
+        store.save(failed)
 
         app = AppTest.from_file("app.py", default_timeout=5)
         app.query_params["page"] = "Actions"
@@ -1029,7 +1030,12 @@ def test_actions_requires_exact_id_before_failed_document_discard_is_enabled(
         discard_button = next(
             button for button in app.button if button.label == "Discard Failed Document"
         )
-        assert discard_button.disabled is True
+        assert discard_button.disabled is False
+        app = discard_button.click().run()
+        assert store.load("doc-failed-discard").status == ProcessingStatus.FAILED
+        assert any(
+            "Confirmation is required" in alert.value for alert in app.error
+        )
 
         confirmation = next(
             item

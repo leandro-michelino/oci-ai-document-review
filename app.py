@@ -2951,31 +2951,38 @@ def render_discard_failed_document_panel(config, store, record, key_prefix: str)
     if st.button(
         "Discard Failed Document",
         key=f"{key_prefix}_discard_{record.document_id}",
-        disabled=not confirmed,
         width="stretch",
     ):
-        try:
-            discard_failed_document(
-                config=config,
-                store=store,
-                document_id=record.document_id,
-                actor=actor,
-                reason=reason or None,
-            )
-        except (FileNotFoundError, RuntimeError, ValueError) as exc:
-            st.error(display_error_message(str(exc)))
-        except Exception:
+        if not confirmed:
             st.error(
-                "The failed document could not be discarded. Local data has been kept; "
-                "check the service logs and try again."
+                "Confirmation is required. Type the exact document ID shown above "
+                "before discarding this failed document."
             )
         else:
-            st.session_state.pop("selected_document_id", None)
-            st.session_state.pop("dashboard_selected_document", None)
-            st.session_state.pop(PENDING_DETAIL_DOCUMENT_KEY, None)
-            st.success("Failed document discarded. A deletion tombstone was retained for audit.")
-            open_page(PAGE_DASHBOARD)
-            st.rerun()
+            try:
+                discard_failed_document(
+                    config=config,
+                    store=store,
+                    document_id=record.document_id,
+                    actor=actor,
+                    reason=reason or None,
+                )
+            except (FileNotFoundError, RuntimeError, ValueError) as exc:
+                st.error(display_error_message(str(exc)))
+            except Exception:
+                st.error(
+                    "The failed document could not be discarded. Local data has been kept; "
+                    "check the service logs and try again."
+                )
+            else:
+                st.session_state.pop("selected_document_id", None)
+                st.session_state.pop("dashboard_selected_document", None)
+                st.session_state.pop(PENDING_DETAIL_DOCUMENT_KEY, None)
+                st.success(
+                    "Failed document discarded. A deletion tombstone was retained for audit."
+                )
+                open_page(PAGE_DASHBOARD)
+                st.rerun()
 
 
 def render_workflow_comments(config, store, record, key_prefix: str) -> None:

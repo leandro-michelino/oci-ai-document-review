@@ -316,7 +316,7 @@ Recommended processing flow:
 17. Use Reviewed to search approved and rejected documents, filter by decision, and open the stored record for audit context.
 18. Add workflow comments when the reviewer needs extra context or follow-up.
 19. For failed documents, use Retry Processing to create a child processing run from the preserved local working copy.
-20. To permanently remove a failed upload, use `Discard Failed Document` and type the exact document ID to enable the action. It deletes the portal-managed Object Storage copy and local working artifacts, then retains a local deletion tombstone for audit. It does not delete an external intake object, and it is unavailable while a document is still processing.
+20. To permanently remove a failed upload, use `Discard Failed Document` and type the exact document ID when prompted. The button explains the missing confirmation if it is clicked too early. It deletes the portal-managed Object Storage copy and local working artifacts, then retains a local deletion tombstone for audit. It does not delete an external intake object, and it is unavailable while a document is still processing.
 21. Inspect the audit trail and retry history in the same Workflow expander.
 22. Open the AI review summary expander to review the executive summary, key points, receipt or invoice items and services, risks, recommendations, and supporting details when the decision needs deeper analysis.
 23. Download Markdown or JSON results from the Downloads section.
