@@ -1051,6 +1051,47 @@ def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):
         get_config.cache_clear()
 
 
+def test_actions_status_filter_resets_selected_file_to_matching_record(monkeypatch, tmp_path):
+    configure_streamlit_test_env(monkeypatch, tmp_path)
+
+    from src.config import get_config
+    from src.metadata_store import MetadataStore
+
+    get_config.cache_clear()
+    try:
+        config = get_config()
+        store = MetadataStore(config)
+        review = make_record("doc-review", "review-contract.pdf")
+        review.uploaded_at = datetime.now(timezone.utc)
+        failed = make_record(
+            "doc-failed", "ItalianPassport.pdf", status=ProcessingStatus.FAILED
+        )
+        failed.uploaded_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        store.save(review)
+        store.save(failed)
+
+        app = AppTest.from_file("app.py", default_timeout=5)
+        app.query_params["page"] = "Actions"
+        app = app.run()
+        assert app.session_state["detail_action_item"] == "doc-review"
+
+        status_filter = next(
+            item for item in app.selectbox if item.label == "Status filter"
+        )
+        app = status_filter.set_value("Needs fix").run()
+
+        selected_file = next(
+            item
+            for item in app.selectbox
+            if item.label == "Selected file for review"
+        )
+        assert selected_file.value == "doc-failed"
+        assert app.session_state["detail_action_item"] == "doc-failed"
+        assert app.session_state["selected_document_id"] == "doc-failed"
+    finally:
+        get_config.cache_clear()
+
+
 def test_actions_requires_exact_id_before_failed_document_discard_executes(
     monkeypatch, tmp_path
 ):

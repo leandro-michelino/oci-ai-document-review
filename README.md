@@ -70,7 +70,7 @@ The Streamlit app exposes six main pages:
 
 - `Upload`: queue new documents and grouped submissions.
 - `Dashboard`: monitor processing, ready reviews, failures, reviewed items, search, filters, and grouped submissions.
-- `Actions`: filter work by Needs decision, Needs fix, Processing, or Reviewed status; perform approval, rejection, retry, guarded failed-document discard, workflow assignment, comments, source download, and audit review. The selected record refreshes automatically while the page is open.
+- `Actions`: filter work by Needs decision, Needs fix, Processing, or Reviewed status; perform approval, rejection, retry, guarded failed-document discard, workflow assignment, comments, source download, and audit review. Changing the status filter automatically selects a matching file, so the selector and review detail stay synchronized. The selected record refreshes automatically while the page is open.
 - `Reviewed`: browse approved and rejected documents with search and decision filters.
 - `How To Use`: in-app operating guidance.
 - `Settings`: runtime configuration and live OCI Preflight checks.

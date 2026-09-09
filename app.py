@@ -3837,79 +3837,77 @@ def detail_page(config, store):
         st.session_state.pop(DETAIL_ACTION_PICKER_KEY, None)
         st.session_state.pop(DETAIL_GROUP_PICKER_KEY, None)
 
+    status_filter = st.session_state.get(DETAIL_STATUS_FILTER_KEY, "All")
+    if status_filter not in ACTION_STATUS_FILTERS:
+        status_filter = "All"
+    filtered_records = filter_action_records(records, status_filter)
+    group_options = action_group_options(filtered_records)
+    has_document_groups = len(group_options) > 1
     with st.container(border=True):
-        filter_cols = st.columns([0.42, 0.58], vertical_alignment="bottom")
-        status_filter = filter_cols[0].selectbox(
+        columns = st.columns(
+            [0.32, 0.4, 0.58] if has_document_groups else [0.32, 0.98],
+            vertical_alignment="bottom",
+        )
+        status_filter = columns[0].selectbox(
             "Status filter",
             ACTION_STATUS_FILTERS,
             key=DETAIL_STATUS_FILTER_KEY,
-            help="Show only documents at the selected reviewer-facing status.",
+            help=(
+                "Show only documents at the selected reviewer-facing status. "
+                "Needs fix shows failed documents that require retry or follow-up."
+            ),
         )
-        filter_cols[1].caption(
-            "Use Needs fix to focus on failed documents that require retry or follow-up."
-        )
-
-    filtered_records = filter_action_records(records, status_filter)
-    if not filtered_records:
-        st.info(f"No documents match the {status_filter.lower()} filter.")
-        return
+        if not filtered_records:
+            st.info(f"No documents match the {status_filter.lower()} filter.")
+            return
 
     ids = [record.document_id for record in filtered_records]
     default_id = st.session_state.get("selected_document_id", ids[0])
     if default_id not in ids:
         default_id = ids[0]
-    group_options = action_group_options(filtered_records)
-    group_records_by_key = {key: group_records for key, _, group_records in group_options}
-    group_labels = {key: label for key, label, _ in group_options}
-    group_keys = [key for key, _, _ in group_options]
-    default_group = action_group_for_document(filtered_records, default_id)
-    selected_group_key = st.session_state.get(DETAIL_GROUP_PICKER_KEY)
-    if selected_group_key not in group_keys:
-        st.session_state.pop(DETAIL_GROUP_PICKER_KEY, None)
-        selected_group_key = default_group
+        st.session_state["selected_document_id"] = default_id
     labels = {
         record.document_id: action_item_label(record) for record in filtered_records
     }
-    with st.container(border=True):
-        group_cols = st.columns([0.82, 0.58, 0.3, 0.3], vertical_alignment="bottom")
-        group_key = group_cols[0].selectbox(
-            "Select document group",
+    group_key = "all"
+    scoped_records = filtered_records
+    file_column = columns[1]
+    if has_document_groups:
+        group_records_by_key = {
+            key: group_records for key, _, group_records in group_options
+        }
+        group_labels = {key: label for key, label, _ in group_options}
+        group_keys = [key for key, _, _ in group_options]
+        default_group = action_group_for_document(filtered_records, default_id)
+        selected_group_key = st.session_state.get(DETAIL_GROUP_PICKER_KEY)
+        if selected_group_key not in group_keys:
+            selected_group_key = default_group
+            st.session_state[DETAIL_GROUP_PICKER_KEY] = selected_group_key
+        group_key = columns[1].selectbox(
+            "Document group",
             group_keys,
             index=group_keys.index(selected_group_key),
             format_func=lambda item: group_labels.get(item, item),
-            help=(
-                "Choose an expense/reference group first, then select the exact file "
-                "inside that group."
-            ),
+            help="Optional grouping for related files with the same expense or reference.",
             key=DETAIL_GROUP_PICKER_KEY,
         )
         scoped_records = group_records_by_key[group_key]
-        scoped_ids = [record.document_id for record in scoped_records]
-        selected_action_id = st.session_state.get(DETAIL_ACTION_PICKER_KEY)
-        if selected_action_id not in scoped_ids:
-            st.session_state.pop(DETAIL_ACTION_PICKER_KEY, None)
-            selected_action_id = default_id if default_id in scoped_ids else scoped_ids[0]
-        document_id = group_cols[1].selectbox(
-            "Select file in group" if group_key != "all" else "Selected file for review",
-            scoped_ids,
-            index=scoped_ids.index(selected_action_id),
-            format_func=lambda item: labels.get(item, item),
-            key=DETAIL_ACTION_PICKER_KEY,
-        )
-        group_cols[2].button(
-            "Dashboard",
-            width="stretch",
-            key=f"detail_dashboard_{document_id}",
-            on_click=open_page,
-            args=(PAGE_DASHBOARD,),
-        )
-        group_cols[3].button(
-            "Upload",
-            width="stretch",
-            key=f"detail_upload_{document_id}",
-            on_click=open_page,
-            args=(PAGE_UPLOAD,),
-        )
+        file_column = columns[2]
+    else:
+        st.session_state.pop(DETAIL_GROUP_PICKER_KEY, None)
+
+    scoped_ids = [record.document_id for record in scoped_records]
+    selected_action_id = st.session_state.get(DETAIL_ACTION_PICKER_KEY)
+    if selected_action_id not in scoped_ids:
+        selected_action_id = default_id if default_id in scoped_ids else scoped_ids[0]
+        st.session_state[DETAIL_ACTION_PICKER_KEY] = selected_action_id
+    document_id = file_column.selectbox(
+        "Select file in group" if group_key != "all" else "Selected file for review",
+        scoped_ids,
+        index=scoped_ids.index(selected_action_id),
+        format_func=lambda item: labels.get(item, item),
+        key=DETAIL_ACTION_PICKER_KEY,
+    )
 
     record = store.load(document_id)
     st.session_state["selected_document_id"] = document_id

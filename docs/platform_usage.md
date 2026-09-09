@@ -391,7 +391,7 @@ Dashboard
 
 Actions
   - Polls the selected document every second while open, so a background processing status change becomes visible without navigating away or manually reloading. Reviewer draft fields use session state and remain available across the refresh.
-  - Includes a Status filter for All, Needs decision, Needs fix, Processing, and Reviewed. Selecting Needs fix narrows the group and file selectors to failed documents only.
+  - Includes a compact Status filter for All, Needs decision, Needs fix, Processing, and Reviewed. Selecting Needs fix narrows the available files to failed documents only and selects a matching file, keeping the selector and review detail synchronized. The optional Document group selector appears only when related multi-file expense/reference groups exist.
 
 Reviewed
   - Appears as a dedicated sidebar page after Actions.
@@ -438,7 +438,7 @@ resources; a Function-only environment is a separate infrastructure choice.
 
 Actions
   - Prioritizes documents that need approval, rejection, or failed-processing follow-up.
-  - Starts with `Select document group` so reviewers can choose all documents or a specific expense/reference group before choosing a file.
+  - Shows Document group only for related multi-file expense/reference work, so single-file reviews start directly with the status filter and file selector.
   - Labels the selector as `Selected file for review` and includes file name, document ID, expense/reference, stage, and upload time in each option.
   - Repeats the selected file name, document ID, linked-file count, workflow state, SLA, and risk/action badges in a compact summary above the review controls.
   - Keeps linked files for the same Expense name or reference inside a collapsed expander.

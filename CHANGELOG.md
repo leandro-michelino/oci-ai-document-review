@@ -10,6 +10,7 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Simplified the Actions review controls into one compact row, removing duplicate navigation controls and showing Document group only for related multi-file work. Changing a status filter now resets Selected file for review to a matching record, keeping the selector and review detail synchronized.
 - Added an Actions Status filter that narrows document groups and selected files to Needs decision, Needs fix, Processing, or Reviewed work.
 - Actions now checks the selected document every second while open, so background processing changes appear without a manual page reload while reviewer draft fields remain in session state.
 - Reduced Dashboard live refresh from 10 seconds to 3 seconds, with a visible last-check time and a manual Refresh Status control for both active and idle queues.
