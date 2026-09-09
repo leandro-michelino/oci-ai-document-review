@@ -10,6 +10,9 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Added an Actions Status filter that narrows document groups and selected files to Needs decision, Needs fix, Processing, or Reviewed work.
+- Actions now checks the selected document every second while open, so background processing changes appear without a manual page reload while reviewer draft fields remain in session state.
+- Reduced Dashboard live refresh from 10 seconds to 3 seconds, with a visible last-check time and a manual Refresh Status control for both active and idle queues.
 - Added model/prompt traceability, reviewer AI-quality feedback, synthetic golden privacy cases, restricted-document preview redaction, portal download blocking, and configurable shorter sensitive-document retention.
 - Added a guarded `Discard Failed Document` workflow in Actions. It requires exact document-ID confirmation, removes only the portal-managed `documents/<document-id>/...` Object Storage copy and local artifacts, and keeps a local deletion tombstone for audit. Active records remain protected.
 - Improved the discard confirmation UX: the button remains available and explains the missing confirmation instead of appearing unavailable.

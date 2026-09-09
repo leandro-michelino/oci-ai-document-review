@@ -386,8 +386,12 @@ Dashboard
   - Shows Ready, Processing, Failed, and Reviewed as tabs below one search and status-filter area.
   - Opens selected files in Actions from the compact table `Review selected` action.
   - Keeps the route in the browser URL with `?page=Dashboard`.
-  - Refreshes Dashboard components with a Streamlit fragment instead of full browser reloads.
+  - Refreshes Dashboard components every three seconds with a Streamlit fragment instead of full browser reloads, and shows the last refresh time plus a manual Refresh Status control.
   - Marks stale active records as failed during refresh so stuck uploads do not remain in Processing forever.
+
+Actions
+  - Polls the selected document every second while open, so a background processing status change becomes visible without navigating away or manually reloading. Reviewer draft fields use session state and remain available across the refresh.
+  - Includes a Status filter for All, Needs decision, Needs fix, Processing, and Reviewed. Selecting Needs fix narrows the group and file selectors to failed documents only.
 
 Reviewed
   - Appears as a dedicated sidebar page after Actions.

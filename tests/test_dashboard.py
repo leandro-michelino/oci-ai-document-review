@@ -8,6 +8,7 @@ import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 from app import (
+    ACTION_STATUS_FILTERS,
     DASHBOARD_STATUS_FILTERS,
     NAVIGATION_PAGES,
     PAGE_DASHBOARD,
@@ -19,6 +20,7 @@ from app import (
     action_badge,
     action_group_for_document,
     action_group_options,
+    action_status_filter,
     action_item_label,
     action_tone,
     action_workload_metrics_html,
@@ -39,6 +41,7 @@ from app import (
     expense_row_groups,
     file_size_label,
     filter_dashboard_status,
+    filter_action_records,
     filter_queue_rows,
     format_compliance_evidence,
     next_action,
@@ -150,6 +153,34 @@ def test_navigation_pages_include_reviewed_after_actions():
         PAGE_REVIEWED,
         PAGE_HELP,
         PAGE_SETTINGS,
+    ]
+
+
+def test_actions_status_filter_matches_summary_categories():
+    needs_decision = make_record("doc-decision", "decision.pdf")
+    needs_fix = make_record(
+        "doc-fix", "fix.pdf", status=ProcessingStatus.FAILED
+    )
+    processing = make_record(
+        "doc-processing", "processing.pdf", status=ProcessingStatus.PROCESSING
+    )
+    reviewed = make_record("doc-reviewed", "reviewed.pdf", status=ProcessingStatus.APPROVED)
+    reviewed.review_status = ReviewStatus.APPROVED
+    records = [needs_decision, needs_fix, processing, reviewed]
+
+    assert ACTION_STATUS_FILTERS == [
+        "All",
+        "Needs decision",
+        "Needs fix",
+        "Processing",
+        "Reviewed",
+    ]
+    assert action_status_filter(needs_decision) == "Needs decision"
+    assert action_status_filter(needs_fix) == "Needs fix"
+    assert action_status_filter(processing) == "Processing"
+    assert action_status_filter(reviewed) == "Reviewed"
+    assert [record.document_id for record in filter_action_records(records, "Needs fix")] == [
+        "doc-fix"
     ]
 
 

@@ -69,6 +69,13 @@ DASHBOARD_STATUS_FILTERS = [
     "Retry planned",
     "Reviewed",
 ]
+ACTION_STATUS_FILTERS = [
+    "All",
+    "Needs decision",
+    "Needs fix",
+    "Processing",
+    "Reviewed",
+]
 MAX_FILES_PER_UPLOAD = 5
 UPLOAD_FORM_STATE_KEYS = (
     "upload_document_type",
@@ -92,7 +99,8 @@ ALLOWED_UPLOAD_EXTENSIONS = [
     "yml",
 ]
 OCI_OCR_EXTENSIONS = {"jpeg", "jpg", "png"}
-DASHBOARD_REFRESH_SECONDS = 10
+DASHBOARD_REFRESH_SECONDS = 3
+ACTIONS_REFRESH_SECONDS = 1
 CONTACT_TEXT = "Leandro Michelino | ACE | leandro.michelino@oracle.com"
 CONTACT_MESSAGE = (
     "For questions, new project ideas, or company needs, get in touch."
@@ -114,6 +122,7 @@ NAVIGATION_PAGES = [
 PAGE_QUERY_PARAM = "page"
 DETAIL_ACTION_PICKER_KEY = "detail_action_item"
 DETAIL_GROUP_PICKER_KEY = "detail_action_group"
+DETAIL_STATUS_FILTER_KEY = "detail_status_filter"
 PENDING_DETAIL_DOCUMENT_KEY = "pending_detail_document_id"
 LEGACY_PAGE_NAMES = {
     "Upload Document": PAGE_UPLOAD,
@@ -1736,6 +1745,28 @@ def sort_action_records(records: list[DocumentRecord]) -> list[DocumentRecord]:
     )
 
 
+def action_status_filter(record: DocumentRecord) -> str:
+    if requires_human_action(record):
+        return "Needs decision"
+    if record.status.value == "FAILED":
+        return "Needs fix"
+    if record.status.value in ACTIVE_STATUSES:
+        return "Processing"
+    if record.review_status.value in {"APPROVED", "REJECTED"}:
+        return "Reviewed"
+    return "Other"
+
+
+def filter_action_records(
+    records: list[DocumentRecord], status_filter: str
+) -> list[DocumentRecord]:
+    if status_filter == "All":
+        return sort_action_records(records)
+    return sort_action_records(
+        [record for record in records if action_status_filter(record) == status_filter]
+    )
+
+
 def expense_reference_groups(
     records: list[DocumentRecord],
 ) -> list[tuple[str, list[DocumentRecord]]]:
@@ -2555,12 +2586,11 @@ def open_page_from_dashboard(page: str, document_id: str | None = None) -> None:
     st.rerun()
 
 
-def render_dashboard_refresh_note(active_count: int) -> None:
-    if active_count <= 0:
-        return
+def render_dashboard_refresh_note() -> None:
+    refreshed_at = datetime.now().astimezone().strftime("%H:%M:%S %Z")
     st.caption(
-        "Refreshing Dashboard components every "
-        f"{DASHBOARD_REFRESH_SECONDS} seconds while documents are processing."
+        "Dashboard auto-refreshes every "
+        f"{DASHBOARD_REFRESH_SECONDS} seconds. Last checked: {refreshed_at}."
     )
 
 
@@ -3585,9 +3615,9 @@ def render_dashboard_live_content(config, store) -> None:
             f"{config.max_parallel_jobs}. Items older than "
             f"{config.stale_processing_minutes} minutes are marked failed automatically."
         )
-        if st.button("Refresh Status", key="dashboard_active_refresh"):
-            rerun_dashboard_fragment()
-        render_dashboard_refresh_note(len(active_runs))
+    if st.button("Refresh Status", key="dashboard_refresh"):
+        rerun_dashboard_fragment()
+    render_dashboard_refresh_note()
 
     st.markdown(
         """
@@ -3751,16 +3781,20 @@ def reviewed_page(config, store):
     )
 
 
+@st.fragment(run_every=f"{ACTIONS_REFRESH_SECONDS}s")
 def detail_page(config, store):
     page_header(
         "Review",
         "Actions",
         "Work through documents that need approval, rejection, retry, or review follow-up.",
     )
+    st.caption(
+        "Actions checks the selected document every "
+        f"{ACTIONS_REFRESH_SECONDS} second while this page is open. "
+        "Reviewer draft fields are retained."
+    )
     records = store.list_records()
-    ordered_records = sort_action_records(records)
-    ids = [record.document_id for record in ordered_records]
-    if not ids:
+    if not records:
         with st.container(border=True):
             st.info("No documents processed yet.")
             st.button(
@@ -3793,24 +3827,49 @@ def detail_page(config, store):
     )
 
     pending_document_id = st.session_state.pop(PENDING_DETAIL_DOCUMENT_KEY, None)
-    if pending_document_id in ids:
+    pending_record = next(
+        (record for record in records if record.document_id == pending_document_id),
+        None,
+    )
+    if pending_record:
+        st.session_state[DETAIL_STATUS_FILTER_KEY] = action_status_filter(pending_record)
         st.session_state["selected_document_id"] = pending_document_id
         st.session_state.pop(DETAIL_ACTION_PICKER_KEY, None)
         st.session_state.pop(DETAIL_GROUP_PICKER_KEY, None)
 
+    with st.container(border=True):
+        filter_cols = st.columns([0.42, 0.58], vertical_alignment="bottom")
+        status_filter = filter_cols[0].selectbox(
+            "Status filter",
+            ACTION_STATUS_FILTERS,
+            key=DETAIL_STATUS_FILTER_KEY,
+            help="Show only documents at the selected reviewer-facing status.",
+        )
+        filter_cols[1].caption(
+            "Use Needs fix to focus on failed documents that require retry or follow-up."
+        )
+
+    filtered_records = filter_action_records(records, status_filter)
+    if not filtered_records:
+        st.info(f"No documents match the {status_filter.lower()} filter.")
+        return
+
+    ids = [record.document_id for record in filtered_records]
     default_id = st.session_state.get("selected_document_id", ids[0])
     if default_id not in ids:
         default_id = ids[0]
-    group_options = action_group_options(records)
+    group_options = action_group_options(filtered_records)
     group_records_by_key = {key: group_records for key, _, group_records in group_options}
     group_labels = {key: label for key, label, _ in group_options}
     group_keys = [key for key, _, _ in group_options]
-    default_group = action_group_for_document(records, default_id)
+    default_group = action_group_for_document(filtered_records, default_id)
     selected_group_key = st.session_state.get(DETAIL_GROUP_PICKER_KEY)
     if selected_group_key not in group_keys:
         st.session_state.pop(DETAIL_GROUP_PICKER_KEY, None)
         selected_group_key = default_group
-    labels = {record.document_id: action_item_label(record) for record in records}
+    labels = {
+        record.document_id: action_item_label(record) for record in filtered_records
+    }
     with st.container(border=True):
         group_cols = st.columns([0.82, 0.58, 0.3, 0.3], vertical_alignment="bottom")
         group_key = group_cols[0].selectbox(
