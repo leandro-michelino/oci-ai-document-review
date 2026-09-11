@@ -1,6 +1,6 @@
 # OCI AI Document Review - Oracle Cloud AI Review Portal
 
-![OCI AI Document Review Dashboard](docs/assets/oci-ai-document-review-dashboard.png)
+![OCI AI Document Review Dashboard](docs/assets/oci-ai-document-review-dashboard.png?v=0.7.0)
 
 Questions, pilot ideas, or OCI deployment notes? Reach out to Leandro Michelino | ACE | leandro.michelino@oracle.com.
 
