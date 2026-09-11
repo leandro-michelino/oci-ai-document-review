@@ -52,7 +52,9 @@ Usage:
 
 function loadExcalidraw(path) {
   const data = JSON.parse(readFileSync(path, "utf8"));
-  data.elements = (data.elements || []).filter((element) => !element.isDeleted);
+  data.elements = (data.elements || [])
+    .filter((element) => !element.isDeleted)
+    .map(({ index: _index, ...element }) => element);
   return data;
 }
 
@@ -84,7 +86,18 @@ async function main() {
   await new Promise((resolveListen) => server.listen(0, resolveListen));
   const { port } = server.address();
 
-  const browser = await chromium.launch();
+  let browser;
+  try {
+    browser = await chromium.launch();
+  } catch (error) {
+    if (!String(error.message).includes("Executable doesn't exist")) {
+      throw error;
+    }
+    console.warn(
+      "Playwright Chromium is unavailable; using the installed Google Chrome channel.",
+    );
+    browser = await chromium.launch({ channel: "chrome" });
+  }
   const page = await browser.newPage();
 
   page.on("console", (message) => {

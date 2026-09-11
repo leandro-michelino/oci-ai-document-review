@@ -968,73 +968,78 @@ Release and documentation ownership:
                                       +----------------------------+
 ```
 
-## Phase 2 Enterprise Flow
+## Optional ODA Case Assistant Flow
 
 ```text
 +---------------+
-| Business User |
+| Authenticated |
+| ODA user      |
 +-------+-------+
         |
         v
 +-------------------------+
-| APEX / Visual Builder   |
-| or Streamlit            |
+| ODA skill with OAuth    |
+| account linking         |
 +-------+-----------------+
         |
-        +---------------------------+
-        |                           |
-        v                           v
-+-------------------------+   +-------------------------+
-| Review UI               |   | Customer Chatbot        |
-| Upload / Dashboard /    |   | Status, rejection, SLA, |
-| Actions                 |   | retry, risk questions   |
-+-------+-----------------+   +------------+------------+
-        |                                  |
-        +----------------------+-----------+
-                               |
         v
 +-------------------------+
-| Backend Processor       |
-| Python / API            |
+| Private OCI API Gateway |
+| JWT issuer and audience |
 +-------+-----------------+
         |
-        +----------------------+----------------------+----------------------+
-        |                      |                      |                      |
-        v                      v                      v                      v
-+-------------------+  +---------------------+  +-------------------+  +-----------------------+
-| Object Storage    |  | Document             |  | Generative AI     |  | Autonomous Database   |
-| Original Files    |  | Understanding        |  | Analysis + Chat   |  | Metadata, Review, ACL |
-+-------------------+  +---------------------+  +-------------------+  +-----------------------+
+        v
++-------------------------+
+| Optional case-chat API  |
+| OIDC + default-deny ACL |
+| private VM route :8081  |
++-------+-----------------+
+        |
+        v
++-------------------------+
+| Same-document retrieval |
+| local metadata + GenAI  |
++-------+-----------------+
+        |
+        v
++-------------------------+
+| Cited answer or safe    |
+| refusal, human review   |
++-------------------------+
 ```
 
-The Phase 2 chatbot should be read-only and grounded in stored metadata, audit events, workflow comments, extracted summaries, generated reports, and review decisions. It should answer customer questions about status, rejection reason, retry instructions, owner, SLA, and risk summaries, while enforcing document-level authorization.
+The Streamlit widget is always available to reviewers as a local demonstration.
+The ODA path above is optional and disabled by default. When enabled, it is
+read-only, uses the authenticated subject and exact document ID to enforce
+access, retrieves only that document's permitted evidence, and returns a cited
+answer or safe refusal. It does not use Autonomous Database in this MVP.
 
-## Phase 2 Customer Chatbot Flow
+## Optional Case Assistant Request Flow
 
 ```text
 +---------------------------+
-| Customer                  |
-| "What is my file status?" |
+| Authenticated ODA user    |
+| "What is my case status?"|
 +-------------+-------------+
               |
               v
 +---------------------------+
-| Authenticated Chat UI     |
-| customer/session context  |
+| ODA skill + OAuth token   |
+| document ID and question  |
 +-------------+-------------+
               |
               v
 +---------------------------+
-| Document Access Filter    |
-| customer, tenant, case id |
+| OIDC and ACL check        |
+| subject plus document ID  |
 +-------------+-------------+
               |
               v
 +---------------------------+
 | Retrieval                 |
-| metadata, audit events,   |
-| comments, reports,        |
-| extracted summaries       |
+| selected-case metadata,   |
+| review outputs, extracted |
+| fields and comments       |
 +-------------+-------------+
               |
               v
@@ -1045,8 +1050,7 @@ The Phase 2 chatbot should be read-only and grounded in stored metadata, audit e
               |
               v
 +---------------------------+
-| Customer Answer           |
-| status, rejection reason, |
-| owner, SLA, retry step    |
+| Cited answer or refusal   |
+| human review remains      |
 +---------------------------+
 ```
