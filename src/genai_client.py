@@ -40,6 +40,10 @@ class GenAIClient:
             max_tokens=20,
         )
 
+    def answer_case_question(self, prompt: str) -> str:
+        """Answer a grounded case question with a deliberately small output budget."""
+        return self._chat(prompt, max_tokens=min(self.config.genai_max_tokens, 900))
+
     def _chat(self, prompt: str, max_tokens: int) -> str:
         models = self.oci.generative_ai_inference.models
         request = models.CohereChatRequest(

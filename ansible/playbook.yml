@@ -129,6 +129,14 @@
           EVENT_INTAKE_ENABLED={{ event_intake_enabled | default('false') }}
           EVENT_INTAKE_QUEUE_PREFIX={{ event_intake_queue_prefix | default('event-queue/') }}
           EVENT_INTAKE_INCOMING_PREFIX={{ event_intake_incoming_prefix | default('incoming/') }}
+          CASE_CHAT_API_ENABLED={{ case_chat_api_enabled | default('false') }}
+          CASE_CHAT_API_HOST={{ case_chat_api_host | default('127.0.0.1') }}
+          CASE_CHAT_API_PORT={{ case_chat_api_port | default('8081') }}
+          CASE_CHAT_OIDC_ISSUER={{ case_chat_oidc_issuer | default('') }}
+          CASE_CHAT_OIDC_AUDIENCE={{ case_chat_oidc_audience | default('') }}
+          CASE_CHAT_OIDC_JWKS_URL={{ case_chat_oidc_jwks_url | default('') }}
+          CASE_CHAT_ACCESS_FILE={{ case_chat_access_file | default('data/case_chat_access.json') }}
+          CASE_CHAT_MAX_CONTEXT_CHUNKS={{ case_chat_max_context_chunks | default('6') }}
           LOCAL_METADATA_DIR=data/metadata
           LOCAL_REPORTS_DIR=data/reports
           LOCAL_UPLOADS_DIR=data/uploads
@@ -213,6 +221,47 @@
 
           [Install]
           WantedBy=multi-user.target
+
+    - name: Install private ODA case-chat API service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/oci-ai-document-review-case-chat.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=OCI AI Document Review ODA case-chat API
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User={{ app_user }}
+          Group={{ app_user }}
+          WorkingDirectory={{ app_dir }}
+          EnvironmentFile={{ app_dir }}/.env
+          ExecStart={{ app_dir }}/.venv/bin/uvicorn src.case_chat_api:app --host {{ case_chat_api_host | default('127.0.0.1') }} --port {{ case_chat_api_port | default('8081') }} --no-access-log
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+      when: case_chat_api_enabled | default(false) | bool
+
+    - name: Start private ODA case-chat API service
+      ansible.builtin.systemd_service:
+        name: oci-ai-document-review-case-chat
+        state: restarted
+        enabled: true
+        daemon_reload: true
+      when: case_chat_api_enabled | default(false) | bool
+
+    - name: Stop ODA case-chat API service when disabled
+      ansible.builtin.systemd_service:
+        name: oci-ai-document-review-case-chat
+        state: stopped
+        enabled: false
+        daemon_reload: true
+      failed_when: false
+      when: not (case_chat_api_enabled | default(false) | bool)
 
     - name: Install local retention cleanup service
       ansible.builtin.copy:
@@ -318,6 +367,12 @@
         port: "{{ app_port }}"
         delay: 3
         timeout: 120
+
+    - name: Verify private ODA case-chat API health
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ case_chat_api_port | default('8081') }}/healthz"
+        return_content: true
+      when: case_chat_api_enabled | default(false) | bool
 
     - name: Show deployment result and next steps
       ansible.builtin.debug:

@@ -10,6 +10,12 @@ import streamlit as st
 from streamlit import config as streamlit_config
 
 from src.compliance import load_local_compliance_catalog
+from src.case_chat import (
+    NO_ANSWER,
+    CaseEvidenceRetriever,
+    answer_has_valid_citations,
+    build_case_answer_prompt,
+)
 from src.config import get_config
 from src.document_deletion import discard_failed_document
 from src.health_checks import run_preflight
@@ -18,6 +24,7 @@ from src.job_queue import (
     submit_document_processing,
     submitted_document_ids,
 )
+from src.genai_client import GenAIClient
 from src.metadata_store import MetadataStore
 from src.models import (
     DocumentRecord,
@@ -1047,6 +1054,27 @@ def apply_theme() -> None:
         .stButton > button[kind="primary"]:hover {
             background: var(--brand-dark);
             border-color: var(--brand-dark);
+        }
+        [data-testid="stPopoverButton"] {
+            position: fixed !important;
+            right: 1.5rem !important;
+            bottom: 1.5rem !important;
+            z-index: 1000 !important;
+            width: 3.35rem;
+            height: 3.35rem;
+            border-radius: 999px;
+            border: 0;
+            background: var(--brand);
+            box-shadow: 0 8px 22px rgba(70, 26, 20, 0.3);
+            color: white;
+            font-size: 1.35rem;
+        }
+        [data-testid="stPopoverButton"] [aria-hidden="true"] {
+            display: none;
+        }
+        [data-testid="stPopoverButton"]:hover {
+            background: var(--brand-dark);
+            color: white;
         }
         </style>
         """,
@@ -3683,6 +3711,73 @@ def dashboard_page(config, store):
     render_dashboard_live_content(config, store)
 
 
+def render_case_chat_panel(config, store):
+    records = sorted(store.list_records(), key=lambda item: item.uploaded_at, reverse=True)
+    if not records:
+        st.info("Upload and process a document before starting a case chat.")
+        return
+
+    record_ids = [record.document_id for record in records]
+    selected_id = st.session_state.get("case_chat_document_id")
+    selected_index = record_ids.index(selected_id) if selected_id in record_ids else 0
+    selected_id = st.selectbox(
+        "Document",
+        record_ids,
+        index=selected_index,
+        key="case_chat_document_id",
+        format_func=lambda document_id: action_item_label(
+            next(record for record in records if record.document_id == document_id)
+        ),
+        help="The chatbot cannot retrieve or answer from any other document.",
+    )
+    record = next(record for record in records if record.document_id == selected_id)
+    st.caption(f"Selected case: `{record.document_id}` · {record.status.value}")
+
+    history_key = f"case_chat_history_{record.document_id}"
+    history = st.session_state.setdefault(history_key, [])
+    for message in history[-6:]:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    with st.form("case_chat_form", clear_on_submit=True):
+        question = st.text_input(
+            "Ask about this document",
+            placeholder="For example: Why does this case need review?",
+            label_visibility="collapsed",
+        )
+        submitted = st.form_submit_button("Send", type="primary", width="stretch")
+    if not submitted or not question.strip():
+        return
+    question = question.strip()
+    history.append({"role": "user", "content": question})
+    with st.chat_message("user"):
+        st.markdown(question)
+    evidence = CaseEvidenceRetriever(config.case_chat_max_context_chunks).retrieve(
+        record, question
+    )
+    with st.chat_message("assistant"):
+        with st.spinner("Retrieving case evidence and preparing an answer..."):
+            try:
+                answer = GenAIClient(config).answer_case_question(
+                    build_case_answer_prompt(question, evidence)
+                ).strip()
+                if not answer_has_valid_citations(answer, evidence):
+                    answer = NO_ANSWER
+            except Exception as exc:
+                answer = sanitize_provider_message(exc)
+        st.markdown(answer)
+        if evidence:
+            st.caption("Evidence used: " + ", ".join(item.evidence_id for item in evidence))
+    history.append({"role": "assistant", "content": answer})
+
+
+def render_case_chat_launcher(config, store):
+    with st.popover("💬", help="Ask about a selected document"):
+        st.markdown("#### Case assistant")
+        st.caption("Grounded answers from one selected case. Human review remains required.")
+        render_case_chat_panel(config, store)
+
+
 def reviewed_page(config, store):
     page_header(
         "Review",
@@ -4279,6 +4374,7 @@ def main():
         howto_page(config, store)
     else:
         settings_page(config)
+    render_case_chat_launcher(config, store)
 
 
 if __name__ == "__main__":

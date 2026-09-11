@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.oci/
 .venv/
 __pycache__/
 .pytest_cache/
@@ -11,6 +12,8 @@ node_modules/
 .coverage
 htmlcov/
 .deploy/
+output/
+tmp/
 .streamlit/secrets.toml
 *.pem
 *.key
@@ -27,10 +30,12 @@ data/metadata/*.json
 data/reports/*.md
 data/uploads/*
 data/deleted/*.json
+data/case_chat_access.json
 docs/assets/oci-ai-document-review-architecture.svg
 terraform/.terraform/
 terraform/terraform.tfstate*
 terraform/terraform.tfvars
 terraform/*.tfvars
 terraform/*.tfvars.json
+terraform/*.tfplan
 !terraform/terraform.tfvars.example

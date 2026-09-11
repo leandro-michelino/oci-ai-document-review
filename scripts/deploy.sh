@@ -239,7 +239,15 @@ ansible-playbook -i "$INVENTORY" ansible/playbook.yml \
   -e "event_intake_enabled=$AUTOMATIC_PROCESSING_ENABLED" \
   -e "event_intake_queue_prefix=${EVENT_INTAKE_QUEUE_PREFIX:-$TF_EVENT_INTAKE_QUEUE_PREFIX}" \
   -e "event_intake_incoming_prefix=${EVENT_INTAKE_INCOMING_PREFIX:-$TF_EVENT_INTAKE_INCOMING_PREFIX}" \
-  -e "event_intake_poll_seconds=$EVENT_INTAKE_POLL_SECONDS"
+  -e "event_intake_poll_seconds=$EVENT_INTAKE_POLL_SECONDS" \
+  -e "case_chat_api_enabled=${CASE_CHAT_API_ENABLED:-false}" \
+  -e "case_chat_api_host=${CASE_CHAT_API_HOST:-127.0.0.1}" \
+  -e "case_chat_api_port=${CASE_CHAT_API_PORT:-8081}" \
+  -e "case_chat_oidc_issuer=${CASE_CHAT_OIDC_ISSUER:-}" \
+  -e "case_chat_oidc_audience=${CASE_CHAT_OIDC_AUDIENCE:-}" \
+  -e "case_chat_oidc_jwks_url=${CASE_CHAT_OIDC_JWKS_URL:-}" \
+  -e "case_chat_access_file=${CASE_CHAT_ACCESS_FILE:-data/case_chat_access.json}" \
+  -e "case_chat_max_context_chunks=${CASE_CHAT_MAX_CONTEXT_CHUNKS:-6}"
 
 section "5/5 Verify Deployed Portal"
 verify_portal "$STREAMLIT_URL"

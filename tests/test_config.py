@@ -43,3 +43,18 @@ def test_app_config_rejects_bad_auth_and_object_name():
 
     with pytest.raises(ValidationError):
         AppConfig(**config_kwargs(COMPLIANCE_ENTITIES_OBJECT_NAME="../private.csv"))
+
+
+def test_case_chat_api_requires_non_blank_oidc_values_when_enabled():
+    with pytest.raises(ValidationError):
+        AppConfig(**config_kwargs(CASE_CHAT_API_ENABLED=True))
+
+    with pytest.raises(ValidationError):
+        AppConfig(
+            **config_kwargs(
+                CASE_CHAT_API_ENABLED=True,
+                CASE_CHAT_OIDC_ISSUER=" ",
+                CASE_CHAT_OIDC_AUDIENCE="case-chat",
+                CASE_CHAT_OIDC_JWKS_URL="https://identity.example.com/jwks",
+            )
+        )

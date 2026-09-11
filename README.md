@@ -434,6 +434,7 @@ docs/                          Architecture, usage, cost, security, and review n
 | [docs/cost_estimate.md](docs/cost_estimate.md) | Illustrative OCI cost assumptions and cost-control guidance. |
 | [docs/e2e_acceptance_notes.md](docs/e2e_acceptance_notes.md) | End-to-end acceptance notes. |
 | [docs/repository_review.md](docs/repository_review.md) | Repository review findings and cleanup decisions. |
+| [docs/oda_case_chat.md](docs/oda_case_chat.md) | Embedded case-chat assistant, optional ODA API, security boundary, deployment, and client activation steps. |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and unreleased changes. |
 
 ## Roadmap
@@ -446,6 +447,15 @@ Planned enterprise evolution:
 - OCI Logging, monitoring, budgets, and audit reporting.
 - Broader event automation for external systems.
 - Read-only customer chatbot for document status, rejection reason, retry guidance, owner, SLA, and risk-summary questions.
+
+The portal includes a floating **Case assistant** launcher for a friendly,
+document-scoped RAG demonstration. It lets a portal user choose one document
+and ask grounded questions from that record only. It does not approve, reject,
+update, download, or search across cases. The separate ODA-ready API is
+disabled by default; when a client elects to adopt ODA, it validates an
+end-user OIDC token, applies a default-deny ACL per document, and uses OCI
+Generative AI only with retrieved evidence from that case. See
+[docs/oda_case_chat.md](docs/oda_case_chat.md) before enabling it.
 
 The chatbot should answer only from trusted application data such as metadata, audit events, workflow comments, generated reports, extracted summaries, and reviewer decisions. It should not make approval decisions or invent missing information.
 

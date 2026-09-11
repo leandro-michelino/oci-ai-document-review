@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from dotenv import load_dotenv
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()
@@ -64,6 +64,34 @@ class AppConfig(BaseSettings):
         default=Path("data/uploads"), alias="LOCAL_UPLOADS_DIR"
     )
     app_title: str = Field(default="OCI AI Document Review Portal", alias="APP_TITLE")
+    case_chat_api_enabled: bool = Field(default=False, alias="CASE_CHAT_API_ENABLED")
+    case_chat_api_host: str = Field(default="127.0.0.1", alias="CASE_CHAT_API_HOST")
+    case_chat_api_port: int = Field(default=8081, ge=1, le=65535, alias="CASE_CHAT_API_PORT")
+    case_chat_oidc_issuer: str | None = Field(default=None, alias="CASE_CHAT_OIDC_ISSUER")
+    case_chat_oidc_audience: str | None = Field(default=None, alias="CASE_CHAT_OIDC_AUDIENCE")
+    case_chat_oidc_jwks_url: str | None = Field(default=None, alias="CASE_CHAT_OIDC_JWKS_URL")
+    case_chat_access_file: Path = Field(
+        default=Path("data/case_chat_access.json"), alias="CASE_CHAT_ACCESS_FILE"
+    )
+    case_chat_max_context_chunks: int = Field(
+        default=6, ge=1, le=12, alias="CASE_CHAT_MAX_CONTEXT_CHUNKS"
+    )
+
+    @model_validator(mode="after")
+    def validate_case_chat_security(self):
+        if self.case_chat_api_enabled and not all(
+            value and value.strip()
+            for value in (
+                self.case_chat_oidc_issuer,
+                self.case_chat_oidc_audience,
+                self.case_chat_oidc_jwks_url,
+            )
+        ):
+            raise ValueError(
+                "CASE_CHAT_OIDC_ISSUER, CASE_CHAT_OIDC_AUDIENCE, and "
+                "CASE_CHAT_OIDC_JWKS_URL are required when CASE_CHAT_API_ENABLED=true."
+            )
+        return self
 
     @field_validator("oci_auth")
     @classmethod

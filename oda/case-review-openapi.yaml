@@ -1,0 +1,48 @@
+openapi: 3.0.3
+info:
+  title: OCI AI Document Review case-chat API
+  version: 1.0.0
+  description: Private, read-only API for an authenticated ODA skill.
+paths:
+  /v1/cases/{document_id}/chat:
+    post:
+      operationId: askAboutCase
+      summary: Answer a question with evidence limited to one authorised case.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: document_id
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: {type: string, minLength: 3, maxLength: 1200}
+      responses:
+        '200':
+          description: Grounded answer. Citations refer only to this case's evidence.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [answer, evidence_ids, human_review_required]
+                properties:
+                  answer: {type: string}
+                  evidence_ids:
+                    type: array
+                    items: {type: string}
+                  human_review_required: {type: boolean}
+        '401': {description: Missing or invalid OIDC token}
+        '404': {description: Case does not exist or is not authorised}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
