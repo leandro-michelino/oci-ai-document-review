@@ -8,7 +8,8 @@ Current project version: `v0.7.0`
 
 ## Read This First
 
-- Prices are illustrative public-list planning inputs reviewed on 2026-05-13.
+- Prices are illustrative public-list planning inputs captured on 2026-05-13;
+  they are a historical worksheet, not current pricing.
 - Real cost depends on region, tenancy discounts, free-tier eligibility, selected model, document volume, scan quality, retries, and retention.
 - Use the Oracle Cost Estimator, OCI Cost Analysis, and an Oracle representative quote before budgeting production use.
 - Oracle pricing pages can render numeric values dynamically and may differ by geography, currency, contract, and date. Treat the values below as worksheet inputs to verify, not as a quote.
@@ -59,7 +60,8 @@ Optional automatic intake
 
 ## Pricing Assumptions
 
-Verify current values before use. The worksheet currently uses Oracle public-list units checked on 2026-05-13:
+Verify current values before use. This historical worksheet uses Oracle
+public-list units checked on 2026-05-13:
 
 ```text
 VM.Standard.A1.Flex OCPU            $0.010 / OCPU-hour

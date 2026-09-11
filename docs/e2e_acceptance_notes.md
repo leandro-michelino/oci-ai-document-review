@@ -2,13 +2,16 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.7.0`
+Historical acceptance snapshot: `v0.5.1`
 
-Run date: 2026-05-09
+Run date: 2026-05-09. This is not acceptance evidence for the current
+`v0.7.0` release; rerun the walkthrough before using it for a current release
+decision.
 
 ## Scope
 
-This walkthrough exercised the documented MVP paths as a human uploader, reviewer, and operator would use them:
+This walkthrough exercised the v0.5.1 MVP paths as a human uploader, reviewer,
+and operator would use them:
 
 - Upload page, including the `How To Use` button
 - How To Use guide, including uploader, approver, and operator paths
@@ -76,6 +79,7 @@ This acceptance record predates the Upload form-reset behavior. Validate that be
 
 12. Ran full repository validation.
     Result: Ruff, pytest, Terraform validation, and Ansible syntax checks passed.
+    Pytest count: 118 passed.
 ```
 
 ## Existing Runtime Records
@@ -146,7 +150,7 @@ Lint:
 
 Automated tests:
   .venv/bin/pytest
-  Result: 118 passed
+  Result: 118 passed (historical v0.5.1 run)
 
 Terraform:
   terraform -chdir=terraform fmt -check -diff

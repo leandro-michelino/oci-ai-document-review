@@ -10,9 +10,13 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Corrected the optional ODA case-chat deployment and validation guidance for
+  private listeners, clarified its customer-managed network prerequisite, and
+  labelled the older acceptance and pricing records as historical evidence.
+
 ## v0.7.0 - 2026-09-11
 
-- Added an optional, production-ready ODA integration and a floating in-portal case assistant. Its GenAI/RAG answers are grounded only in the selected case's permitted evidence and default to refusal when the evidence is insufficient.
+- Added an optional ODA integration and a floating in-portal case assistant. Its GenAI/RAG answers use only retrieved evidence from the selected case; missing or invalid citations default to a refusal. Customer identity, Gateway, ACL, and network configuration remain deployment prerequisites.
 - Added the current Dashboard screenshot to the README and refreshed the repository architecture assets.
 
 - Simplified the Actions review controls into one compact row, removing duplicate navigation controls and showing Document group only for related multi-file work. Changing a status filter now resets Selected file for review to a matching record, keeping the selector and review detail synchronized.

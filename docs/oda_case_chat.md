@@ -33,9 +33,11 @@ The API validates the OIDC access token itself and uses its `sub` claim. API
 Gateway should validate the same issuer and audience before forwarding the
 request. The API must not be exposed through the public Streamlit listener.
 For a private Gateway route, set `CASE_CHAT_API_HOST` to the VM private address
-or `0.0.0.0`, restrict the VM security list/NSG to the Gateway subnet, and do
-not open port 8081 to the internet. `127.0.0.1` is the safe default and needs a
-local reverse proxy only for development.
+or `0.0.0.0`, restrict TCP 8081 ingress to the Gateway subnet, and do not open
+the port to the internet. The supplied Terraform only permits SSH and
+Streamlit ingress, so this private 8081 rule is a customer-managed network
+prerequisite. `127.0.0.1` is the safe default; a Gateway requires a private
+listener or a reverse proxy that reaches the loopback listener.
 
 ## Retrieval and GenAI controls
 
@@ -48,8 +50,9 @@ For each request, the service:
    human-review comments, generated analysis, and extracted fields;
 4. ranks those chunks against the question and sends at most six to OCI
    Generative AI;
-5. requires evidence citations (`[E1]`, `[E2]`, etc.). Answers without valid
-   citations are replaced with a safe refusal.
+5. requires at least one valid evidence citation (`[E1]`, `[E2]`, etc.). An
+   answer with no citation or an unknown citation is replaced with a safe
+   refusal.
 
 For records marked `RESTRICTED`, the raw extracted-text preview is excluded
 from retrieval. The chat response always says that human review is required.
@@ -117,8 +120,10 @@ resources require the tenancy's approved identity and network design.
    Treat `401` as sign-in required and `404` as "case unavailable" without
    stating whether the document exists.
 5. Test with two users and two records: a permitted user gets only their case;
-   the other user gets `404`. Test a restricted document and an unsupported
-   question, which must receive the safe refusal.
+   the other user gets `404`. Test a restricted document, then review answers
+   to unsupported questions and verify that they either refuse or contain only
+   valid citations to the selected case. Citation validation is a guardrail,
+   not semantic proof that every answer is appropriate.
 
 ODA supports REST-service calls and OAuth backend authentication, but its
 console settings and identity-domain options vary by tenancy. This repository

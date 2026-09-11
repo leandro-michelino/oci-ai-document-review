@@ -370,7 +370,10 @@
 
     - name: Verify private ODA case-chat API health
       ansible.builtin.uri:
-        url: "http://127.0.0.1:{{ case_chat_api_port | default('8081') }}/healthz"
+        # A service bound to the VM private address cannot be reached through
+        # loopback.  Use loopback only for the wildcard listener, otherwise
+        # probe the exact configured bind address.
+        url: "http://{{ '127.0.0.1' if (case_chat_api_host | default('127.0.0.1')) == '0.0.0.0' else (case_chat_api_host | default('127.0.0.1')) }}:{{ case_chat_api_port | default('8081') }}/healthz"
         return_content: true
       when: case_chat_api_enabled | default(false) | bool
 
