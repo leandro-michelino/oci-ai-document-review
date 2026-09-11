@@ -10,7 +10,7 @@ The short version: upload a document, extract the text, get an AI-generated revi
 
 Search-friendly topics: Oracle Cloud Infrastructure, OCI AI, AI document review, document understanding, OCR, generative AI, Streamlit dashboard, Terraform deployment, Ansible deployment, human-in-the-loop review, invoice review, receipt review, contract review, compliance workflow.
 
-Current version: `v0.6.2`
+Current version: `v0.7.0`
 
 Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 

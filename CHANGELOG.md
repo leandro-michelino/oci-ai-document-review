@@ -10,6 +10,11 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## v0.7.0 - 2026-09-11
+
+- Added an optional, production-ready ODA integration and a floating in-portal case assistant. Its GenAI/RAG answers are grounded only in the selected case's permitted evidence and default to refusal when the evidence is insufficient.
+- Added the current Dashboard screenshot to the README and refreshed the repository architecture assets.
+
 - Simplified the Actions review controls into one compact row, removing duplicate navigation controls and showing Document group only for related multi-file work. Changing a status filter now resets Selected file for review to a matching record, keeping the selector and review detail synchronized.
 - Added an Actions Status filter that narrows document groups and selected files to Needs decision, Needs fix, Processing, or Reviewed work.
 - Actions now checks the selected document every second while open, so background processing changes appear without a manual page reload while reviewer draft fields remain in session state.

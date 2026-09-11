@@ -58,11 +58,11 @@
   </text>
 </g>
 
-<!-- v0.6.2 version badge -->
+<!-- v0.7.0 version badge -->
 <g class="a1">
   <rect x="1100" y="16" width="48" height="20" rx="10" fill="#c74634"/>
   <text x="1124" y="30" text-anchor="middle" font-family="Arial,sans-serif"
-        font-size="10" font-weight="700" fill="white">v0.6.2</text>
+        font-size="10" font-weight="700" fill="white">v0.7.0</text>
 </g>
 
 <!-- Maintainer info (right) -->
@@ -99,7 +99,7 @@
   <text x="31" y="92" font-family="Arial,sans-serif" font-size="12.5"
         font-weight="700" fill="#1a1a1a">Portal</text>
   <text x="31" y="109" font-family="Arial,sans-serif" font-size="9.5"
-        fill="#888888">AI document review on OCI | v0.6.2</text>
+        fill="#888888">AI document review on OCI | v0.7.0</text>
 </g>
 
 <!-- Separator -->
