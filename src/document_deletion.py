@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from src.config import AppConfig
 from src.file_names import safe_document_name
+from src.job_queue import submitted_document_ids
 from src.metadata_store import DiscardedDocumentResult, MetadataStore
 from src.models import ProcessingStatus
 from src.object_storage_client import ObjectStorageClient
@@ -39,6 +40,8 @@ def discard_failed_document(
     A missing portal object is acceptable because the desired final cloud state is
     absence. Any other Object Storage error leaves all local recovery artifacts intact.
     """
+    if document_id in submitted_document_ids():
+        raise ValueError("This document still has an active worker. Discard after it finishes.")
     record = store.load(document_id)
     if record.status != ProcessingStatus.FAILED:
         raise ValueError("Only failed documents can be discarded.")

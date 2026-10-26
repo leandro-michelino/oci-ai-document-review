@@ -106,6 +106,14 @@ MAX_UPLOAD_MB="$(env_value MAX_UPLOAD_MB)"
 COMPLIANCE_ENTITIES_OBJECT_NAME="$(env_value COMPLIANCE_ENTITIES_OBJECT_NAME)"
 EVENT_INTAKE_QUEUE_PREFIX="$(env_value EVENT_INTAKE_QUEUE_PREFIX)"
 EVENT_INTAKE_INCOMING_PREFIX="$(env_value EVENT_INTAKE_INCOMING_PREFIX)"
+CASE_CHAT_API_ENABLED="${CASE_CHAT_API_ENABLED:-$(env_value CASE_CHAT_API_ENABLED)}"
+CASE_CHAT_API_HOST="${CASE_CHAT_API_HOST:-$(env_value CASE_CHAT_API_HOST)}"
+CASE_CHAT_API_PORT="${CASE_CHAT_API_PORT:-$(env_value CASE_CHAT_API_PORT)}"
+CASE_CHAT_OIDC_ISSUER="${CASE_CHAT_OIDC_ISSUER:-$(env_value CASE_CHAT_OIDC_ISSUER)}"
+CASE_CHAT_OIDC_AUDIENCE="${CASE_CHAT_OIDC_AUDIENCE:-$(env_value CASE_CHAT_OIDC_AUDIENCE)}"
+CASE_CHAT_OIDC_JWKS_URL="${CASE_CHAT_OIDC_JWKS_URL:-$(env_value CASE_CHAT_OIDC_JWKS_URL)}"
+CASE_CHAT_ACCESS_FILE="${CASE_CHAT_ACCESS_FILE:-$(env_value CASE_CHAT_ACCESS_FILE)}"
+CASE_CHAT_MAX_CONTEXT_CHUNKS="${CASE_CHAT_MAX_CONTEXT_CHUNKS:-$(env_value CASE_CHAT_MAX_CONTEXT_CHUNKS)}"
 
 export OCI_CONFIG_FILE="${OCI_CONFIG_FILE:-~/.oci/config}"
 export OCI_PROFILE="${OCI_PROFILE:-DEFAULT}"
@@ -140,32 +148,7 @@ PY
 source "$OCI_RUNTIME_META"
 
 step "Building sanitized application archive at $ARCHIVE"
-COPYFILE_DISABLE=1 tar \
-  --exclude='./.git' \
-  --exclude='./.env' \
-  --exclude='./.env.*' \
-  --exclude='./.deploy' \
-  --exclude='./.venv' \
-  --exclude='./.oci' \
-  --exclude='./.pytest_cache' \
-  --exclude='./.ruff_cache' \
-  --exclude='*/__pycache__' \
-  --exclude='*.pyc' \
-  --exclude='.DS_Store' \
-  --exclude='._*' \
-  --exclude='./terraform/.terraform' \
-  --exclude='./terraform/terraform.tfstate*' \
-  --exclude='./terraform/terraform.tfvars' \
-  --exclude='./terraform/*.tfvars' \
-  --exclude='./terraform/*.tfvars.json' \
-  --exclude='./*.pem' \
-  --exclude='./*.key' \
-  --exclude='./id_rsa*' \
-  --exclude='./oci_api_key*' \
-  --exclude='./data/metadata/*.json' \
-  --exclude='./data/reports/*.md' \
-  --exclude='./data/uploads/*' \
-  -czf "$ARCHIVE" .
+"$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/scripts/package_release.py" "$ARCHIVE"
 
 cd "$TF_DIR"
 section "2/5 Provision Or Refresh OCI Infrastructure With Terraform"

@@ -7,6 +7,7 @@ from pathlib import Path
 from threading import Lock
 
 from src.config import AppConfig
+from src.file_names import validate_document_id
 from src.logger import get_logger
 from src.metadata_store import MetadataStore
 from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
@@ -53,6 +54,7 @@ def submit_document_processing(
     source_file_size_bytes: int | None,
     source_file_mime_type: str | None,
 ) -> bool:
+    validate_document_id(document_id)
     with _lock:
         if document_id in _submitted:
             return False
@@ -75,7 +77,10 @@ def submit_document_processing(
     except Exception as exc:
         _remove_submitted(document_id)
         _mark_failed(config, document_id, exc)
-        source_path.unlink(missing_ok=True)
+        try:
+            _preserve_working_copy(config, source_path, document_id, document_name)
+        except Exception:
+            logger.exception("Could not preserve retry source for %s", document_id)
         raise
     future.add_done_callback(lambda completed: _remove_submitted(document_id))
     return True
@@ -87,6 +92,8 @@ def retry_document_processing(
     actor: str = "Reviewer",
     reason: str | None = None,
 ) -> str:
+    if document_id in submitted_document_ids():
+        raise ValueError("This document still has an active worker. Retry after it finishes.")
     store = MetadataStore(config)
     original = store.load(document_id)
     if original.status != ProcessingStatus.FAILED:
@@ -147,6 +154,16 @@ def _remove_submitted(document_id: str) -> None:
         _submitted.discard(document_id)
 
 
+def _preserve_working_copy(config, source_path, document_id, document_name) -> Path:
+    validate_document_id(document_id)
+    uploads_root = MetadataStore(config).uploads_root
+    uploads_root.mkdir(parents=True, exist_ok=True)
+    working_copy = uploads_root / f"{document_id}-{safe_document_name(document_name)}"
+    if source_path.resolve() != working_copy.resolve():
+        shutil.copyfile(source_path, working_copy)
+    return working_copy
+
+
 def _process_document(
     config: AppConfig,
     source_path: Path,
@@ -159,7 +176,9 @@ def _process_document(
     source_file_size_bytes: int | None,
     source_file_mime_type: str | None,
 ) -> None:
+    working_copy = None
     try:
+        working_copy = _preserve_working_copy(config, source_path, document_id, document_name)
         DocumentProcessor(config).process(
             source_path=source_path,
             document_name=document_name,
@@ -175,7 +194,12 @@ def _process_document(
         logger.exception("Background document processing failed for %s", document_id)
         _mark_failed(config, document_id, exc)
     finally:
-        source_path.unlink(missing_ok=True)
+        # Never delete the only recovery copy, including constructor failures.
+        if (
+            working_copy is not None and working_copy.exists()
+            and source_path.resolve() != working_copy.resolve()
+        ):
+            source_path.unlink(missing_ok=True)
 
 
 def _mark_failed(config: AppConfig, document_id: str, exc: Exception) -> None:

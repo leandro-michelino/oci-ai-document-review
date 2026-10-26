@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from src.file_names import validate_document_id
+
 
 class DocumentType(str, Enum):
     AUTO_DETECT = "AUTO_DETECT"
@@ -241,6 +243,11 @@ class DocumentRecord(BaseModel):
     retention_days_override: int | None = Field(default=None, ge=1)
     report_path: str | None = None
     error_message: str | None = None
+
+    @field_validator("document_id", "parent_document_id")
+    @classmethod
+    def valid_document_id(cls, value):
+        return validate_document_id(value) if value is not None else None
 
     @field_validator(
         "workflow_comments", "audit_events", "retry_history", "quality_feedback",

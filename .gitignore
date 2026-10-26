@@ -27,6 +27,7 @@ oci_api_key*
 *.log
 .DS_Store
 data/metadata/*.json
+data/metadata/.metadata.lock
 data/reports/*.md
 data/uploads/*
 data/deleted/*.json

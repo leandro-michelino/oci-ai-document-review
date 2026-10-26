@@ -10,6 +10,11 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Made metadata replacement atomic and serialized mutations across local portal and timer processes; worker checkpoints preserve concurrent reviewer comments and audit events.
+- Validated document IDs and metadata identity, guarded active-worker retry/discard and premature review decisions, preserved retry sources on startup/submission failures, and handled legacy timestamps during stale-job cleanup.
+- Required expiring, asymmetrically signed OIDC tokens; denied malformed ACL files; handled chat-provider outages; redacted detected PII throughout restricted-case chat evidence.
+- Routed mixed text/scanned PDFs through OCR to avoid omitted pages and rejected zero Document Understanding attempts.
+- Replaced deployment archive exclusions with an explicit source-path list, loaded optional case-chat settings from `.env`, and added regression coverage plus a GitHub Actions test workflow.
 - Corrected the optional ODA case-chat deployment and validation guidance for
   private listeners, clarified its customer-managed network prerequisite, and
   labelled the older acceptance and pricing records as historical evidence.

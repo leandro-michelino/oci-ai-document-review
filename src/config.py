@@ -31,7 +31,7 @@ class AppConfig(BaseSettings):
         default=180, ge=1, alias="DOCUMENT_AI_TIMEOUT_SECONDS"
     )
     document_ai_retry_attempts: int = Field(
-        default=2, ge=0, alias="DOCUMENT_AI_RETRY_ATTEMPTS"
+        default=2, ge=1, alias="DOCUMENT_AI_RETRY_ATTEMPTS"
     )
     stale_processing_minutes: int = Field(
         default=12, ge=1, alias="STALE_PROCESSING_MINUTES"

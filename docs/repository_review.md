@@ -8,6 +8,25 @@ Current project version: `v0.7.0`
 
 This review covers the Streamlit app, worker queue, OCI clients, metadata store, report generation, Terraform, Ansible deployment, setup wizard, tests, documentation, and architecture assets.
 
+## Local review: 2026-10-26
+
+The existing 146 tests passed before changes. Additional regression tests found gaps outside that coverage. Corrections address:
+
+- Atomic metadata replacement and local filesystem locking around mutations, including between separate portal/timer processes. Worker checkpoints update processing fields without replacing reviewer comments, assignment, feedback, or audit history.
+- Document-ID validation, containment of metadata paths, and matching the stored identity to its filename.
+- Retryable local source preservation when processor initialization or executor submission fails. A failed record with a worker still registered in the current process cannot be retried or discarded. Decisions require a completed review state.
+- Legacy timestamps without timezone information in stale-job cleanup.
+- Default denial for malformed ACL structures, required OIDC expiration and identity claims, asymmetric signature algorithms, bounded JWKS refresh behavior, and a controlled HTTP 503 when case-chat generation fails.
+- Redaction of detected PII in restricted-case chat evidence, including analysis and reviewer comments.
+- OCR for the full document when a PDF contains pages without meaningful embedded text, avoiding partial review of mixed text/scanned documents. This can increase OCR use for text PDFs containing blank or very short pages.
+- Rejection of zero Document Understanding attempts, which previously skipped the service call entirely.
+- Deployment packaging from explicit source paths, excluding runtime data, local ACLs, deletion tombstones, workstation output, Terraform state/plans, keys, and symlinks. Optional case-chat deployment settings now load from `.env` while preserving environment overrides.
+- Automated Python tests, lint checks, and shell syntax checks in GitHub Actions.
+
+Local verification: **177 tests passed**, including 31 added regression cases. Static checks, Terraform formatting and configuration validation, Ansible syntax validation, shell syntax validation, and release-archive content checks also passed. Regression tests use synthetic files and OCI/provider doubles; no cloud resources were changed. The new GitHub Actions workflow has been configured locally and has not been run on GitHub during this review.
+
+Limits: live OCI OCR/GenAI, IAM authorization, OIDC-provider integration, deployment, and browser acceptance against a deployed VM were not exercised. The portal remains an unauthenticated MVP requiring the access controls described in `security_notes.md`. PII detection is heuristic, citation checks validate citation IDs rather than factual entailment, sensitive retention overrides apply locally, and Object Storage lifecycle remains governed by its separate Terraform policy. Filesystem locking targets the supported macOS development and Linux VM environments; this is not a distributed worker queue. Active-worker retry/discard protection uses the current process registry.
+
 ## Current Hygiene State
 
 - Tracked files are limited to source code, tests, Terraform, Ansible, setup scripts, documentation, the compliance seed catalog, and architecture assets.

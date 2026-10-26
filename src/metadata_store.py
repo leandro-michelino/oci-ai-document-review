@@ -1,13 +1,18 @@
 # Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
+import fcntl
 import json
+import os
 import shutil
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from functools import wraps
 from pathlib import Path
+from threading import RLock, local
 from typing import Any
 
 from src.config import AppConfig
-from src.file_names import safe_document_name
+from src.file_names import safe_document_name, validate_document_id
 from src.logger import get_logger
 from src.models import (
     AuditEvent,
@@ -22,6 +27,32 @@ from src.models import (
 from src.safety_messages import sanitize_provider_payload
 
 logger = get_logger(__name__)
+_mutation_lock = RLock()
+_held_locks = local()
+
+
+def serialized_mutation(method):
+    """Serialize read/modify/write operations across portal and timer processes."""
+
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        with _mutation_lock:
+            root = self.root.resolve()
+            held = getattr(_held_locks, "roots", set())
+            if root in held:
+                return method(self, *args, **kwargs)
+            with (root / ".metadata.lock").open("a") as lock_file:
+                fcntl.flock(lock_file, fcntl.LOCK_EX)
+                _held_locks.roots = held | {root}
+                try:
+                    return method(self, *args, **kwargs)
+                finally:
+                    _held_locks.roots = held
+                    fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+    return wrapped
+
+
 ACTIVE_PROCESSING_STATUSES = {
     ProcessingStatus.UPLOADED,
     ProcessingStatus.PROCESSING,
@@ -72,20 +103,39 @@ class MetadataStore:
         self.root.mkdir(parents=True, exist_ok=True)
 
     def path_for(self, document_id: str) -> Path:
-        return self.root / f"{document_id}.json"
+        path = self.root / f"{validate_document_id(document_id)}.json"
+        if not self._is_within_root(path, self.root):
+            raise ValueError("Metadata path must remain inside the metadata directory.")
+        return path
 
+    @serialized_mutation
     def save(self, record: DocumentRecord) -> None:
         sanitized = DocumentRecord.model_validate(
             sanitize_provider_payload(record.model_dump(mode="python"))
         )
-        self.path_for(record.document_id).write_text(
-            sanitized.model_dump_json(indent=2), encoding="utf-8"
-        )
+        destination = self.path_for(record.document_id)
+        # Readers must see either the old complete record or the new complete record.
+        # A same-directory temporary file makes replacement atomic on this filesystem.
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=self.root, suffix=".tmp", delete=False
+            ) as temporary:
+                temporary_path = Path(temporary.name)
+                temporary.write(sanitized.model_dump_json(indent=2))
+                temporary.flush()
+                os.fsync(temporary.fileno())
+            os.replace(temporary_path, destination)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
 
     def load(self, document_id: str) -> DocumentRecord:
         raw = DocumentRecord.model_validate_json(
             self.path_for(document_id).read_text(encoding="utf-8")
         )
+        if raw.document_id != document_id:
+            raise ValueError("Stored document ID does not match its metadata filename.")
         return DocumentRecord.model_validate(
             sanitize_provider_payload(raw.model_dump(mode="python"))
         )
@@ -99,6 +149,7 @@ class MetadataStore:
                 logger.warning("Skipping invalid metadata file %s: %s", path, exc)
         return records
 
+    @serialized_mutation
     def update(self, document_id: str, **changes: Any) -> DocumentRecord:
         record = self.load(document_id)
         data = record.model_dump()
@@ -118,6 +169,7 @@ class MetadataStore:
             )
         )
 
+    @serialized_mutation
     def set_workflow(
         self,
         document_id: str,
@@ -154,6 +206,7 @@ class MetadataStore:
         self.save(record)
         return record
 
+    @serialized_mutation
     def add_comment(
         self,
         document_id: str,
@@ -176,6 +229,7 @@ class MetadataStore:
         self.save(record)
         return record
 
+    @serialized_mutation
     def add_quality_feedback(
         self, document_id: str, reviewer: str, field_name: str, comment: str
     ) -> DocumentRecord:
@@ -197,6 +251,7 @@ class MetadataStore:
         self.save(record)
         return record
 
+    @serialized_mutation
     def record_retry(
         self,
         document_id: str,
@@ -223,6 +278,7 @@ class MetadataStore:
         self.save(record)
         return record
 
+    @serialized_mutation
     def mark_failed(
         self,
         document_id: str,
@@ -243,6 +299,7 @@ class MetadataStore:
         self.save(record)
         return record
 
+    @serialized_mutation
     def discard_failed_document(
         self,
         document_id: str,
@@ -292,10 +349,17 @@ class MetadataStore:
             tombstone_path=tombstone_path,
         )
 
+    @serialized_mutation
     def set_review(
         self, document_id: str, approved: bool, comments: str | None
     ) -> DocumentRecord:
         record = self.load(document_id)
+        if record.status not in {
+            ProcessingStatus.REVIEW_REQUIRED,
+            ProcessingStatus.APPROVED,
+            ProcessingStatus.REJECTED,
+        }:
+            raise ValueError("Only documents ready for review can receive a decision.")
         record.status = (
             ProcessingStatus.APPROVED if approved else ProcessingStatus.REJECTED
         )
@@ -314,6 +378,7 @@ class MetadataStore:
         self.save(record)
         return record
 
+    @serialized_mutation
     def fail_stale_processing(
         self,
         max_age_minutes: int,
@@ -325,7 +390,7 @@ class MetadataStore:
         for record in self.list_records():
             if record.status not in ACTIVE_PROCESSING_STATUSES:
                 continue
-            age_seconds = (now - record.uploaded_at).total_seconds()
+            age_seconds = (now - self._as_aware(record.uploaded_at)).total_seconds()
             if age_seconds < max_age_minutes * 60:
                 continue
             if record.document_id in protected_document_ids:
@@ -351,6 +416,7 @@ class MetadataStore:
             failed_count += 1
         return failed_count
 
+    @serialized_mutation
     def cleanup_expired_local_data(
         self,
         retention_days: int,

@@ -173,6 +173,7 @@ def parse_args() -> argparse.Namespace:
     )
     validate_positive_integer(args.retention_days, "retention days")
     validate_positive_integer(args.sensitive_retention_days, "sensitive retention days")
+    validate_positive_integer(args.document_ai_retry_attempts, "Document Understanding attempts")
     validate_positive_integer(
         args.event_intake_poll_seconds, "event intake poll seconds"
     )
@@ -501,6 +502,7 @@ def prompt_for_runtime(
     args.document_ai_retry_attempts = ask(
         "Document Understanding retry attempts", args.document_ai_retry_attempts
     )
+    validate_positive_integer(args.document_ai_retry_attempts, "Document Understanding attempts")
     args.retention_days = ask(
         "Retention days for VM data and Object Storage documents",
         args.retention_days,

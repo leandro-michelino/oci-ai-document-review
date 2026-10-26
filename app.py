@@ -25,7 +25,7 @@ from src.job_queue import (
     submitted_document_ids,
 )
 from src.genai_client import GenAIClient
-from src.metadata_store import MetadataStore
+from src.metadata_store import ACTIVE_PROCESSING_STATUSES, MetadataStore
 from src.models import (
     DocumentRecord,
     DocumentType,
@@ -2854,7 +2854,7 @@ def backfill_compliance_attention(config, store, catalog=None) -> int:
         )
         if record.model_dump_json() == before:
             continue
-        store.save(record)
+        record = store.update(record.document_id, analysis=record.analysis)
         refresh_markdown_report(config, record)
         updated_count += 1
     return updated_count
@@ -2874,9 +2874,13 @@ def apply_review_action(
     if not approved and not (comments or "").strip():
         st.error("Add review comments before rejecting.")
         return False
-    updated = store.set_review(
-        document_id, approved=approved, comments=comments or None
-    )
+    try:
+        updated = store.set_review(
+            document_id, approved=approved, comments=comments or None
+        )
+    except ValueError as exc:
+        st.error(str(exc))
+        return False
     refresh_markdown_report(config, updated)
     next_document_id = next_action_document_id(store.list_records(), document_id)
     if next_document_id:
@@ -2929,6 +2933,9 @@ def render_review_action_panel(config, store, record, key_prefix: str) -> None:
         return
     if not record.analysis:
         st.info("This document is not ready for review yet.")
+        return
+    if record.status in ACTIVE_PROCESSING_STATUSES:
+        st.info("Processing is still in progress. Decisions become available when it finishes.")
         return
 
     if requires_human_action(record):

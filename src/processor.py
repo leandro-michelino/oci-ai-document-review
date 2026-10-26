@@ -14,7 +14,7 @@ from src.compliance import (
 )
 from src.config import AppConfig
 from src.document_understanding_client import DocumentUnderstandingClient
-from src.file_names import chunk_document_name, safe_document_name
+from src.file_names import chunk_document_name, safe_document_name, validate_document_id
 from src.genai_client import GenAIClient
 from src.logger import get_logger
 from src.metadata_store import MetadataStore
@@ -391,7 +391,7 @@ class DocumentProcessor:
             if progress_callback:
                 progress_callback(message)
 
-        document_id = document_id or create_document_id()
+        document_id = validate_document_id(document_id or create_document_id())
         storage_name = safe_document_name(document_name)
         local_path = self.config.local_uploads_dir / f"{document_id}-{storage_name}"
         if source_path.resolve() != local_path.resolve():
@@ -399,15 +399,13 @@ class DocumentProcessor:
         progress("Stored local working copy")
 
         if self.store.path_for(document_id).exists():
-            record = self.store.load(document_id)
-            record.document_name = document_name
-            record.document_type = document_type
-            record.source_file_size_bytes = source_file_size_bytes
-            record.source_file_mime_type = source_file_mime_type
-            record.business_reference = business_reference
-            record.notes = notes
-            record.job_description = job_description
-            record.error_message = None
+            record = self.store.update(
+                document_id, document_name=document_name, document_type=document_type,
+                source_file_size_bytes=source_file_size_bytes,
+                source_file_mime_type=source_file_mime_type,
+                business_reference=business_reference, notes=notes,
+                job_description=job_description, error_message=None,
+            )
         else:
             record = DocumentRecord(
                 document_id=document_id,
@@ -419,14 +417,17 @@ class DocumentProcessor:
                 notes=notes,
                 job_description=job_description,
             )
-        self.store.save(record)
+            self.store.save(record)
 
         try:
             object_name = f"documents/{document_id}/{storage_name}"
             self.object_storage.upload_file(local_path, object_name)
             record.object_storage_path = self.object_storage.object_uri(object_name)
             record.status = ProcessingStatus.PROCESSING
-            self.store.save(record)
+            record = self.store.update(
+                document_id, object_storage_path=record.object_storage_path,
+                status=record.status,
+            )
             progress("Uploaded original file to OCI Object Storage")
 
             local_extraction = extract_text_locally(local_path, document_name)
@@ -457,7 +458,13 @@ class DocumentProcessor:
             record.pii_labels = privacy.labels
             if privacy.labels:
                 record.retention_days_override = self.config.sensitive_retention_days
-            self.store.save(record)
+            record = self.store.update(
+                document_id, status=record.status,
+                extracted_text_preview=record.extracted_text_preview,
+                extraction_source=record.extraction_source,
+                sensitivity=record.sensitivity, pii_labels=record.pii_labels,
+                retention_days_override=record.retention_days_override,
+            )
             progress("Prepared extracted text for OCI Generative AI")
 
             prompt = build_prompt(
@@ -493,7 +500,13 @@ class DocumentProcessor:
                 record, extraction.text, catalog=self.compliance_catalog
             )
             record.status = ProcessingStatus.AI_ANALYZED
-            self.store.save(record)
+            record = self.store.update(
+                document_id, status=record.status, document_type=record.document_type,
+                sensitivity=record.sensitivity, pii_labels=record.pii_labels,
+                retention_days_override=record.retention_days_override,
+                analysis=record.analysis, model_id=record.model_id,
+                prompt_version=record.prompt_version,
+            )
             progress("Generated structured analysis with OCI Generative AI")
 
             record.status = ProcessingStatus.REVIEW_REQUIRED
@@ -502,7 +515,10 @@ class DocumentProcessor:
             report_path = self.config.local_reports_dir / f"{document_id}.md"
             report_path.write_text(report, encoding="utf-8")
             record.report_path = str(report_path)
-            self.store.save(record)
+            record = self.store.update(
+                document_id, status=record.status, processed_at=record.processed_at,
+                report_path=record.report_path,
+            )
             progress("Saved review metadata and Markdown report")
             return record
         except Exception as exc:

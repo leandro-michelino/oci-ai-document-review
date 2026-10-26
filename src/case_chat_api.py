@@ -16,6 +16,9 @@ from src.case_chat import (
 from src.config import AppConfig, get_config
 from src.genai_client import GenAIClient
 from src.metadata_store import MetadataStore
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 bearer = HTTPBearer(auto_error=False)
 app = FastAPI(title="OCI AI Document Review Case Chat API", docs_url=None, redoc_url=None)
@@ -33,7 +36,7 @@ class CaseAnswer(BaseModel):
 
 @lru_cache
 def _jwks_client(url: str):
-    return jwt.PyJWKClient(url, cache_keys=True)
+    return jwt.PyJWKClient(url, cache_keys=False)
 
 
 def authenticated_subject(
@@ -47,8 +50,10 @@ def authenticated_subject(
     try:
         key = _jwks_client(str(config.case_chat_oidc_jwks_url)).get_signing_key_from_jwt(credentials.credentials)
         claims = jwt.decode(
-            credentials.credentials, key.key, algorithms=[key.algorithm_name],
+            credentials.credentials, key.key,
+            algorithms=["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"],
             audience=config.case_chat_oidc_audience, issuer=config.case_chat_oidc_issuer,
+            options={"require": ["exp", "iss", "aud", "sub"]},
         )
         subject = claims.get("sub")
     except jwt.PyJWTError as exc:
@@ -80,12 +85,16 @@ def chat_about_case(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Case not found")
     try:
         record = store.load(document_id)
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, ValueError) as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Case not found") from exc
     evidence = CaseEvidenceRetriever(config.case_chat_max_context_chunks).retrieve(record, payload.question)
     if not evidence:
         return CaseAnswer(answer=NO_ANSWER, evidence_ids=[])
-    answer = GenAIClient(config).answer_case_question(build_case_answer_prompt(payload.question, evidence)).strip()
+    try:
+        answer = GenAIClient(config).answer_case_question(build_case_answer_prompt(payload.question, evidence)).strip()
+    except Exception as exc:
+        logger.warning("Case chat generation failed: %s", type(exc).__name__)
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Case chat is temporarily unavailable") from exc
     if not answer_has_valid_citations(answer, evidence):
         answer = NO_ANSWER
     return CaseAnswer(answer=answer, evidence_ids=[item.evidence_id for item in evidence])

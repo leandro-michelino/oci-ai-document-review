@@ -136,6 +136,10 @@ def _extract_pdf_text(path: Path) -> str:
 
         reader = PdfReader(str(path))
         page_text = [(page.extract_text() or "").strip() for page in reader.pages]
+        # A PDF can mix selectable text with scanned pages. Sending only the
+        # selectable pages would silently omit part of the document from review.
+        if any(not _has_meaningful_pdf_text(text) for text in page_text):
+            return ""
     except Exception:
         return ""
     return "\n\n".join(text for text in page_text if text)

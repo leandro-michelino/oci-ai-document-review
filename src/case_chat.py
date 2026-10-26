@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.models import DocumentRecord, SensitivityLevel
+from src.privacy import redact_preview
 
 NO_ANSWER = (
     "I cannot answer that from the approved evidence available for this document. "
@@ -33,6 +34,8 @@ class CaseAccessPolicy:
             raw = json.loads(self.access_file.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             return False
+        if not isinstance(raw, dict):
+            return False
         allowed = raw.get(document_id, [])
         return isinstance(allowed, list) and subject in allowed
 
@@ -43,6 +46,11 @@ class CaseEvidenceRetriever:
 
     def retrieve(self, record: DocumentRecord, question: str) -> list[EvidenceChunk]:
         candidates = self._candidates(record)
+        if record.sensitivity == SensitivityLevel.RESTRICTED:
+            candidates = [
+                EvidenceChunk(item.evidence_id, item.title, redact_preview(item.text))
+                for item in candidates
+            ]
         question_terms = set(re.findall(r"[a-z0-9]{3,}", question.lower()))
         ranked = sorted(
             candidates,
