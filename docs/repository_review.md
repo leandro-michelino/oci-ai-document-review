@@ -4,6 +4,19 @@ Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any 
 
 Current project version: `v0.8.0`
 
+## 2026-11-05 follow-up content and publication audit
+
+Rechecked all maintained guides, setup/deployment output, examples, package exclusions, architecture references and release notes against the November findings. Updated the implementation, operations, Terraform, Function, ODA, security, cost and acceptance guides. Historical acceptance results, old dashboard images and the former Excalidraw source remain explicitly dated reference material.
+
+- Follow-up local suite: **204 tests passed**, including the new publication checks. Ruff, shell syntax, Ansible syntax and local documentation-link validation passed. The same upstream Starlette/httpx deprecation warning remains.
+- Added a manual Git-index/source-archive scanner that reports only paths and finding categories. It checks private paths and recognizable private-key/token/fingerprint/real-OCI-identifier patterns. The scanner complements review; it does not claim to detect every possible sensitive value.
+- Expanded Git and deployment-package exclusions for nested private cloud/SSH/configuration directories, credential files, certificates and deployment evidence. Legacy OCI key/config Ansible tasks suppress task/diff output.
+- Regenerated banner assets from the application version. Architecture source/PNG coverage checks passed; this documentation follow-up did not change infrastructure topology or provision new resources.
+- Refreshed official pricing references. Retrieved numeric rates did not establish a new London quote, so the dated worksheet remains historical and no new billed-cost claim is made.
+- Automatic GitHub workflows remain removed. The local test results above are separate from the preceding live apply/test/destroy evidence below.
+
+Publication excludes workstation secrets, runtime data, raw cloud logs, Terraform state and real OCI identifiers. The public examples use placeholders; the private test deployment remains removed.
+
 ## 2026-11-05 review and live London validation
 
 Release: v0.8.0. Restored the local checkout from its Git remote; local secrets and former runtime data are not part of repository recovery.

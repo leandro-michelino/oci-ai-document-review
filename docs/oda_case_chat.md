@@ -5,6 +5,10 @@ are permitted to access. It is deliberately read-only. It cannot upload a file,
 approve or reject a review, update workflow fields, download a source document,
 or search across cases.
 
+Current project version: `v0.8.0`
+
+The API uses the VM's configured OCI identity; the default Terraform/Ansible deployment supplies instance principals. No user OCI API key is required on the VM. ODA and external identity/network prerequisites were not provisioned in the [2026-11-05 London run](e2e_acceptance_notes.md#2026-11-05-live-london-validation).
+
 ## What is available now, and what remains optional
 
 The Streamlit portal has a floating **Case assistant** button in its
@@ -55,7 +59,7 @@ For each request, the service:
    refusal.
 
 For records marked `RESTRICTED`, the raw extracted-text preview is excluded
-from retrieval. The chat response always says that human review is required.
+from retrieval and detected PII is redacted throughout the retrieved evidence. The chat response always says that human review is required.
 
 The API ACL is fail-closed. Missing files, malformed JSON, unreadable files,
 and unknown subjects all produce no access. The API returns `404` for an

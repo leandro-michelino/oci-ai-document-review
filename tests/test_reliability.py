@@ -245,6 +245,13 @@ def test_release_excludes_nested_secret_directories_and_ssh_keys(tmp_path):
         "docs/id_ed25519",
         "src/KEY.PEM",
         "src/.streamlit/secrets.toml",
+        "docs/.deploy/validation-results.json",
+        "docs/.azure/accessTokens.json",
+        "src/.kube/config",
+        "docs/credentials.json",
+        "src/secrets.yaml",
+        "src/.netrc",
+        "docs/client.crt",
     ):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -8,6 +8,14 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - `MINOR`: visible workflow, cloud integration, or capability changes.
 - `PATCH`: bug fixes, documentation updates, and small UX refinements.
 
+## Unreleased maintenance
+
+- Synchronize deployment, authentication, event-intake, acceptance and cost guidance with the November findings; preserve dated historical records.
+- Remove the automatic Project checks workflow at the maintainer's request after corrected remote checks passed; retain manual validation.
+- Add signed Linux provider content hashes and refine the diagram connector route.
+- Extend private-file exclusions for Git and source archives, suppress legacy key/config task output, and add a manual staged-index/archive publication check that never prints detected values.
+- Derive the setup banner version from the application version source.
+
 ## v0.8.0 - 2026-11-05
 
 - Default VM authentication to instance principals; add bucket-scoped lifecycle service IAM and a configurable propagation wait.

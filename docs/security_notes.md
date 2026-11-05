@@ -62,3 +62,22 @@ The portal classifies identity-document, government-identifier, email, phone, an
 Use `Settings -> OCI Preflight` to validate live service access before processing documents. It checks Object Storage write/read/delete, Document Understanding API access, and Generative AI response with the same credentials used by processing.
 
 When optional OCI Events and Functions automatic intake is enabled, keep `incoming/` uploads restricted to trusted systems and users. The Function uses resource principals; Terraform scopes the dynamic group to the deployed intake function and scopes the object policy to the configured project bucket. Queue markers under `event-queue/` contain object names and event identifiers, so treat them as operational metadata and keep the bucket private. The Function does not write VM-local metadata directly; the VM timer imports markers and applies the normal metadata, retention, review, and audit workflow.
+
+## Publication controls
+
+Credentials, raw validation evidence and runtime data stay local. `.gitignore` excludes OCI, AWS, Azure, SSH, Kubernetes and GPG configuration directories; common credentials/secrets files; private keys; `.deploy/`; Terraform state/tfvars; access ACLs; uploaded documents; metadata and reports. Safe `.env.example` and `terraform.tfvars.example` contain placeholders only. Ignore rules do not remove an already tracked file, so inspect the Git index before each publication.
+
+The deployment source archive uses an explicit source-directory allowlist, rejects symlinks and excludes nested credential directories, common secret files, certificate/key files and generated deployment material. In explicit legacy authentication, Ansible marks OCI key/config tasks `no_log` so their contents do not appear in task output or diff logs.
+
+Manual pre-publication sequence, after staging reviewed changes:
+
+```bash
+.venv/bin/python scripts/package_release.py .deploy/release-source-check.tar.gz
+.venv/bin/python scripts/check_publication.py --archive .deploy/release-source-check.tar.gz
+git diff --cached --check
+git diff --cached --stat
+```
+
+The checker reads the staged index, not every file on the workstation. It rejects excluded paths, runtime records and recognizable private-key/token/fingerprint/real-OCI-identifier patterns. It reports only the path and finding category, never matching values. This is a pattern-based check, not proof that arbitrary sensitive text can always be detected; review the staged diff and inspect intended public images before pushing. Generated source archives and the scanner's raw inputs remain local. No automatic GitHub workflow is installed.
+
+The [current acceptance record](e2e_acceptance_notes.md#2026-11-05-live-london-validation) summarizes synthetic London processing and cleanup without publishing credentials, raw state, public IPs or resource identifiers.

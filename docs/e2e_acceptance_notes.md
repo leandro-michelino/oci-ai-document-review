@@ -2,10 +2,30 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Historical acceptance snapshot: `v0.5.1`
+## 2026-11-05 live London validation
+
+Project version: `v0.8.0`. Target: `uk-london-1`, the explicitly selected project compartment. Only synthetic documents were used.
+
+| Check | Observed result |
+| --- | --- |
+| Terraform apply | Default infrastructure created, including runtime identity and a bucket-scoped lifecycle-service policy. |
+| Ansible runtime | Deployment completed with zero failed/unreachable tasks. Instance principals were selected and no user OCI private API key was present on the VM. |
+| Object Storage | Live write/read/delete passed. |
+| Document Understanding | API preflight and real PNG OCR passed. |
+| Generative AI | Regional discovery and real `cohere.command-a-03-2025` inference passed in London. |
+| Synthetic TXT | Local extraction, GenAI review and report generation reached `REVIEW_REQUIRED`. |
+| Synthetic PNG | OCI OCR, GenAI review and report generation reached `REVIEW_REQUIRED`. |
+| Terraform destroy | Three synthetic objects removed from the exclusive test bucket; 17 managed resources destroyed. |
+| Cleanup verification | Empty Terraform state; cloud lookups confirmed the test network, bucket and temporary IAM were removed, and VM/boot volume terminated. |
+
+The initial lifecycle failure required the regional Object Storage service grant and an IAM propagation wait. A transient package installation failure led to bounded package retries. These findings and the tested component versions are recorded in [repository review](repository_review.md) and [component review](component_release_review.md).
+
+This run did not provision optional Events/Functions, ODA, API Gateway or external OIDC. It did not exercise browser-based approval/rejection or prove enterprise production readiness. The older UI walkthrough below remains a separate historical record. Raw logs, state, test documents and resource identifiers remain in ignored local deployment storage.
+
+## Historical acceptance snapshot: v0.5.1
 
 Run date: 2026-05-09. This is not acceptance evidence for the current
-`v0.7.0` release; rerun the walkthrough before using it for a current release
+project version; rerun the walkthrough before using it for a current release
 decision.
 
 ## Scope

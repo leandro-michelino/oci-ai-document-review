@@ -28,6 +28,9 @@ OCI infrastructure
   - NAT Gateway
   - Service Gateway
   - Compute VM
+  - VM Dynamic Group and scoped runtime IAM policy
+  - Bucket lifecycle rule and regional service IAM policy
+  - IAM propagation wait
 
 Local laptop
   |
@@ -94,7 +97,7 @@ data/uploads/*
 data/deleted/*.json
 ```
 
-Ansible also scrubs these file patterns after unpacking the release on the VM. Then it writes the intended runtime `.env` and OCI SDK config under `/opt/oci-ai-document-review`.
+Ansible also scrubs local-only files after unpacking. It writes the runtime `.env` under `/opt/oci-ai-document-review` and uses instance principals by default. OCI config and private-key files are created only in explicit legacy `--vm-api-key-auth` mode.
 
 ## First-Time Setup
 
@@ -158,6 +161,17 @@ The setup wizard:
 11. Writes local .env and terraform/terraform.tfvars.
 ```
 
+Deployment identity and lifecycle controls:
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `enable_instance_principal` | `true` | Match only the deployed VM and grant scoped bucket/AI access. |
+| `create_lifecycle_service_policy` | `true` | Create the required regional Object Storage service policy in the tenancy root. Requires root IAM authority. |
+| `iam_propagation_wait_seconds` | `60` | Wait before installing the lifecycle rule; increase up to 600 when needed. |
+| `resource_prefix` | `doc-review` | Resource-name prefix; use a unique value and separate Terraform state for isolated validation. |
+
+Setup `--existing-lifecycle-service-policy` keeps an administrator-managed service grant. Setup `--vm-api-key-auth` explicitly enables legacy key transfer; leave it unset for instance principals. The local `.env` still uses the laptop profile for local development and deployment.
+
 If setup cannot discover your current public IP, it stops instead of writing an open ingress CIDR. Re-run it with `--allowed-ingress-cidr` set to a trusted CIDR such as your current public IP with `/32`. If you pass a single host IP, setup normalizes it to `/32`. Explicit open ingress such as `0.0.0.0/0` is rejected.
 
 ## Deploy From Laptop
@@ -182,7 +196,7 @@ The deploy script:
 7. Installs required Ansible collections.
 8. Runs ansible/playbook.yml.
 9. Scrubs accidental local-only files from the VM release tree.
-10. Writes the runtime .env and OCI SDK config.
+10. Writes runtime .env; config/key files only in explicit legacy mode.
 11. Restarts the systemd service.
 12. Verifies the public portal URL from the laptop.
 13. Prints a structured end-to-end deployment summary.
@@ -215,6 +229,9 @@ ssh_private_key_path
 bucket_name
   Object Storage bucket for uploaded documents.
 
+runtime_oci_auth
+  instance_principal by default; config_file only after explicit legacy opt-in.
+
 automatic_processing_enabled
   Whether Terraform enabled Object Storage Events and OCI Functions intake.
 
@@ -237,7 +254,7 @@ public_subnet_id
   Subnet used by the Streamlit VM.
 
 private_subnet_id
-  Private subnet prepared for future backend services.
+  Private subnet used by optional Functions; reserved when intake is disabled.
 
 internet_gateway_id
   Public route path for the Streamlit VM.
@@ -673,3 +690,9 @@ terraform destroy
 ```
 
 This can remove cloud resources. Local ignored files such as `.env`, `.deploy/`, and Terraform state remain on your laptop unless you delete them.
+
+## Manual publication verification
+
+Automatic GitHub checks were removed at the maintainer's request. Before committing and pushing, stage only reviewed sources and safe examples, then run the index and source-package checks documented in [security notes](security_notes.md#publication-controls). A successful local check does not deploy the VM.
+
+For the 2026-11-05 London apply/test/destroy evidence and optional-component limits, see [current acceptance evidence](e2e_acceptance_notes.md#2026-11-05-live-london-validation).

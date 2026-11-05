@@ -32,7 +32,7 @@ Run the guided setup wizard:
 python scripts/setup.py
 ```
 
-The wizard prompts for customer-specific values, validates the OCI profile and API key, discovers subscribed regions, reads the Object Storage namespace, probes supported OCI Generative AI chat models, asks for the runtime retention period, and writes both `.env` and `terraform/terraform.tfvars`. It does not create OCI resources. Retention defaults to 30 days.
+The wizard prompts for customer-specific values, validates the OCI profile and API key, discovers subscribed regions, reads the Object Storage namespace, discovers regional, hosted, on-demand Cohere chat models and filters retired entries, asks for the runtime retention period, and writes both `.env` and `terraform/terraform.tfvars`. It does not create OCI resources. Retention defaults to 30 days.
 
 For repeatable automation, provide the required values explicitly:
 
@@ -53,6 +53,14 @@ The wizard keeps runtime and GenAI region selection separate. Runtime region hos
 The same retention value is written to `.env` as `RETENTION_DAYS` and to Terraform as `retention_days`. The app uses it for VM-local metadata, Markdown reports, and preserved upload copies. Ansible also installs `oci-ai-document-review-retention.timer` so the VM runs local cleanup daily even when nobody opens the Streamlit page. Terraform uses the value for the Object Storage lifecycle policy that deletes uploaded document objects under `documents/`.
 
 Optional automatic intake is configured by the same setup and Terraform path. Use `--enable-automatic-processing` only after the `functions/object_intake` image has been built and pushed to OCIR, then provide `--automatic-processing-function-image`. The setup script normalizes incoming and queue prefixes as relative Object Storage prefixes, then writes the Function image, incoming prefix, queue prefix, polling interval, and tenancy OCID into `terraform/terraform.tfvars`.
+
+## Deployment Identity
+
+Terraform uses the laptop OCI profile. The VM uses instance principals by default: its Dynamic Group matches the exact instance, storage grants target the application bucket, and AI grants target the selected compartment. Root IAM authority is also needed for the regional lifecycle-service policy. Setup writes the tenancy OCID into ignored local tfvars; do not put it in documentation or public examples.
+
+Use `--existing-lifecycle-service-policy` only if the service grant is already provided by an administrator. `--vm-api-key-auth` explicitly opts into copying the local profile's private key; it is not part of the normal deployment. Terraform waits for lifecycle IAM propagation before creating the retention rule.
+
+The incoming, queue and `documents/` prefixes must not overlap. The Function rejects events outside the configured bucket/namespace. The importer streams downloads within `MAX_UPLOAD_MB` and checks a marker's ETag when available; abandoned `UPLOADED` markers can be resubmitted. Per-document filesystem leases protect active workers from retries, stale cleanup, retention and discard across local processes.
 
 ## Review And Deploy
 
@@ -374,3 +382,9 @@ streamlit run app.py --server.maxUploadSize=10
 ```
 
 Use your configured `MAX_UPLOAD_MB` value if you changed the default.
+
+## Publication and acceptance
+
+Run the [manual publication controls](security_notes.md#publication-controls) before pushing. The source package excludes private cloud/SSH directories, credential files, local deployment logs, Terraform state/tfvars and runtime documents. The check inspects the staged index and optional archive without printing credential values. No GitHub workflow runs these commands automatically.
+
+The [acceptance record](e2e_acceptance_notes.md#2026-11-05-live-london-validation) separates real London OCR/GenAI validation from historical UI checks and unprovisioned optional components. Keep older evidence dated; do not treat an old walkthrough as acceptance for new behavior.

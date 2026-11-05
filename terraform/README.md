@@ -54,7 +54,7 @@ event_intake_incoming_prefix        = "incoming/"
 event_intake_queue_prefix           = "event-queue/"
 ```
 
-Terraform validates that `tenancy_id` is a valid tenancy OCID, `automatic_processing_function_image` is populated when automatic processing is enabled, and event-intake prefixes are non-empty relative Object Storage prefixes. The Function dynamic group is scoped to the deployed `functions/object_intake` function, and its object policy is scoped to the configured project bucket. External systems then upload to `incoming/<expense-name-or-reference>/<file>`. The Function normalizes prefix slashes, writes queue markers to `event-queue/`, and the VM imports those markers through the normal processing workflow.
+Terraform validates that `tenancy_id` is a valid tenancy OCID, `automatic_processing_function_image` is populated when automatic processing is enabled, and event-intake prefixes are non-empty relative Object Storage prefixes that do not overlap each other or `documents/`. The Function dynamic group is scoped to the deployed `functions/object_intake` function, and its object policy is scoped to the configured project bucket. External systems then upload to `incoming/<expense-name-or-reference>/<file>`. The Function normalizes prefix slashes, writes queue markers to `event-queue/`, and the VM imports those markers through the normal processing workflow.
 
 Create or choose a project compartment before deployment:
 
@@ -150,3 +150,9 @@ Private subnet
 No NSGs are created by this configuration.
 
 Terraform variable validation also checks VCN/subnet CIDR syntax and requires positive flexible-shape CPU and memory values before apply.
+
+## Manual publication
+
+Keep tenancy-specific inputs and state in ignored local files. The [publication checks](../docs/security_notes.md#publication-controls) scan the staged index and source archive before a push. Automatic GitHub workflows have been removed; local validation commands still apply.
+
+The [London acceptance record](../docs/e2e_acceptance_notes.md#2026-11-05-live-london-validation) confirms a real apply/test/destroy of the default 17 resources and follow-up cleanup, including the boot volume and temporary IAM. All 23 resource declarations are represented in the [editable architecture](../docs/architecture_flows.md), including conditional resources not provisioned in that run.

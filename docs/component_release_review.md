@@ -16,3 +16,11 @@ Reviewed: 2026-11-05. Versions below identify the validated environment, not a c
 | Architecture / banners | Four native draw.io pages cover all 23 declared Terraform resources, including conditional resources; 42 source-backed connections. PNG exports and versioned banner/social-preview assets are generated from repository sources. | [Architecture](architecture_flows.md) |
 
 The real deployment validated local-text and OCR processing through GenAI up to mandatory human review, not unattended business approval, enterprise SSO, ODA or optional Functions acceptance. No real customer documents were used. Raw Terraform state, identifiers, credentials and deployment logs remain excluded from Git.
+
+## Maintenance and reproducibility
+
+The corrected remote Python 3.11/3.13 and Terraform checks passed before the automatic Project checks workflow was removed at the maintainer's request. Manual validation remains documented in the README. Linux and macOS provider hashes are recorded in the lock file; readonly provider initialization must not silently change versions or checksums.
+
+The dependency files declare compatible lower bounds, not exact versions or an assertion that every supported minimum was tested. The version table records the environment actually used. Diagram rendering additionally uses `requirements-docs.txt` and the installed draw.io CLI; historical Excalidraw rendering remains separate. Banner SVG/PNG generation uses `scripts/build_banners.py` and reads the portal version from `src/version.py`.
+
+The [publication check](security_notes.md#publication-controls) inspects staged files and source archives for private paths and known secret/OCI-identifier patterns. No credentials, raw validation logs, Terraform state or runtime records belong in the public release.

@@ -10,7 +10,7 @@ The canonical architecture is the [editable four-page draw.io document](assets/o
 
 Reviewers submit one to five related files through Streamlit. A VM-local worker preserves the source, uploads the portal-managed original to the private project bucket, and performs extraction. Fully text-native inputs are extracted locally. Images, scanned PDFs and mixed text/image PDFs use Document Understanding; oversized PDFs are split into limit-safe chunks, and rich extraction has a text-only fallback.
 
-The worker sends the bounded document context to OCI Generative AI. It handles content-safety blocks as manual-review cases, applies the curated compliance catalog, and stores local JSON metadata plus a Markdown report. The Actions and Reviewed pages support human decisions, assignment, comments, audit, retry and guarded discard. The ERP handoff remains a placeholder.
+The worker combines extracted text limited by `MAX_DOCUMENT_CHARS` with OCR fields and table counts, then sends the review prompt to OCI Generative AI. Instructions and structured fields add to the text limit. It handles content-safety blocks as manual-review cases, applies the curated compliance catalog, and stores local JSON metadata plus a Markdown report. The Actions and Reviewed pages support human decisions, assignment, comments, audit, retry and guarded discard. The ERP handoff remains a placeholder.
 
 All service API calls originate in application code on the VM. Data-flow arrows do not imply that Object Storage directly invokes Generative AI, or that Document Understanding directly calls another model.
 
@@ -85,3 +85,9 @@ The [banner and social preview](assets/oci-ai-document-review-banner.svg) are se
 ```
 
 Static source and diagram checks do not prove cloud connectivity. Current execution evidence and limitations belong in [repository_review.md](repository_review.md), with historical acceptance records retained separately.
+
+## Validation and publication status
+
+The [London acceptance record](e2e_acceptance_notes.md#2026-11-05-live-london-validation) records the default deployment and its complete removal. Optional topology is source-reviewed and locally tested, not live acceptance evidence. Historical Excalidraw and dashboard assets remain dated reference material; the four-page draw.io source and its PNGs are canonical.
+
+[Publication controls](security_notes.md#publication-controls) inspect source packages and the Git index before manual publication. Automatic GitHub workflows are disabled by removal, as requested by the maintainer.

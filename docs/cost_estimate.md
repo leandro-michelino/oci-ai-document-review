@@ -29,18 +29,19 @@ Current project version: `v0.8.0`
 +----------------------+--------------------------+----------------------------+
 ```
 
-These ranges assume the configured Cohere Command A model, moderate prompt sizes, default 30-day retention, and normal retry behavior. GenAI characters and Document Understanding OCR or extraction pages are the main variable costs. VM boot volumes, networking egress, logging volume, support, taxes, and enterprise add-ons can move real totals outside these ranges.
+These historical ranges use the worksheet's assumed GenAI unit rate, moderate prompt sizes, 30-day retention and ordinary retries. The unit rate has not been verified for the configured Cohere Command A model; these are not current model-specific estimates. GenAI characters and Document Understanding OCR or extraction pages are the main variable costs. VM boot volumes, networking egress, logging volume, support, taxes, and enterprise add-ons can move real totals outside these ranges.
 
 ## Main Cost Drivers
 
 ```text
 Generative AI
   Prompt characters + response characters.
-  The app limits prompt size with MAX_DOCUMENT_CHARS.
+  MAX_DOCUMENT_CHARS limits extracted text. Instructions, OCR fields,
+  retrieval context and responses add billable usage.
 
 Document Understanding
-  Used only for images, scanned PDFs, and image-only PDFs.
-  Text files and PDFs with selectable text avoid DU charges.
+  Used for images, scanned/image-only PDFs and mixed text/image PDFs.
+  Text files and fully text-native PDFs avoid DU charges.
   Rich extraction and text-only OCR fallback can have different unit prices.
 
 Compute
@@ -80,9 +81,11 @@ Generative AI configured model       Verify current regional price before use
 OCI Functions free tier             2M invocations + 400K GB-seconds/month
 ```
 
-OCI Generative AI on-demand chat billing counts prompt plus response characters. The OCI pricing page treats 1 character as 1 transaction. Model availability and prices change, so use the current regional price for the model in `GENAI_MODEL_ID` rather than carrying forward the retired Command R+ planning input.
+Pricing-source review on 2026-11-05: the [official on-demand guide](https://docs.oracle.com/en-us/iaas/Content/generative-ai/pay-on-demand.htm) describes model-specific prices per 10,000 transactions or per 1,000,000 tokens. Transaction-priced chat counts prompt plus response characters. Use the billing unit and SKU for the selected model rather than assuming every model uses the same character rate.
 
-The Oracle price-list page was checked for the current product line items and units: Document Understanding still exposes first-5,000 and greater-than-5,000 transaction tiers, Large Cohere is listed per 10,000 transactions, Object Storage Standard is listed per GB-month, and Functions lists free monthly invocation and GB-second bands. Re-check the numeric rates in your region before using this worksheet for customer estimates.
+The [Oracle price list](https://www.oracle.com/cloud/price-list/) exposes product/unit definitions, but numeric rates were not available in the retrieved page. The older Document Understanding pricing URL now redirects to its [cost estimator](https://www.oracle.com/artificial-intelligence/document-understanding/cost-estimator/). No updated London price, tenancy discount or actual invoice total was verified. Historical numbers below remain explicit assumptions.
+
+The real London test confirmed provisioning, OCR and model operation; it did not establish monthly cost. IAM propagation waits and Dynamic Groups do not substitute for metering evidence. The single-VM Terraform configuration does not deploy the three-node/database enterprise planning scenario below.
 
 ## Example Assumptions
 
@@ -130,6 +133,16 @@ Add-ons:          Autonomous Database, OCI Logging, Vault, budgets, and support
 ```
 
 ## Simple Formula
+
+Use the transaction formula only for a transaction-priced model. For a token-priced model, calculate input and output separately using that model's current per-million-token rates:
+
+```text
+GenAI token cost
+  = input_tokens / 1,000,000 x input_rate
+  + output_tokens / 1,000,000 x output_rate
+```
+
+The following character formula retains the historical worksheet's assumed unit:
 
 ```text
 GenAI cost

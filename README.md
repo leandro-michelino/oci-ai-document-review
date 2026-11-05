@@ -226,7 +226,7 @@ Core runtime settings:
 | `GENAI_MODEL_ID` | `cohere.command-a-03-2025` | Active Cohere Command A chat model used by the runtime. |
 | `MAX_PARALLEL_JOBS` | `5` | Background worker thread count. |
 | `MAX_UPLOAD_MB` | `10` | Per-file upload size limit. Ansible passes the same value to Streamlit's `server.maxUploadSize` so the uploader and app validation agree. |
-| `MAX_DOCUMENT_CHARS` | `50000` | Extracted character limit sent to GenAI. |
+| `MAX_DOCUMENT_CHARS` | `50000` | Extracted-text character limit; prompt instructions and OCR fields add overhead. |
 | `RETENTION_DAYS` | `30` | VM-local artifact and Object Storage document retention period. |
 | `COMPLIANCE_ENTITIES_OBJECT_NAME` | `compliance/public_sector_entities.csv` | Object Storage path for the compliance knowledge base. |
 | `EVENT_INTAKE_ENABLED` | `false` | Enables optional Object Storage Events and Functions intake. |
@@ -343,6 +343,12 @@ terraform -chdir=terraform validate
 ansible-playbook --syntax-check ansible/playbook.yml
 ```
 
+### Publication checks
+
+Automatic GitHub workflows are not installed. Before publishing sources, follow the [manual publication checks](docs/security_notes.md#publication-controls): review the staged changes and scan the Git index plus a generated source archive. Credentials, Terraform state, deployment logs and runtime documents stay local. Safe examples contain placeholders.
+
+The [2026-11-05 acceptance record](docs/e2e_acceptance_notes.md#2026-11-05-live-london-validation) documents real London processing and removal of all temporary resources. It separates live results from historical UI checks and optional integrations.
+
 ### Cost awareness
 
 The variable costs are mainly Document Understanding pages and Generative AI input/output characters. Start with clear scans, appropriate upload limits, and a conservative `MAX_DOCUMENT_CHARS` setting. See [docs/cost_estimate.md](docs/cost_estimate.md) for illustrative worksheets and cost-control guidance.
@@ -379,6 +385,7 @@ functions/object_intake/       Optional Object Storage intake Function
 scripts/setup.py               Guided OCI configuration wizard
 scripts/deploy.sh              Terraform + Ansible deployment runner
 scripts/cleanup_retention.py   VM-local retention cleanup helper
+scripts/check_publication.py   Manual Git-index and source-archive privacy check
 scripts/build_architecture.py Build the editable draw.io architecture
 scripts/render_architecture.py Render all draw.io pages to PNG
 data/compliance/               Seed compliance catalog
@@ -393,10 +400,11 @@ docs/                          Architecture, usage, cost, security, and review n
 | [docs/architecture_flows.md](docs/architecture_flows.md) | Editable draw.io, PNGs, connector evidence, lifecycle and network boundaries. |
 | [docs/security_notes.md](docs/security_notes.md) | MVP controls, credential model, retention, and production hardening notes. |
 | [docs/cost_estimate.md](docs/cost_estimate.md) | Illustrative OCI cost assumptions and cost-control guidance. |
-| [docs/e2e_acceptance_notes.md](docs/e2e_acceptance_notes.md) | End-to-end acceptance notes. |
+| [docs/e2e_acceptance_notes.md](docs/e2e_acceptance_notes.md) | Live London validation, cleanup evidence and historical UI walkthrough. |
 | [docs/repository_review.md](docs/repository_review.md) | Repository review findings and cleanup decisions. |
 | [docs/oda_case_chat.md](docs/oda_case_chat.md) | Embedded case-chat assistant, optional ODA API, security boundary, deployment, and client activation steps. |
-| [CHANGELOG.md](CHANGELOG.md) | Version history and unreleased changes. |
+| [docs/component_release_review.md](docs/component_release_review.md) | Tested component versions, upstream findings and adoption boundaries. |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and maintenance changes. |
 
 ## Roadmap
 

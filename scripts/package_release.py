@@ -37,6 +37,22 @@ EXCLUDED_DIRECTORIES = {
     ".codex",
     ".agents",
     ".cache",
+    ".deploy",
+    ".azure",
+    ".kube",
+    ".gnupg",
+    ".credentials",
+}
+EXCLUDED_NAMES = {
+    "credentials",
+    "credentials.json",
+    "secrets.json",
+    "secrets.yaml",
+    "secrets.yml",
+    "secrets.toml",
+    ".netrc",
+    ".npmrc",
+    ".pypirc",
 }
 EXCLUDED_SUFFIXES = {
     ".pyc",
@@ -47,6 +63,8 @@ EXCLUDED_SUFFIXES = {
     ".tfplan",
     ".log",
     ".tmp",
+    ".crt",
+    ".csr",
 }
 
 
@@ -70,6 +88,7 @@ def release_file(path: Path) -> bool:
             )
         )
         or name == ".DS_Store"
+        or name.lower() in EXCLUDED_NAMES
         or name.endswith((".tfvars", ".tfvars.json"))
         or path.suffix.lower() in EXCLUDED_SUFFIXES
     )

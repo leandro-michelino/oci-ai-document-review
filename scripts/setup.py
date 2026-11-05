@@ -55,9 +55,11 @@ class UI:
             print(message)
 
     def banner(self) -> None:
+        from src.version import VERSION_LABEL
+
         text = (
             "OCI AI Document Review Portal setup\n"
-            "Customer-friendly guided configuration for v0.8.0"
+            f"Customer-friendly guided configuration for {VERSION_LABEL}"
         )
         if self.console and Panel:
             self.console.print(Panel.fit(text, subtitle="no cloud resources created"))
