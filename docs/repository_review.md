@@ -2,7 +2,24 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.7.0`
+Current project version: `v0.8.0`
+
+## 2026-11-05 review and live London validation
+
+Release: v0.8.0. Restored the local checkout from its Git remote; local secrets and former runtime data are not part of repository recovery.
+
+- Local validation: **194 tests passed**, Ruff passed, shell syntax passed, dependency consistency passed. The suite emits one upstream Starlette/httpx deprecation warning.
+- Deployment: Terraform 1.15.6, OCI provider 7.32.0, time provider 0.14.2; Oracle Linux 9 / A1 Flex, Python 3.11 runtime. Ansible completed with zero failed or unreachable tasks.
+- Target: `uk-london-1`, the explicitly selected `Africa_Team/Leandro.Michelino` compartment. No resources were created in the duplicate compartment.
+- Default deployment: 17 managed resources. An initial lifecycle-policy failure exposed a missing regional Object Storage service grant; added a bucket-scoped root policy and propagation wait. A transient package transaction failed once; bounded retries and package lock timeout were added.
+- VM authentication: instance principals, exact-instance Dynamic Group, scoped runtime IAM. No user OCI private API key was copied to the VM.
+- Live service checks: bucket write/read/delete, Document Understanding API access, and real Cohere Command A inference in London all passed.
+- End-to-end synthetic TXT and PNG documents reached `REVIEW_REQUIRED`, with generated reports. TXT used local extraction; PNG used real Document Understanding OCR; both used `cohere.command-a-03-2025`.
+- Cleanup: three synthetic test objects were inventoried and deleted from the exclusive validation bucket. The inspected destroy plan contained exactly 17 deletions and no creates or updates; Terraform completed with **17 destroyed**. General bucket `force_destroy` remains disabled. Follow-up verification found an empty Terraform state and confirmed 16 cloud resource/boot-volume lookups as absent or terminated.
+- Rebuilt architecture: four editable draw.io pages, all 23 declared Terraform resources represented including optional components, 42 connections linked to source evidence. All PNGs were rendered and visually checked. Refreshed README banner and social-preview assets.
+- Optional Events/Functions, ODA, API Gateway and external OIDC were **not provisioned** in this live run. Local tests and source review do not establish their deployed acceptance. The portal remains an MVP requiring identity-aware access and operational controls before production.
+
+Raw deployment logs, Terraform state, resource identifiers and test data stay under ignored `.deploy/`; no credentials or tenancy-specific state are included in this release. The older review below is historical evidence.
 
 ## Scope
 

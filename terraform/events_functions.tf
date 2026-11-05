@@ -2,7 +2,7 @@
 resource "oci_functions_application" "object_intake" {
   count          = var.enable_automatic_processing ? 1 : 0
   compartment_id = var.compartment_id
-  display_name   = "doc-review-object-intake"
+  display_name   = "${var.resource_prefix}-object-intake"
   subnet_ids     = [oci_core_subnet.private.id]
   freeform_tags  = var.freeform_tags
 
@@ -16,7 +16,7 @@ resource "oci_functions_application" "object_intake" {
 resource "oci_functions_function" "object_intake" {
   count              = var.enable_automatic_processing ? 1 : 0
   application_id     = oci_functions_application.object_intake[0].id
-  display_name       = "doc-review-object-intake"
+  display_name       = "${var.resource_prefix}-object-intake"
   image              = trimspace(var.automatic_processing_function_image)
   memory_in_mbs      = var.function_memory_in_mbs
   timeout_in_seconds = var.function_timeout_in_seconds
@@ -35,7 +35,7 @@ resource "oci_identity_dynamic_group" "object_intake_function" {
   provider       = oci.home
   count          = var.enable_automatic_processing ? 1 : 0
   compartment_id = var.tenancy_id
-  name           = "doc-review-object-intake-functions"
+  name           = "${var.resource_prefix}-object-intake-functions"
   description    = "OCI Functions allowed to queue Object Storage document intake events."
   matching_rule  = "ALL {resource.type = 'fnfunc', resource.id = '${oci_functions_function.object_intake[0].id}'}"
   freeform_tags  = var.freeform_tags
@@ -45,7 +45,7 @@ resource "oci_identity_policy" "object_intake_function" {
   provider       = oci.home
   count          = var.enable_automatic_processing ? 1 : 0
   compartment_id = var.parent_compartment_id
-  name           = "doc-review-object-intake-function-policy"
+  name           = "${var.resource_prefix}-object-intake-function-policy"
   description    = "Allow the document intake function to write queue markers in the project bucket."
 
   statements = [
@@ -58,7 +58,7 @@ resource "oci_identity_policy" "object_intake_function" {
 resource "oci_events_rule" "object_intake" {
   count          = var.enable_automatic_processing ? 1 : 0
   compartment_id = var.compartment_id
-  display_name   = "doc-review-incoming-object-events"
+  display_name   = "${var.resource_prefix}-incoming-object-events"
   description    = "Invoke the intake function when Object Storage objects are created."
   is_enabled     = true
   freeform_tags  = var.freeform_tags

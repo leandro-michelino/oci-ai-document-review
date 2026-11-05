@@ -13,6 +13,7 @@ RELEASE_PATHS = (
     "scripts",
     "requirements.txt",
     "requirements-dev.txt",
+    "requirements-docs.txt",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
@@ -23,7 +24,20 @@ RELEASE_PATHS = (
     "oda",
     "data/compliance",
 )
-EXCLUDED_DIRECTORIES = {"__pycache__", ".terraform", ".git", "node_modules"}
+EXCLUDED_DIRECTORIES = {
+    "__pycache__",
+    ".terraform",
+    ".git",
+    "node_modules",
+    ".venv",
+    ".oci",
+    ".aws",
+    ".ssh",
+    ".streamlit",
+    ".codex",
+    ".agents",
+    ".cache",
+}
 EXCLUDED_SUFFIXES = {
     ".pyc",
     ".pem",
@@ -39,11 +53,25 @@ EXCLUDED_SUFFIXES = {
 def release_file(path: Path) -> bool:
     name = path.name
     return not (
-        any(part in EXCLUDED_DIRECTORIES for part in path.parts)
-        or name.startswith((".env", "._", "id_rsa", "oci_api_key", "terraform.tfstate"))
+        any(
+            part in EXCLUDED_DIRECTORIES or part.startswith(".env")
+            for part in path.parts
+        )
+        or name.startswith(
+            (
+                ".env",
+                "._",
+                "id_rsa",
+                "id_ed25519",
+                "id_ecdsa",
+                "id_dsa",
+                "oci_api_key",
+                "terraform.tfstate",
+            )
+        )
         or name == ".DS_Store"
         or name.endswith((".tfvars", ".tfvars.json"))
-        or path.suffix in EXCLUDED_SUFFIXES
+        or path.suffix.lower() in EXCLUDED_SUFFIXES
     )
 
 

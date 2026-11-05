@@ -15,7 +15,7 @@ data "oci_core_images" "oracle_linux" {
 resource "oci_core_instance" "app" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   compartment_id      = var.compartment_id
-  display_name        = "doc-review-app"
+  display_name        = "${var.resource_prefix}-app"
   shape               = var.instance_shape
   freeform_tags       = var.freeform_tags
 
@@ -26,7 +26,7 @@ resource "oci_core_instance" "app" {
 
   create_vnic_details {
     assign_public_ip = true
-    display_name     = "doc-review-app-vnic"
+    display_name     = "${var.resource_prefix}-app-vnic"
     hostname_label   = "docreview"
     subnet_id        = oci_core_subnet.public.id
   }

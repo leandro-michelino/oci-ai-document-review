@@ -8,7 +8,15 @@ This project uses semantic-style MVP versioning: `vMAJOR.MINOR.PATCH`.
 - `MINOR`: visible workflow, cloud integration, or capability changes.
 - `PATCH`: bug fixes, documentation updates, and small UX refinements.
 
-## Unreleased
+## v0.8.0 - 2026-11-05
+
+- Default VM authentication to instance principals; add bucket-scoped lifecycle service IAM and a configurable propagation wait.
+- Prevent concurrent workers, cleanup, retries and deletion from racing through cross-process document leases; recover interrupted intake markers and bound streamed downloads with ETags.
+- Discover currently available on-demand Cohere chat models through the OCI model-discovery API, with a guarded compatibility fallback.
+- Validate separate intake prefixes, filter foreign bucket events, harden release secret exclusions, and retry transient package installation failures.
+- Rebuild architecture as four editable draw.io pages with source coverage and inspected PNG exports; refresh README, banners and social preview.
+- Validate real London deployment, instance-principal service access, local-text and OCR processing through Generative AI. See the dated repository review for cleanup evidence and optional-component limits.
+
 
 - Made metadata replacement atomic and serialized mutations across local portal and timer processes; worker checkpoints preserve concurrent reviewer comments and audit events.
 - Validated document IDs and metadata identity, guarded active-worker retry/discard and premature review decisions, preserved retry sources on startup/submission failures, and handled legacy timestamps during stale-job cleanup.

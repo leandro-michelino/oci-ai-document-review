@@ -1,0 +1,5 @@
+target-version = "py311"
+
+[lint]
+# Keep project checks independent of workstation-level Ruff configuration.
+select = ["E4", "E7", "E9", "F"]

@@ -880,7 +880,7 @@ def test_sidebar_navigation_buttons_change_page(monkeypatch, tmp_path):
             )
         )
 
-        app = AppTest.from_file("app.py", default_timeout=5).run()
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5).run()
         assert app.session_state["page"] == "Upload"
 
         for button in app.sidebar.button:
@@ -913,7 +913,7 @@ def test_sidebar_upload_settings_and_query_navigation(monkeypatch, tmp_path):
 
     get_config.cache_clear()
     try:
-        app = AppTest.from_file("app.py", default_timeout=5).run()
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5).run()
         assert app.session_state["page"] == "Upload"
 
         for button in app.sidebar.button:
@@ -943,7 +943,7 @@ def test_sidebar_upload_settings_and_query_navigation(monkeypatch, tmp_path):
         assert app.session_state["page"] == "Reviewed"
         assert query_value(app.query_params, "page") == "Reviewed"
 
-        refreshed = AppTest.from_file("app.py", default_timeout=5)
+        refreshed = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5)
         refreshed.query_params["page"] = "Dashboard"
         refreshed = refreshed.run()
         assert refreshed.session_state["page"] == "Dashboard"
@@ -958,7 +958,7 @@ def test_upload_how_to_use_button_opens_guide(monkeypatch, tmp_path):
 
     get_config.cache_clear()
     try:
-        app = AppTest.from_file("app.py", default_timeout=5).run()
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5).run()
         assert app.session_state["page"] == "Upload"
 
         for button in app.button:
@@ -979,7 +979,7 @@ def test_upload_page_uses_single_expense_reference_field(monkeypatch, tmp_path):
 
     get_config.cache_clear()
     try:
-        app = AppTest.from_file("app.py", default_timeout=5).run()
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5).run()
 
         assert [item.label for item in app.text_input] == []
         assert [item.label for item in app.text_area] == [
@@ -1031,7 +1031,7 @@ def test_actions_document_type_editor_updates_metadata(monkeypatch, tmp_path):
             )
         )
 
-        app = AppTest.from_file("app.py", default_timeout=5)
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5)
         app.query_params["page"] = "Actions"
         app = app.run()
         assert app.session_state["page"] == "Actions"
@@ -1070,7 +1070,7 @@ def test_actions_status_filter_resets_selected_file_to_matching_record(monkeypat
         store.save(review)
         store.save(failed)
 
-        app = AppTest.from_file("app.py", default_timeout=5)
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5)
         app.query_params["page"] = "Actions"
         app = app.run()
         assert app.session_state["detail_action_item"] == "doc-review"
@@ -1110,7 +1110,7 @@ def test_actions_requires_exact_id_before_failed_document_discard_executes(
         store = MetadataStore(config)
         store.save(failed)
 
-        app = AppTest.from_file("app.py", default_timeout=5)
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5)
         app.query_params["page"] = "Actions"
         app = app.run()
 
@@ -1155,7 +1155,7 @@ def test_approve_advances_actions_picker_to_next_item(monkeypatch, tmp_path):
         store.save(next_record)
         store.save(current)
 
-        app = AppTest.from_file("app.py", default_timeout=5)
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5)
         app.query_params["page"] = "Actions"
         app = app.run()
         assert app.session_state["selected_document_id"] == "doc-current"
@@ -1186,7 +1186,7 @@ def test_reject_requires_comments_and_then_closes_record(monkeypatch, tmp_path):
         record.uploaded_at = datetime.now(timezone.utc)
         store.save(record)
 
-        app = AppTest.from_file("app.py", default_timeout=5)
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=5)
         app.query_params["page"] = "Actions"
         app = app.run()
 

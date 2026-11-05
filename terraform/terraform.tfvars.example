@@ -62,3 +62,10 @@ admin_group_name          = ""
 freeform_tags = {
   project = "oci-ai-document-review"
 }
+
+# Default runtime workload identity and bucket-scoped regional lifecycle policy.
+# Root IAM permissions are required for the lifecycle service policy.
+resource_prefix                 = "doc-review"
+enable_instance_principal       = true
+create_lifecycle_service_policy = true
+iam_propagation_wait_seconds    = 60

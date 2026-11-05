@@ -61,6 +61,24 @@ def handler(ctx, data: io.BytesIO | None = None):
     object_name = event_value(event, "objectName", "resourceName")
     incoming_prefix = object_prefix("INCOMING_PREFIX", "incoming/")
     queue_prefix = object_prefix("QUEUE_PREFIX", "event-queue/")
+    if incoming_prefix.startswith(queue_prefix) or queue_prefix.startswith(
+        incoming_prefix
+    ):
+        raise ValueError("Incoming and queue prefixes must not overlap.")
+    if any(
+        prefix.startswith("documents/") or "documents/".startswith(prefix)
+        for prefix in (incoming_prefix, queue_prefix)
+    ):
+        raise ValueError("Intake prefixes must not overlap documents/.")
+    if (
+        namespace != os.environ["OCI_NAMESPACE"]
+        or bucket != os.environ["OCI_BUCKET_NAME"]
+    ):
+        return response.Response(
+            ctx,
+            response_data=json.dumps({"queued": False, "reason": "ignored bucket"}),
+            headers={"Content-Type": "application/json"},
+        )
     if not object_name or not object_name.startswith(incoming_prefix):
         return response.Response(
             ctx,

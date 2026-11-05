@@ -41,7 +41,16 @@ def discard_failed_document(
     absence. Any other Object Storage error leaves all local recovery artifacts intact.
     """
     if document_id in submitted_document_ids():
-        raise ValueError("This document still has an active worker. Discard after it finishes.")
+        raise ValueError(
+            "This document still has an active worker. Discard after it finishes."
+        )
+    with store.document_lease(document_id):
+        return _discard_failed_document(
+            config, store, document_id, actor, reason, object_storage
+        )
+
+
+def _discard_failed_document(config, store, document_id, actor, reason, object_storage):
     record = store.load(document_id)
     if record.status != ProcessingStatus.FAILED:
         raise ValueError("Only failed documents can be discarded.")

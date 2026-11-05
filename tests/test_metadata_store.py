@@ -51,7 +51,7 @@ def test_fail_stale_processing_marks_old_processing_records_failed(tmp_path):
     assert updated.audit_events[-1].action == "STALE_PROCESSING_FAILED"
 
 
-def test_fail_stale_processing_marks_submitted_records_failed_after_timeout(tmp_path):
+def test_fail_stale_processing_protects_submitted_records_after_timeout(tmp_path):
     config = SimpleNamespace(local_metadata_dir=tmp_path)
     store = MetadataStore(config)
     record = DocumentRecord(
@@ -68,10 +68,10 @@ def test_fail_stale_processing_marks_submitted_records_failed_after_timeout(tmp_
             max_age_minutes=10,
             protected_document_ids={"doc-3"},
         )
-        == 1
+        == 0
     )
     updated = store.load("doc-3")
-    assert updated.status == ProcessingStatus.FAILED
+    assert updated.status == ProcessingStatus.EXTRACTED
 
 
 def test_fail_stale_processing_keeps_recent_submitted_records_active(tmp_path):

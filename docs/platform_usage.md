@@ -4,7 +4,7 @@ This guide explains how to deploy, operate, and use the OCI AI Document Review P
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.7.0`
+Current project version: `v0.8.0`
 
 The repository does not include GitHub Actions or CI deployment workflows. Terraform and Ansible are run locally from your laptop with your existing OCI config and policies.
 
@@ -39,7 +39,7 @@ Compute VM
   - background worker pool
   - systemd service
   - runtime .env
-  - OCI SDK config copied from local profile
+  - Instance-principal authentication by default; local profile used for Terraform
   - local JSON metadata, workflow history, and Markdown reports
 ```
 
@@ -308,7 +308,7 @@ Recommended processing flow:
    View Dashboard, Open Actions, or Upload Another. After a document is approved or rejected, use Reviewed from the sidebar to revisit the closed decision.
 10. Use Dashboard to watch the queue while the worker pool runs the live steps:
    Object Storage upload, local text extraction for text-native files and PDFs with selectable text, Document Understanding only for images or scanned/image-only PDFs, automatic limit-safe OCR chunks for scanned PDFs above OCI's synchronous request limits, DU text-only OCR fallback when rich extraction fails, GenAI analysis, compliance knowledge-base lookup, compliance risk overlay, metadata/report save.
-11. Use Dashboard to scan Ready, Processing, Failed, and Reviewed tabs. Individual files and multi-file uploads appear in the same compact selectable tables; multi-file uploads stay grouped under their shared Expense name or reference as one group row with file count, stage summary, action, risk, confidence, SLA, owner, and a details hint. Active rows show how long they have been working, and stale runs are marked failed automatically during Dashboard refresh. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
+11. Use Dashboard to scan Ready, Processing, Failed, and Reviewed tabs. Individual files and multi-file uploads appear in the same compact selectable tables; multi-file uploads stay grouped under their shared Expense name or reference as one group row with file count, stage summary, action, risk, confidence, SLA, owner, and a details hint. Active rows show how long they have been working, and abandoned stale runs without a live worker lease are marked failed automatically during Dashboard refresh. Use the Status filter to narrow the queue to Approved, Rejected, Reviewed, Failed, Processing, Needs decision, Compliance review, Fix and retry, or Retry planned.
 12. Select a file or group row and click Review selected. Group rows open the best next actionable file first, preferring compliance review and approval work before retry, active, or reviewed records.
 13. Use the Actions page to review the selected-file summary. Open linked files, source document, workflow, analysis, lifecycle, extracted text, and downloads only when needed.
 14. Correct the document type from the top Decision panel if the detected label needs adjustment.
@@ -357,7 +357,7 @@ STALE_PROCESSING_MINUTES=12
 MAX_PARALLEL_JOBS=5
 ```
 
-Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If a processing run remains in an active stage beyond the stale window, the app marks it as `FAILED` with a retry message.
+Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. If an abandoned processing run remains active beyond the stale window without a live worker lease, the app marks it as `FAILED` with a retry message.
 
 ## Review Workflow
 
@@ -387,7 +387,7 @@ Dashboard
   - Opens selected files in Actions from the compact table `Review selected` action.
   - Keeps the route in the browser URL with `?page=Dashboard`.
   - Refreshes Dashboard components every three seconds with a Streamlit fragment instead of full browser reloads, and shows the last refresh time plus a manual Refresh Status control.
-  - Marks stale active records as failed during refresh so stuck uploads do not remain in Processing forever.
+  - Marks abandoned stale records without a live worker lease as failed during refresh so stuck uploads do not remain in Processing forever.
 
 Actions
   - Polls the selected document every second while open, so a background processing status change becomes visible without navigating away or manually reloading. Reviewer draft fields use session state and remain available across the refresh.
@@ -478,8 +478,6 @@ Remote paths:
 ```text
 /opt/oci-ai-document-review
 /opt/oci-ai-document-review/.env
-/opt/oci-ai-document-review/.oci/config
-/opt/oci-ai-document-review/.oci/oci_api_key.pem
 /opt/oci-ai-document-review/data/metadata
 /opt/oci-ai-document-review/data/reports
 /opt/oci-ai-document-review/data/uploads
@@ -490,8 +488,6 @@ Expected runtime files on the VM:
 
 ```text
 .env
-.oci/config
-.oci/oci_api_key.pem
 data/metadata/*.json
 data/reports/*.md
 data/uploads/*
@@ -612,7 +608,7 @@ Do not commit .deploy/.
 Use your existing OCI policies and API keys from your laptop.
 Rotate API keys according to your security process.
 Review Object Storage retention and lifecycle rules before production use. The default deployment deletes uploaded document objects after 30 days.
-Add OCI Vault and instance principals for a production-grade deployment.
+Instance principals are the default VM authentication. Add OCI Vault for application secrets and identity-aware access before production.
 ```
 
 ## Cost And Changelog

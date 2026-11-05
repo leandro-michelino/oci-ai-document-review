@@ -121,12 +121,18 @@ def import_marker(
 
     document_id = marker_document_id(marker)
     if store.path_for(document_id).exists():
-        object_storage.delete_object(marker_name)
-        return False
+        existing = store.load(document_id)
+        if existing.status != ProcessingStatus.UPLOADED or store.worker_active(document_id):
+            object_storage.delete_object(marker_name)
+            return False
 
     storage_name = safe_document_name(document_name)
     source_path = config.local_uploads_dir / f"incoming-{document_id}-{storage_name}"
-    object_storage.download_file(object_name, source_path)
+    object_storage.download_file(
+        object_name, source_path,
+        max_bytes=getattr(config, "max_upload_mb", 10) * 1024 * 1024,
+        if_match=marker.get("etag") or None,
+    )
     file_size = source_path.stat().st_size
     mime_type = marker.get("content_type") or mimetypes.guess_type(document_name)[0]
     job_description = marker.get("job_description") or job_description_from_object(
@@ -147,7 +153,8 @@ def import_marker(
         job_description=job_description,
         notes=notes,
     )
-    store.save(record)
+    if not store.path_for(document_id).exists():
+        store.save(record)
     submit_document_processing(
         config=config,
         source_path=source_path,

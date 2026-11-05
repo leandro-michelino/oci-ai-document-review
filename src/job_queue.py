@@ -9,7 +9,7 @@ from threading import Lock
 from src.config import AppConfig
 from src.file_names import validate_document_id
 from src.logger import get_logger
-from src.metadata_store import MetadataStore
+from src.metadata_store import DocumentBusyError, MetadataStore
 from src.models import DocumentRecord, DocumentType, ProcessingStatus, WorkflowStatus
 from src.processor import (
     DocumentProcessor,
@@ -93,8 +93,15 @@ def retry_document_processing(
     reason: str | None = None,
 ) -> str:
     if document_id in submitted_document_ids():
-        raise ValueError("This document still has an active worker. Retry after it finishes.")
+        raise ValueError(
+            "This document still has an active worker. Retry after it finishes."
+        )
     store = MetadataStore(config)
+    with store.document_lease(document_id):
+        return _retry_document_processing(config, store, document_id, actor, reason)
+
+
+def _retry_document_processing(config, store, document_id, actor, reason) -> str:
     original = store.load(document_id)
     if original.status != ProcessingStatus.FAILED:
         raise ValueError("Only failed documents can be retried.")
@@ -178,25 +185,31 @@ def _process_document(
 ) -> None:
     working_copy = None
     try:
-        working_copy = _preserve_working_copy(config, source_path, document_id, document_name)
-        DocumentProcessor(config).process(
-            source_path=source_path,
-            document_name=document_name,
-            document_type=document_type,
-            business_reference=business_reference,
-            notes=notes,
-            job_description=job_description,
-            source_file_size_bytes=source_file_size_bytes,
-            source_file_mime_type=source_file_mime_type,
-            document_id=document_id,
-        )
+        with MetadataStore(config).document_lease(document_id):
+            working_copy = _preserve_working_copy(
+                config, source_path, document_id, document_name
+            )
+            DocumentProcessor(config).process(
+                source_path=source_path,
+                document_name=document_name,
+                document_type=document_type,
+                business_reference=business_reference,
+                notes=notes,
+                job_description=job_description,
+                source_file_size_bytes=source_file_size_bytes,
+                source_file_mime_type=source_file_mime_type,
+                document_id=document_id,
+            )
+    except DocumentBusyError:
+        logger.info("Skipping duplicate active document %s", document_id)
     except Exception as exc:
         logger.exception("Background document processing failed for %s", document_id)
         _mark_failed(config, document_id, exc)
     finally:
         # Never delete the only recovery copy, including constructor failures.
         if (
-            working_copy is not None and working_copy.exists()
+            working_copy is not None
+            and working_copy.exists()
             and source_path.resolve() != working_copy.resolve()
         ):
             source_path.unlink(missing_ok=True)

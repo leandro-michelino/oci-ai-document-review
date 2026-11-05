@@ -168,6 +168,7 @@ IGW_ID="$(terraform output -raw internet_gateway_id)"
 NATGW_ID="$(terraform output -raw nat_gateway_id)"
 SGW_ID="$(terraform output -raw service_gateway_id)"
 AUTOMATIC_PROCESSING_ENABLED="$(terraform output -raw automatic_processing_enabled)"
+RUNTIME_OCI_AUTH="$(terraform output -raw runtime_oci_auth)"
 EVENT_INTAKE_POLL_SECONDS="$(terraform output -raw event_intake_poll_seconds)"
 TF_EVENT_INTAKE_QUEUE_PREFIX="$(terraform output -raw event_intake_queue_prefix)"
 TF_EVENT_INTAKE_INCOMING_PREFIX="$(terraform output -raw event_intake_incoming_prefix)"
@@ -196,12 +197,15 @@ section "4/5 Configure VM And Deploy App With Ansible"
 step "Installing required Ansible collections"
 ansible-galaxy collection install -r ansible/requirements.yml
 step "Running ansible/playbook.yml"
+ANSIBLE_AUTH_ARGS=(-e "oci_auth=$RUNTIME_OCI_AUTH")
+if [[ "$RUNTIME_OCI_AUTH" == "config_file" ]]; then
+  ANSIBLE_AUTH_ARGS+=(-e "oci_api_key_file=$OCI_EXISTING_KEY_FILE")
+fi
 ansible-playbook -i "$INVENTORY" ansible/playbook.yml \
-  -e "oci_auth=config_file" \
+  "${ANSIBLE_AUTH_ARGS[@]}" \
   -e "oci_user_id=$OCI_USER_ID" \
   -e "oci_tenancy_id=$OCI_TENANCY_ID" \
   -e "oci_fingerprint=$OCI_FINGERPRINT" \
-  -e "oci_api_key_file=$OCI_EXISTING_KEY_FILE" \
   -e "oci_region=$OCI_REGION" \
   -e "genai_region=$GENAI_REGION" \
   -e "compartment_id=$OCI_COMPARTMENT_ID" \
@@ -281,7 +285,7 @@ Terraform-managed infrastructure
 
 Ansible-managed runtime
   Runtime config:          /opt/oci-ai-document-review/.env
-  OCI SDK config:          /opt/oci-ai-document-review/.oci/config
+  OCI authentication:      $RUNTIME_OCI_AUTH
   Upload limit:            ${MAX_UPLOAD_MB:-10} MB per file
   Local metadata:          /opt/oci-ai-document-review/data/metadata
   Markdown reports:        /opt/oci-ai-document-review/data/reports

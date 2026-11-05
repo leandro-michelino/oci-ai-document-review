@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -29,6 +30,28 @@ from src.safety_messages import sanitize_provider_payload
 logger = get_logger(__name__)
 _mutation_lock = RLock()
 _held_locks = local()
+
+
+class DocumentBusyError(ValueError):
+    """Another local process owns this document's processing or deletion lease."""
+
+
+@contextmanager
+def document_lease(root: Path, document_id: str):
+    lock_root = root / ".workers"
+    lock_root.mkdir(parents=True, exist_ok=True)
+    path = lock_root / f"{validate_document_id(document_id)}.lock"
+    with path.open("a") as lock_file:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise DocumentBusyError(
+                "This document has an active worker or operation. Try again after it finishes."
+            ) from exc
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
 def serialized_mutation(method):
@@ -107,6 +130,16 @@ class MetadataStore:
         if not self._is_within_root(path, self.root):
             raise ValueError("Metadata path must remain inside the metadata directory.")
         return path
+
+    def document_lease(self, document_id: str):
+        return document_lease(self.root, document_id)
+
+    def worker_active(self, document_id: str) -> bool:
+        try:
+            with self.document_lease(document_id):
+                return False
+        except DocumentBusyError:
+            return True
 
     @serialized_mutation
     def save(self, record: DocumentRecord) -> None:
@@ -393,13 +426,10 @@ class MetadataStore:
             age_seconds = (now - self._as_aware(record.uploaded_at)).total_seconds()
             if age_seconds < max_age_minutes * 60:
                 continue
-            if record.document_id in protected_document_ids:
-                logger.warning(
-                    "Marking submitted document %s as stale after %.1f minutes in %s",
-                    record.document_id,
-                    age_seconds / 60,
-                    record.status.value,
-                )
+            if record.document_id in protected_document_ids or self.worker_active(
+                record.document_id
+            ):
+                continue
             record.status = ProcessingStatus.FAILED
             record.error_message = (
                 "Processing did not complete before the configured timeout window. "
@@ -448,7 +478,9 @@ class MetadataStore:
                 continue
 
             records_by_id[record.document_id] = record
-            if record.status in ACTIVE_PROCESSING_STATUSES:
+            if record.status in ACTIVE_PROCESSING_STATUSES or self.worker_active(
+                record.document_id
+            ):
                 protected_ids.add(record.document_id)
                 continue
             if record.document_id in protected_ids:
@@ -581,9 +613,7 @@ class MetadataStore:
                 continue
             if self._artifact_belongs_to_record(path, kind, protected_ids):
                 continue
-            if self._artifact_belongs_to_record(
-                path, kind, set(records_by_id.keys())
-            ):
+            if self._artifact_belongs_to_record(path, kind, set(records_by_id.keys())):
                 continue
             removed += self._remove_path(path)
         return removed

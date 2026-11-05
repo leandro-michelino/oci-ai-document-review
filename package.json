@@ -2,7 +2,9 @@
   "name": "oci-ai-document-review-doc-tools",
   "private": true,
   "scripts": {
-    "docs:render-architecture": "node scripts/render_architecture.mjs"
+    "docs:render-architecture": "python3 scripts/render_architecture.py",
+    "docs:build-architecture": "python3 scripts/build_architecture.py",
+    "docs:render-legacy-excalidraw": "node scripts/render_architecture.mjs"
   },
   "devDependencies": {
     "playwright": "1.57.0"

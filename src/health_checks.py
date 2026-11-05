@@ -21,13 +21,14 @@ class HealthCheckResult:
 
 
 def check_object_storage(config: AppConfig) -> HealthCheckResult:
-    client = ObjectStorageClient(config)
+    client = None
     object_name = f"healthchecks/preflight-{uuid4().hex}.txt"
     deleted = False
     with NamedTemporaryFile(delete=False) as tmp:
         tmp.write(b"oci-ai-document-review-preflight")
         tmp_path = Path(tmp.name)
     try:
+        client = ObjectStorageClient(config)
         bucket = client.get_bucket()
         client.upload_file(tmp_path, object_name)
         content = client.get_object_text(object_name)
@@ -46,7 +47,7 @@ def check_object_storage(config: AppConfig) -> HealthCheckResult:
         return HealthCheckResult("Object Storage", False, error_message(exc))
     finally:
         tmp_path.unlink(missing_ok=True)
-        if not deleted:
+        if client is not None and not deleted:
             try:
                 client.delete_object(object_name)
             except Exception:

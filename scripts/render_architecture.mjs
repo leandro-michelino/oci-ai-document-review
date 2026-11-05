@@ -6,7 +6,7 @@ import { basename, resolve } from "node:path";
 import { chromium } from "playwright";
 
 const DEFAULT_INPUT = "docs/assets/oci-ai-document-review-architecture.excalidraw";
-const DEFAULT_OUTPUT = "docs/assets/oci-ai-document-review-architecture.png";
+const DEFAULT_OUTPUT = "docs/assets/oci-ai-document-review-architecture-legacy.png";
 const DEFAULT_SCALE = 3;
 const EXCALIDRAW_VERSION = "0.18.0";
 const EXCALIFONT_URL =

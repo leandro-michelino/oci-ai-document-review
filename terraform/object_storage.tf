@@ -14,8 +14,9 @@ resource "oci_objectstorage_bucket" "documents" {
 }
 
 resource "oci_objectstorage_object_lifecycle_policy" "documents_retention" {
-  namespace = var.object_storage_namespace
-  bucket    = oci_objectstorage_bucket.documents.name
+  namespace  = var.object_storage_namespace
+  bucket     = oci_objectstorage_bucket.documents.name
+  depends_on = [time_sleep.lifecycle_policy_propagation]
 
   rules {
     name        = "delete-uploaded-documents-after-retention"
@@ -27,5 +28,29 @@ resource "oci_objectstorage_object_lifecycle_policy" "documents_retention" {
     object_name_filter {
       inclusion_prefixes = ["documents/"]
     }
+  }
+}
+
+resource "oci_identity_policy" "object_lifecycle_service" {
+  provider       = oci.home
+  count          = var.create_lifecycle_service_policy ? 1 : 0
+  compartment_id = var.tenancy_id
+  name           = "${var.resource_prefix}-object-lifecycle-service"
+  description    = "Allow the regional Object Storage service to enforce this project's delete lifecycle."
+
+  statements = [
+    "Allow service objectstorage-${var.region} to manage object-family in compartment id ${var.compartment_id} where all {target.bucket.name='${oci_objectstorage_bucket.documents.name}', any {request.permission='BUCKET_INSPECT', request.permission='BUCKET_READ', request.permission='OBJECT_INSPECT', request.permission='OBJECT_DELETE', request.permission='OBJECT_VERSION_DELETE'}}",
+  ]
+
+  freeform_tags = var.freeform_tags
+}
+
+resource "time_sleep" "lifecycle_policy_propagation" {
+  count           = var.create_lifecycle_service_policy ? 1 : 0
+  depends_on      = [oci_identity_policy.object_lifecycle_service]
+  create_duration = "${var.iam_propagation_wait_seconds}s"
+
+  triggers = {
+    policy_id = oci_identity_policy.object_lifecycle_service[0].id
   }
 }

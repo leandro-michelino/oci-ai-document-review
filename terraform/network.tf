@@ -1,7 +1,7 @@
 # Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 resource "oci_core_vcn" "app" {
   compartment_id = var.compartment_id
-  display_name   = "doc-review-vcn"
+  display_name   = "${var.resource_prefix}-vcn"
   cidr_block     = var.vcn_cidr
   dns_label      = "docreview"
   freeform_tags  = var.freeform_tags
@@ -9,7 +9,7 @@ resource "oci_core_vcn" "app" {
 
 resource "oci_core_internet_gateway" "app" {
   compartment_id = var.compartment_id
-  display_name   = "doc-review-igw"
+  display_name   = "${var.resource_prefix}-igw"
   vcn_id         = oci_core_vcn.app.id
   enabled        = true
   freeform_tags  = var.freeform_tags
@@ -17,7 +17,7 @@ resource "oci_core_internet_gateway" "app" {
 
 resource "oci_core_nat_gateway" "app" {
   compartment_id = var.compartment_id
-  display_name   = "doc-review-natgw"
+  display_name   = "${var.resource_prefix}-natgw"
   vcn_id         = oci_core_vcn.app.id
   freeform_tags  = var.freeform_tags
 }
@@ -32,7 +32,7 @@ data "oci_core_services" "oracle_services" {
 
 resource "oci_core_service_gateway" "app" {
   compartment_id = var.compartment_id
-  display_name   = "doc-review-sgw"
+  display_name   = "${var.resource_prefix}-sgw"
   vcn_id         = oci_core_vcn.app.id
   freeform_tags  = var.freeform_tags
 
@@ -43,7 +43,7 @@ resource "oci_core_service_gateway" "app" {
 
 resource "oci_core_route_table" "public" {
   compartment_id = var.compartment_id
-  display_name   = "doc-review-public-rt"
+  display_name   = "${var.resource_prefix}-public-rt"
   vcn_id         = oci_core_vcn.app.id
 
   route_rules {
@@ -57,7 +57,7 @@ resource "oci_core_route_table" "public" {
 
 resource "oci_core_route_table" "private" {
   compartment_id = var.compartment_id
-  display_name   = "doc-review-private-rt"
+  display_name   = "${var.resource_prefix}-private-rt"
   vcn_id         = oci_core_vcn.app.id
 
   route_rules {
@@ -77,7 +77,7 @@ resource "oci_core_route_table" "private" {
 
 resource "oci_core_security_list" "public" {
   compartment_id = var.compartment_id
-  display_name   = "doc-review-public-sl"
+  display_name   = "${var.resource_prefix}-public-sl"
   vcn_id         = oci_core_vcn.app.id
 
   ingress_security_rules {
@@ -110,7 +110,7 @@ resource "oci_core_security_list" "public" {
 
 resource "oci_core_security_list" "private" {
   compartment_id = var.compartment_id
-  display_name   = "doc-review-private-sl"
+  display_name   = "${var.resource_prefix}-private-sl"
   vcn_id         = oci_core_vcn.app.id
 
   ingress_security_rules {
@@ -138,7 +138,7 @@ resource "oci_core_security_list" "private" {
 
 resource "oci_core_subnet" "public" {
   compartment_id             = var.compartment_id
-  display_name               = "doc-review-public-subnet"
+  display_name               = "${var.resource_prefix}-public-subnet"
   vcn_id                     = oci_core_vcn.app.id
   cidr_block                 = var.subnet_cidr
   dns_label                  = "public"
@@ -150,7 +150,7 @@ resource "oci_core_subnet" "public" {
 
 resource "oci_core_subnet" "private" {
   compartment_id             = var.compartment_id
-  display_name               = "doc-review-private-subnet"
+  display_name               = "${var.resource_prefix}-private-subnet"
   vcn_id                     = oci_core_vcn.app.id
   cidr_block                 = var.private_subnet_cidr
   dns_label                  = "private"

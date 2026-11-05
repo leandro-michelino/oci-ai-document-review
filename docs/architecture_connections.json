@@ -1,0 +1,395 @@
+{
+  "toolkit": "Oracle OCI Architecture Diagram Toolkit v24.2",
+  "pages": [
+    {
+      "id": "processing",
+      "title": "OCI AI Document Review | Document processing",
+      "layout_warnings": [],
+      "connections": [
+        {
+          "id": "processing_n19",
+          "source": "processing_n18",
+          "target": "processing_n17",
+          "value": "Authorizes delete lifecycle",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/object_storage.tf:object_lifecycle_service,lifecycle_policy_propagation"
+        },
+        {
+          "id": "processing_n49",
+          "source": "processing_n3",
+          "target": "processing_n7",
+          "value": "Upload / review",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;",
+          "sourceEvidence": "app.py:upload_page,render_review_action_panel"
+        },
+        {
+          "id": "processing_n50",
+          "source": "processing_n7",
+          "target": "processing_n8",
+          "value": "Queue",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;",
+          "sourceEvidence": "src/job_queue.py:submit_document_processing"
+        },
+        {
+          "id": "processing_n51",
+          "source": "processing_n8",
+          "target": "processing_n9",
+          "value": "Upload original; load catalog",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/processor.py:process; src/compliance.py:load_compliance_catalog"
+        },
+        {
+          "id": "processing_n52",
+          "source": "processing_n9",
+          "target": "processing_n17",
+          "value": "Lifecycle association",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.36;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/object_storage.tf:documents_retention"
+        },
+        {
+          "id": "processing_n53",
+          "source": "processing_n8",
+          "target": "processing_n20",
+          "value": "Text-native path",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/text_extraction.py:extract_text_locally"
+        },
+        {
+          "id": "processing_n54",
+          "source": "processing_n8",
+          "target": "processing_n21",
+          "value": "Analyze object reference",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/document_understanding_client.py:_extract_document_inline"
+        },
+        {
+          "id": "processing_n55",
+          "source": "processing_n20",
+          "target": "processing_n37",
+          "value": "Local text",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/processor.py:process"
+        },
+        {
+          "id": "processing_n56",
+          "source": "processing_n21",
+          "target": "processing_n37",
+          "value": "OCR results via worker",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/processor.py:extract_with_document_understanding"
+        },
+        {
+          "id": "processing_n57",
+          "source": "processing_n37",
+          "target": "processing_n38",
+          "value": "Prompt + context",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/processor.py:process; src/genai_client.py:analyze_document"
+        },
+        {
+          "id": "processing_n58",
+          "source": "processing_n38",
+          "target": "processing_n46",
+          "value": "Result handled by worker",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.46;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/processor.py:process"
+        },
+        {
+          "id": "processing_n59",
+          "source": "processing_n46",
+          "target": "processing_n47",
+          "value": "Persist review",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/processor.py:process"
+        },
+        {
+          "id": "processing_n60",
+          "source": "processing_n47",
+          "target": "processing_n48",
+          "value": "Review queue",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "app.py:dashboard_page,apply_review_action"
+        }
+      ]
+    },
+    {
+      "id": "network",
+      "title": "OCI AI Document Review | Terraform network",
+      "layout_warnings": [],
+      "connections": [
+        {
+          "id": "network_n136",
+          "source": "network_n14",
+          "target": "network_n134",
+          "value": "Matches exact VM identity",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/iam.tf:app_instance.matching_rule"
+        },
+        {
+          "id": "network_n137",
+          "source": "network_n134",
+          "target": "network_n135",
+          "value": "Policy subject",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/iam.tf:app_instance.statements"
+        },
+        {
+          "id": "network_n138",
+          "source": "network_n4",
+          "target": "network_n40",
+          "value": "Allowed ingress",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:public security list"
+        },
+        {
+          "id": "network_n139",
+          "source": "network_n40",
+          "target": "network_n14",
+          "value": "22 / 8501",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:public; terraform/compute.tf:create_vnic_details"
+        },
+        {
+          "id": "network_n140",
+          "source": "network_n11",
+          "target": "network_n50",
+          "value": "security_list_ids",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;edgeStyle=orthogonalEdgeStyle;exitX=0.12;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:public subnet"
+        },
+        {
+          "id": "network_n141",
+          "source": "network_n11",
+          "target": "network_n60",
+          "value": "route_table_id",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;edgeStyle=orthogonalEdgeStyle;exitX=0.74;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:public subnet"
+        },
+        {
+          "id": "network_n142",
+          "source": "network_n26",
+          "target": "network_n82",
+          "value": "security_list_ids",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;edgeStyle=orthogonalEdgeStyle;exitX=0.12;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:private subnet"
+        },
+        {
+          "id": "network_n143",
+          "source": "network_n26",
+          "target": "network_n92",
+          "value": "route_table_id",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;edgeStyle=orthogonalEdgeStyle;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:private subnet"
+        },
+        {
+          "id": "network_n144",
+          "source": "network_n60",
+          "target": "network_n40",
+          "value": "0.0.0.0/0 \u2192 IGW",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:public route_rules"
+        },
+        {
+          "id": "network_n145",
+          "source": "network_n92",
+          "target": "network_n114",
+          "value": "Regional OSN service CIDR",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:private service route"
+        },
+        {
+          "id": "network_n146",
+          "source": "network_n92",
+          "target": "network_n122",
+          "value": "0.0.0.0/0 \u2192 NAT",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:private default route"
+        },
+        {
+          "id": "network_n147",
+          "source": "network_n114",
+          "target": "network_n129",
+          "value": "Service route",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:service_gateway.services"
+        },
+        {
+          "id": "network_n148",
+          "source": "network_n122",
+          "target": "network_n131",
+          "value": "Private-subnet egress",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/network.tf:private default route"
+        }
+      ]
+    },
+    {
+      "id": "automation",
+      "title": "OCI AI Document Review | Optional automatic intake",
+      "layout_warnings": [],
+      "connections": [
+        {
+          "id": "automation_n42",
+          "source": "automation_n3",
+          "target": "automation_n7",
+          "value": "Upload",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/object_storage.tf:object_events_enabled"
+        },
+        {
+          "id": "automation_n43",
+          "source": "automation_n7",
+          "target": "automation_n15",
+          "value": "createobject",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/events_functions.tf:object_intake.condition"
+        },
+        {
+          "id": "automation_n44",
+          "source": "automation_n15",
+          "target": "automation_n19",
+          "value": "FAAS action",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/events_functions.tf:object_intake.actions"
+        },
+        {
+          "id": "automation_n45",
+          "source": "automation_n19",
+          "target": "automation_n29",
+          "value": "Write queue marker",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "functions/object_intake/func.py:handler"
+        },
+        {
+          "id": "automation_n46",
+          "source": "automation_n29",
+          "target": "automation_n37",
+          "value": "Read markers + source",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.46;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/event_intake.py:import_event_queue,import_marker"
+        },
+        {
+          "id": "automation_n47",
+          "source": "automation_n37",
+          "target": "automation_n38",
+          "value": "Queue processing",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/event_intake.py:import_marker"
+        },
+        {
+          "id": "automation_n48",
+          "source": "automation_n38",
+          "target": "automation_n39",
+          "value": "Analysis + review record",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/processor.py:process"
+        },
+        {
+          "id": "automation_n49",
+          "source": "automation_n40",
+          "target": "automation_n41",
+          "value": "Policy subject",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;edgeStyle=orthogonalEdgeStyle;",
+          "sourceEvidence": "terraform/events_functions.tf:object_intake_function policy"
+        },
+        {
+          "id": "automation_n50",
+          "source": "automation_n40",
+          "target": "automation_n19",
+          "value": "Matches function OCID",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.15;entryY=1;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/events_functions.tf:object_intake_function.matching_rule"
+        },
+        {
+          "id": "automation_n51",
+          "source": "automation_n41",
+          "target": "automation_n29",
+          "value": "Bucket object permissions",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;endArrow=none;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.85;entryY=1;entryDx=0;entryDy=0;",
+          "sourceEvidence": "terraform/events_functions.tf:object_intake_function.statements"
+        }
+      ]
+    },
+    {
+      "id": "case-assistant",
+      "title": "OCI AI Document Review | Optional ODA case assistant",
+      "layout_warnings": [],
+      "connections": [
+        {
+          "id": "case-assistant_n45",
+          "source": "case-assistant_n3",
+          "target": "case-assistant_n7",
+          "value": "Question + linked identity",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "docs/oda_case_chat.md; oda/case-review-openapi.yaml"
+        },
+        {
+          "id": "case-assistant_n46",
+          "source": "case-assistant_n7",
+          "target": "case-assistant_n18",
+          "value": "Bearer token",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "docs/oda_case_chat.md"
+        },
+        {
+          "id": "case-assistant_n47",
+          "source": "case-assistant_n18",
+          "target": "case-assistant_n32",
+          "value": "Private backend route :8081",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;dashed=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;",
+          "sourceEvidence": "docs/oda_case_chat.md; ansible/playbook.yml:case-chat service"
+        },
+        {
+          "id": "case-assistant_n48",
+          "source": "case-assistant_n32",
+          "target": "case-assistant_n33",
+          "value": "Authorized case only",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/case_chat_api.py:chat_about_case"
+        },
+        {
+          "id": "case-assistant_n49",
+          "source": "case-assistant_n32",
+          "target": "case-assistant_n34",
+          "value": "Evidence + question",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.5;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/case_chat_api.py:chat_about_case; src/genai_client.py:answer_case_question"
+        },
+        {
+          "id": "case-assistant_n50",
+          "source": "case-assistant_n34",
+          "target": "case-assistant_n42",
+          "value": "Answer validated by API",
+          "style": "html=1;endArrow=open;endFill=0;startFill=0;rounded=0;endSize=6;startSize=6;strokeColor=#312D2A;fontSize=10;fontColor=#312D2A;labelBackgroundColor=#FFFFFF;fontFamily=Oracle Sans,Arial,Helvetica,sans-serif;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.44;entryY=0;entryDx=0;entryDy=0;",
+          "sourceEvidence": "src/case_chat_api.py:chat_about_case"
+        }
+      ]
+    }
+  ],
+  "declared_resources": [
+    "oci_core_instance.app",
+    "oci_core_internet_gateway.app",
+    "oci_core_nat_gateway.app",
+    "oci_core_route_table.private",
+    "oci_core_route_table.public",
+    "oci_core_security_list.private",
+    "oci_core_security_list.public",
+    "oci_core_service_gateway.app",
+    "oci_core_subnet.private",
+    "oci_core_subnet.public",
+    "oci_core_vcn.app",
+    "oci_events_rule.object_intake",
+    "oci_functions_application.object_intake",
+    "oci_functions_function.object_intake",
+    "oci_identity_dynamic_group.app_instance",
+    "oci_identity_dynamic_group.object_intake_function",
+    "oci_identity_policy.admin_group",
+    "oci_identity_policy.app_instance",
+    "oci_identity_policy.object_intake_function",
+    "oci_identity_policy.object_lifecycle_service",
+    "oci_objectstorage_bucket.documents",
+    "oci_objectstorage_object_lifecycle_policy.documents_retention",
+    "time_sleep.lifecycle_policy_propagation"
+  ],
+  "unrepresented_resources": []
+}

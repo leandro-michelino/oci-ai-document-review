@@ -31,25 +31,48 @@ variable "bucket_name" {
 }
 
 variable "tenancy_id" {
-  description = "Tenancy OCID used only when automatic processing creates a Functions dynamic group."
+  description = "Tenancy OCID for the bucket lifecycle service policy and optional Functions dynamic group."
   type        = string
   default     = ""
 
   validation {
     condition = (
       (
-        !var.enable_automatic_processing &&
+        !var.enable_automatic_processing && !var.create_lifecycle_service_policy && !var.enable_instance_principal &&
         (
           var.tenancy_id == "" ||
           can(regex("^ocid1\\.tenancy\\.", var.tenancy_id))
         )
       ) ||
       (
-        var.enable_automatic_processing &&
+        (var.enable_automatic_processing || var.create_lifecycle_service_policy || var.enable_instance_principal) &&
         can(regex("^ocid1\\.tenancy\\.", var.tenancy_id))
       )
     )
-    error_message = "tenancy_id must be a valid tenancy OCID when enable_automatic_processing is true."
+    error_message = "tenancy_id must be a valid tenancy OCID when automatic processing, instance principals or lifecycle service-policy creation is enabled."
+  }
+}
+
+variable "create_lifecycle_service_policy" {
+  description = "Create the required, bucket-scoped Object Storage lifecycle service policy in the tenancy root. Disable only when an administrator has already granted that permission."
+  type        = bool
+  default     = true
+}
+
+variable "enable_instance_principal" {
+  description = "Use an exact-VM Dynamic Group and scoped IAM policy instead of copying a user API key to the deployed VM."
+  type        = bool
+  default     = true
+}
+
+variable "iam_propagation_wait_seconds" {
+  description = "Wait for a newly created Object Storage service policy to propagate before configuring lifecycle deletion. Increase if the region still reports InsufficientServicePermissions."
+  type        = number
+  default     = 60
+
+  validation {
+    condition     = var.iam_propagation_wait_seconds >= 0 && var.iam_propagation_wait_seconds <= 600 && floor(var.iam_propagation_wait_seconds) == var.iam_propagation_wait_seconds
+    error_message = "iam_propagation_wait_seconds must be an integer from 0 to 600."
   }
 }
 
@@ -100,6 +123,18 @@ variable "event_intake_queue_prefix" {
       !can(regex("(^|/)\\.\\.(/|$)", trimspace(var.event_intake_queue_prefix)))
     )
     error_message = "event_intake_queue_prefix must be a non-empty relative Object Storage prefix."
+  }
+
+  validation {
+    condition = (
+      !startswith("${trimsuffix(trimspace(var.event_intake_queue_prefix), "/")}/", "${trimsuffix(trimspace(var.event_intake_incoming_prefix), "/")}/") &&
+      !startswith("${trimsuffix(trimspace(var.event_intake_incoming_prefix), "/")}/", "${trimsuffix(trimspace(var.event_intake_queue_prefix), "/")}/") &&
+      !startswith("${trimsuffix(trimspace(var.event_intake_queue_prefix), "/")}/", "documents/") &&
+      !startswith("documents/", "${trimsuffix(trimspace(var.event_intake_queue_prefix), "/")}/") &&
+      !startswith("${trimsuffix(trimspace(var.event_intake_incoming_prefix), "/")}/", "documents/") &&
+      !startswith("documents/", "${trimsuffix(trimspace(var.event_intake_incoming_prefix), "/")}/")
+    )
+    error_message = "Incoming, queue and portal documents/ prefixes must not overlap, to prevent recursive intake."
   }
 }
 
@@ -240,5 +275,16 @@ variable "private_subnet_cidr" {
   validation {
     condition     = can(cidrnetmask(var.private_subnet_cidr))
     error_message = "private_subnet_cidr must be a valid CIDR block."
+  }
+}
+
+variable "resource_prefix" {
+  description = "Unique resource-name prefix; use a distinct prefix for isolated validation runs."
+  type        = string
+  default     = "doc-review"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{1,39}$", var.resource_prefix))
+    error_message = "resource_prefix must start with a lowercase letter and contain 2 to 40 lowercase letters, digits or hyphens."
   }
 }

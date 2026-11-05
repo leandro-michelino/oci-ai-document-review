@@ -1,6 +1,10 @@
 # OCI AI Document Review - Oracle Cloud AI Review Portal
 
-![OCI AI Document Review Dashboard](docs/assets/oci-ai-document-review-dashboard.png?v=0.7.0)
+![OCI AI Document Review banner](docs/assets/oci-ai-document-review-banner.png?v=0.8.0)
+
+[![OCI AI Document Review architecture](docs/assets/oci-ai-document-review-architecture.png?v=0.8.0)](docs/assets/oci-ai-document-review-architecture.drawio)
+
+[Editable draw.io architecture](docs/assets/oci-ai-document-review-architecture.drawio) · [Network and optional integrations](docs/architecture_flows.md)
 
 Questions, pilot ideas, or OCI deployment notes? Reach out to Leandro Michelino | ACE | leandro.michelino@oracle.com.
 
@@ -10,7 +14,7 @@ The short version: upload a document, extract the text, get an AI-generated revi
 
 Search-friendly topics: Oracle Cloud Infrastructure, OCI AI, AI document review, document understanding, OCR, generative AI, Streamlit dashboard, Terraform deployment, Ansible deployment, human-in-the-loop review, invoice review, receipt review, contract review, compliance workflow.
 
-Current version: `v0.7.0`
+Current version: `v0.8.0`
 
 Maintainer: Leandro Michelino | ACE | leandro.michelino@oracle.com
 
@@ -77,64 +81,20 @@ The Streamlit app exposes six main pages:
 
 ## Architecture
 
-![OCI AI Document Review architecture](docs/assets/oci-ai-document-review-architecture.png)
+The editable draw.io document contains four pages: document processing, Terraform networking, optional automatic intake, and the optional ODA case assistant. It uses Oracle's official OCI Architecture Diagram Toolkit v24.2. The PNG at the top of this README shows the document-processing page.
 
-The deployed MVP is intentionally simple and inspectable:
+[Download the editable draw.io document](docs/assets/oci-ai-document-review-architecture.drawio) or inspect the [network PNG](docs/assets/oci-ai-document-review-architecture-network.png), [automation PNG](docs/assets/oci-ai-document-review-architecture-automation.png), and [case-assistant PNG](docs/assets/oci-ai-document-review-architecture-case-assistant.png).
 
-```text
-+----------------+       +--------------------------+
-| User Browser   | ----> | OCI Compute VM           |
-| Streamlit UI   |       | Streamlit + worker pool  |
-+----------------+       +------------+-------------+
-                                      |
-                                      v
-                         +--------------------------+
-                         | Private Object Storage   |
-                         | documents/ + compliance/ |
-                         +------------+-------------+
-                                      |
-          +---------------------------+---------------------------+
-          |                                                       |
-          v                                                       v
-+----------------------+                          +----------------------------+
-| Local text extract   |                          | OCI Document Understanding |
-| TXT / CSV / PDF text |                          | OCR + rich extraction      |
-+----------+-----------+                          +-------------+--------------+
-           |                                                       |
-           +---------------------------+---------------------------+
-                                       |
-                                       v
-                         +--------------------------+
-                         | OCI Generative AI        |
-                         | Structured review        |
-                         +------------+-------------+
-                                      |
-                                      v
-                         +--------------------------+
-                         | Compliance risk overlay  |
-                         | Metadata + report        |
-                         +------------+-------------+
-                                      |
-                                      v
-                         +--------------------------+
-                         | Dashboard + Actions      |
-                         +------------+-------------+
-                                      |
-                                      v
-                         +--------------------------+
-                         | ERP Handoff (optional)   |
-                         | SAP / Oracle Fusion /    |
-                         | Custom API               |
-                         +------------+-------------+
-                                      |
-                                      v
-                         +--------------------------+
-                         | Reviewed archive         |
-                         | Closed decisions         |
-                         +--------------------------+
-```
+The VM uses the public subnet's Internet Gateway route. The Service Gateway and NAT routes belong to the private subnet used by optional Functions. ODA, API Gateway, and the OIDC provider are customer-managed prerequisites. The ERP handoff remains a placeholder.
 
-Deeper diagrams, sequence flows, lifecycle states, refresh behavior, and deployment flows are in [docs/architecture_flows.md](docs/architecture_flows.md).
+[Architecture details and connector evidence](docs/architecture_flows.md) explain the source defaults, resource coverage, routing and security boundaries.
+
+<details>
+<summary>Dashboard preview (v0.7.0)</summary>
+
+![OCI AI Document Review dashboard preview](docs/assets/oci-ai-document-review-dashboard.png?v=0.7.0)
+
+</details>
 
 ## Processing Flow
 
@@ -155,7 +115,6 @@ Upload
   -> Actions human decision
   -> approve, reject, retry, discard a failed record, assign, comment, or audit
   -> Reviewed archive for closed decisions
-  -> optional ERP handoff target such as SAP, Oracle Fusion, or API
 ```
 
 Important behavior:
@@ -173,7 +132,7 @@ Important behavior:
 ### Prerequisites
 
 - Python 3.11 or later
-- Terraform 1.x
+- Terraform 1.9 or later
 - Ansible and `ansible-galaxy`
 - OCI CLI config with an API key
 - OCI IAM permissions for Object Storage, Document Understanding, Generative AI, Compute, Networking, and the target compartment resources
@@ -401,11 +360,12 @@ MVP controls:
 
 Current credential model:
 
-- deployment runs from a local laptop;
-- Ansible copies the OCI API key referenced by the local OCI profile to the VM;
-- the runtime uses that config for Object Storage, Document Understanding, and Generative AI.
+- Terraform uses your local OCI profile on the deployment laptop.
+- The VM uses instance principals by default, with a Dynamic Group matching only that instance and policies scoped to the application bucket and compartment.
+- Ansible does not copy your OCI private key in the default deployment. The legacy config-file mode requires explicit `--vm-api-key-auth` during setup.
+- Object Storage lifecycle uses a separate regional service policy restricted to the bucket. Root IAM permissions are required to create it; use `--existing-lifecycle-service-policy` when your administrator has already provided it.
 
-For production hardening, replace copied API keys with instance principals or another approved workload identity pattern, move secrets to OCI Vault, add OCI Logging and monitoring, review least-privilege IAM policies, and validate retention and audit requirements with the owning compliance team. More detail is in [docs/security_notes.md](docs/security_notes.md).
+For production, add identity-aware access to the portal, OCI Logging and monitoring, review IAM policies, and validate retention and audit requirements with the owning compliance team. See [security notes](docs/security_notes.md) and the [component/release review](docs/component_release_review.md).
 
 ## Project Layout
 
@@ -419,7 +379,8 @@ functions/object_intake/       Optional Object Storage intake Function
 scripts/setup.py               Guided OCI configuration wizard
 scripts/deploy.sh              Terraform + Ansible deployment runner
 scripts/cleanup_retention.py   VM-local retention cleanup helper
-scripts/render_architecture.mjs Render the architecture PNG from Excalidraw
+scripts/build_architecture.py Build the editable draw.io architecture
+scripts/render_architecture.py Render all draw.io pages to PNG
 data/compliance/               Seed compliance catalog
 docs/                          Architecture, usage, cost, security, and review notes
 ```
@@ -429,7 +390,7 @@ docs/                          Architecture, usage, cost, security, and review n
 | Document | Use |
 | --- | --- |
 | [docs/platform_usage.md](docs/platform_usage.md) | End-to-end deployment, Terraform outputs, portal usage, and operations. |
-| [docs/architecture_flows.md](docs/architecture_flows.md) | ASCII architecture, processing sequence, lifecycle, and deployment flows. |
+| [docs/architecture_flows.md](docs/architecture_flows.md) | Editable draw.io, PNGs, connector evidence, lifecycle and network boundaries. |
 | [docs/security_notes.md](docs/security_notes.md) | MVP controls, credential model, retention, and production hardening notes. |
 | [docs/cost_estimate.md](docs/cost_estimate.md) | Illustrative OCI cost assumptions and cost-control guidance. |
 | [docs/e2e_acceptance_notes.md](docs/e2e_acceptance_notes.md) | End-to-end acceptance notes. |

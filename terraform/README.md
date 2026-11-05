@@ -4,7 +4,7 @@ This directory prepares the OCI resources for the MVP.
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.7.0`
+Current project version: `v0.8.0`
 
 Deployment is intended to run from your laptop only. There are no GitHub Actions or CI deployment workflows in this repository.
 
@@ -30,6 +30,8 @@ Prepared resources:
 - Private route table to NAT Gateway and Service Gateway
 - Internet Gateway, NAT Gateway, and Service Gateway
 - Compute VM for the Streamlit app
+- Exact-instance Dynamic Group and compartment/bucket-scoped runtime policy (instance principals enabled by default)
+- Regional Object Storage lifecycle service policy restricted to the bucket, plus a propagation wait (enabled by default)
 - Optional IAM policy for an existing admin group, disabled by default
 
 Terraform does not deploy Streamlit application code. Application deployment is handled by `../scripts/deploy.sh` and `../ansible/playbook.yml` after Terraform creates or refreshes the infrastructure. Ansible writes `RETENTION_DAYS` to the VM and installs the daily local cleanup timer. When automatic processing is enabled, Ansible also installs `oci-ai-document-review-event-intake.timer` so the VM imports queue markers written by the Object Storage intake Function.
@@ -37,6 +39,10 @@ Terraform does not deploy Streamlit application code. Application deployment is 
 The portal can explicitly discard a failed document before the lifecycle period ends. That application action deletes only its `documents/<document-id>/...` source object; it does not target automatic-intake objects under `incoming/`. Terraform lifecycle deletion remains the broad retention backstop for all `documents/` objects.
 
 The compliance knowledge-base CSV is not a Terraform resource. The app seeds it into the existing private bucket from `../data/compliance/public_sector_entities.csv` if `COMPLIANCE_ENTITIES_OBJECT_NAME` is missing at runtime. The lifecycle policy applies only to `documents/`, so the compliance KB under `compliance/` is not deleted by the document-retention rule.
+
+Terraform 1.9 or newer is required. Root IAM permissions are needed for the lifecycle service policy; the home-region provider creates IAM resources. If an administrator has already configured that service grant, set `create_lifecycle_service_policy=false` or use setup `--existing-lifecycle-service-policy`. Runtime instance principals avoid copying your local OCI API key; setup `--vm-api-key-auth` explicitly opts into the legacy alternative.
+
+`resource_prefix` isolates resource names for temporary validation. Buckets remain protected by `force_destroy=false`; inventory and deliberately empty the owned test bucket before destroying a validation environment.
 
 Automatic processing is optional because OCI Functions requires an OCIR image and tenancy-scope IAM for the Function resource principal. Build and push `../functions/object_intake`, then set:
 
@@ -134,7 +140,7 @@ Public subnet
   - Open ingress such as 0.0.0.0/0 is rejected by variable validation
 
 Private subnet
-  - Reserved for future backend services
+  - Optional Functions application when automatic intake is enabled
   - Public IP disabled
   - Route table sends Oracle Services Network to Service Gateway
   - Route table sends 0.0.0.0/0 to NAT Gateway

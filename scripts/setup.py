@@ -6,6 +6,7 @@ import argparse
 import concurrent.futures
 import os
 import subprocess
+import sys
 import urllib.request
 from dataclasses import dataclass
 from ipaddress import ip_address, ip_network
@@ -22,6 +23,8 @@ except Exception:  # pragma: no cover - fallback before dependencies are install
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 DEFAULT_BUCKET = "doc-review-input"
 DEFAULT_MODEL = "cohere.command-a-03-2025"
 SUPPORTED_CHAT_MODEL_PREFIXES = ("cohere.",)
@@ -54,7 +57,7 @@ class UI:
     def banner(self) -> None:
         text = (
             "OCI AI Document Review Portal setup\n"
-            "Customer-friendly guided configuration for v0.7.0"
+            "Customer-friendly guided configuration for v0.8.0"
         )
         if self.console and Panel:
             self.console.print(Panel.fit(text, subtitle="no cloud resources created"))
@@ -139,6 +142,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--enable-automatic-processing", action="store_true")
     parser.add_argument(
+        "--vm-api-key-auth",
+        action="store_true",
+        help="Legacy opt-in: copy the local OCI API key to the VM instead of using an instance principal.",
+    )
+    parser.add_argument(
+        "--existing-lifecycle-service-policy",
+        action="store_true",
+        help="Skip creation of the root IAM lifecycle policy only when it is already managed by an administrator.",
+    )
+    parser.add_argument(
         "--automatic-processing-function-image",
         default=os.getenv("AUTOMATIC_PROCESSING_FUNCTION_IMAGE", ""),
     )
@@ -171,9 +184,14 @@ def parse_args() -> argparse.Namespace:
     args.event_intake_queue_prefix = normalize_object_prefix(
         args.event_intake_queue_prefix, "event intake queue prefix"
     )
+    validate_intake_prefixes(
+        args.event_intake_incoming_prefix, args.event_intake_queue_prefix
+    )
     validate_positive_integer(args.retention_days, "retention days")
     validate_positive_integer(args.sensitive_retention_days, "sensitive retention days")
-    validate_positive_integer(args.document_ai_retry_attempts, "Document Understanding attempts")
+    validate_positive_integer(
+        args.document_ai_retry_attempts, "Document Understanding attempts"
+    )
     validate_positive_integer(
         args.event_intake_poll_seconds, "event intake poll seconds"
     )
@@ -313,6 +331,26 @@ def list_chat_models_in_region(
         retry_strategy=oci.retry.NoneRetryStrategy(),
         timeout=(3, 8),
     )
+    if hasattr(client, "list_model_discovery"):
+        from src.model_catalog import available_chat_model_ids
+
+        try:
+            result = oci.pagination.list_call_get_all_results(
+                client.list_model_discovery,
+                compartment_id=compartment_id,
+                region=[region],
+                serving_mode=["ON_DEMAND"],
+                capability=["CHAT"],
+                model_access=["HOSTED"],
+                is_on_demand_retired=False,
+            )
+            items = result.data if isinstance(result.data, list) else result.data.items
+            names = available_chat_model_ids(items, region)
+            return GenAIRegion(name=region, models=names) if names else None
+        except oci.exceptions.ServiceError as exc:
+            # Older regions/APIs can lack discovery; do not hide IAM or transport errors.
+            if exc.status not in {404, 405, 501}:
+                return None
     try:
         response = client.list_models(
             compartment_id=compartment_id,
@@ -502,7 +540,9 @@ def prompt_for_runtime(
     args.document_ai_retry_attempts = ask(
         "Document Understanding retry attempts", args.document_ai_retry_attempts
     )
-    validate_positive_integer(args.document_ai_retry_attempts, "Document Understanding attempts")
+    validate_positive_integer(
+        args.document_ai_retry_attempts, "Document Understanding attempts"
+    )
     args.retention_days = ask(
         "Retention days for VM data and Object Storage documents",
         args.retention_days,
@@ -535,6 +575,9 @@ def prompt_for_runtime(
         validate_positive_integer(
             args.event_intake_poll_seconds, "event intake poll seconds"
         )
+    validate_intake_prefixes(
+        args.event_intake_incoming_prefix, args.event_intake_queue_prefix
+    )
     return os_namespace
 
 
@@ -617,6 +660,18 @@ def normalize_object_prefix(value: str, label: str) -> str:
     return cleaned if cleaned.endswith("/") else f"{cleaned}/"
 
 
+def validate_intake_prefixes(incoming: str, queue: str) -> None:
+    prefixes = [incoming.rstrip("/") + "/", queue.rstrip("/") + "/", "documents/"]
+    if any(
+        a.startswith(b) or b.startswith(a)
+        for index, a in enumerate(prefixes)
+        for b in prefixes[index + 1 :]
+    ):
+        raise SystemExit(
+            "Incoming, queue and portal documents/ prefixes must not overlap."
+        )
+
+
 def validate_positive_integer(value: str, label: str) -> None:
     try:
         parsed = int(value)
@@ -684,6 +739,8 @@ tenancy_id = "{args.tenancy_id}"
 bucket_name = "{args.bucket_name}"
 object_storage_namespace = "{os_namespace}"
 enable_automatic_processing = {str(args.enable_automatic_processing).lower()}
+create_lifecycle_service_policy = {str(not getattr(args, 'existing_lifecycle_service_policy', False)).lower()}
+enable_instance_principal = {str(not getattr(args, 'vm_api_key_auth', False)).lower()}
 automatic_processing_function_image = "{args.automatic_processing_function_image}"
 event_intake_incoming_prefix = "{args.event_intake_incoming_prefix}"
 event_intake_queue_prefix = "{args.event_intake_queue_prefix}"
@@ -815,7 +872,9 @@ def main() -> None:
 
     ui.success("Wrote .env and terraform/terraform.tfvars.")
     if os.getenv("SETUP_SH_ORCHESTRATED"):
-        ui.print("Configuration is ready. setup.sh will continue with the selected next steps.")
+        ui.print(
+            "Configuration is ready. setup.sh will continue with the selected next steps."
+        )
         return
     ui.print("No OCI resources were created by setup.")
     ui.print("")

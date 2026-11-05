@@ -4,7 +4,7 @@ This project is deployed from a local laptop. It does not use GitHub Actions or 
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.7.0`
+Current project version: `v0.8.0`
 
 ## Local Preparation
 
@@ -110,12 +110,10 @@ data/uploads/*
 data/deleted/*.json
 ```
 
-After unpacking, Ansible removes the same local-only file patterns from the app directory, excluding the intended runtime `.oci` directory. Then it writes:
+After unpacking, Ansible removes the same local-only file patterns from the app directory, excluding the intended runtime `.oci` directory. By default it writes the runtime `.env`; only explicit legacy config-file authentication adds `.oci/config` and a private key:
 
 ```text
 /opt/oci-ai-document-review/.env
-/opt/oci-ai-document-review/.oci/config
-/opt/oci-ai-document-review/.oci/oci_api_key.pem
 ```
 
 ## Runtime Wiring
@@ -179,7 +177,7 @@ The app validates runtime configuration before startup. Invalid OCI auth modes, 
 
 Scanned PDFs and PDFs that contain page images use OCR. The app first tries rich Document Understanding extraction for OCR, tables, and key-values. If a scanned PDF has more than 5 pages or a chunk is above the synchronous file-size limit, the processor writes smaller temporary PDF chunks, uploads each chunk to Object Storage, runs Document Understanding on each chunk, merges text/tables/key-values, and deletes the temporary chunk objects. Chunk Object Storage names are based on the original file stem plus a sequence number, such as `Receipt_21Apr2026_112647_1.pdf` and `Receipt_21Apr2026_112647_2.pdf`, instead of opaque chunk names. If rich extraction fails but text-only OCR succeeds, the app still sends the OCR text to GenAI and records the source as `OCI Document Understanding text-only OCR fallback`. Scanned files need more time than text-based PDFs and can fail if the scan is low quality, rotated, password-protected, too large, or above the upload limit.
 
-Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. After a successful browser upload, the portal recreates the file-uploader widget and clears the document type, expense/reference, and notes fields so an already queued file cannot accidentally become part of the next submission. If a browser session is interrupted or a processing run remains in an active stage beyond the stale window, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
+Uploads are queued into a background worker pool. The browser returns immediately after submission, and workers process up to `MAX_PARALLEL_JOBS` documents at the same time. After a successful browser upload, the portal recreates the file-uploader widget and clears the document type, expense/reference, and notes fields so an already queued file cannot accidentally become part of the next submission. If a processing run is abandoned beyond the stale window and no live worker holds its document lease, the app marks it as `FAILED` so the reviewer can retry instead of waiting indefinitely.
 
 The Dashboard route is synchronized to `?page=Dashboard`, so browser refresh stays on the Dashboard instead of returning to Upload. The Dashboard body runs inside a Streamlit fragment and refreshes every 3 seconds while the session is active. It shows the last check time and a manual Refresh Status control, updating metrics, queue table rows, active elapsed-time labels, stale processing cleanup, and tabbed queue sections without using a full browser reload. Dashboard metric cards are emitted as one compact HTML block through `dashboard_metrics_html()` so Streamlit Markdown does not treat later cards as escaped code text.
 

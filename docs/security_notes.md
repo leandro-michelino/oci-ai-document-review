@@ -2,7 +2,7 @@
 
 Contact: Leandro Michelino | ACE | leandro.michelino@oracle.com. In case of any question, get in touch.
 
-Current project version: `v0.7.0`
+Current project version: `v0.8.0`
 
 ## MVP Controls
 
@@ -19,17 +19,11 @@ Current project version: `v0.7.0`
 
 ## Credential Model
 
-The MVP deploys from your laptop and copies the existing OCI API key referenced by your local OCI profile to the VM. This keeps Git clean, but it is still an early-version credential model.
+Deployment uses the local OCI profile for Terraform. The VM defaults to `OCI_AUTH=instance_principal`: its Dynamic Group matches the exact instance OCID, Object Storage access is restricted to the application bucket, and Document Understanding/Generative AI grants are scoped to the selected compartment. The default deployment writes `.env` and does not copy the user's API key.
 
-Expected runtime credential files on the VM:
+The optional legacy `--vm-api-key-auth` setup flag selects config-file authentication and copies the referenced API key into the VM's private `.oci` directory. Use it only when explicitly approved. Remove obsolete credential files when migrating an existing deployment to instance principals.
 
-```text
-/opt/oci-ai-document-review/.env
-/opt/oci-ai-document-review/.oci/config
-/opt/oci-ai-document-review/.oci/oci_api_key.pem
-```
-
-These files are created by Ansible during deployment. They are not committed to Git.
+The lifecycle service needs a separate root IAM policy for the regional Object Storage service, restricted to the application bucket and required read/delete permissions. Terraform waits 60 seconds for initial propagation by default. Existing centrally managed policies can be used with `create_lifecycle_service_policy=false`; creation requires an appropriately authorized administrator.
 
 The app release package excludes local `.git`, `.env`, `.oci`, `.venv`, Python caches, macOS metadata files, Terraform tfvars, Terraform state, private keys, metadata, reports, and uploaded documents. The Ansible playbook also removes sensitive and runtime-unneeded file patterns after unpacking the app release, before writing the intended runtime files.
 
@@ -44,7 +38,7 @@ data/reports/*.md
 data/uploads/*
 data/deleted/*.json
 local laptop .env files
-local private keys outside /opt/oci-ai-document-review/.oci/oci_api_key.pem
+local private keys (all keys in the default instance-principal mode)
 ```
 
 Workflow assignment, SLA dates, comments, audit events, retry history, extracted text previews, and AI review output are stored in local JSON metadata on the VM for this MVP. Uploaded working copies are also retained locally under `/opt/oci-ai-document-review/data/uploads` so reviewers can download source documents from Actions and failed documents can be retried. A successful failed-document discard writes a limited audit tombstone under `/opt/oci-ai-document-review/data/deleted`; it contains the document ID, name, type, prior status, actor, reason, timestamp, Object Storage URI, and cloud-deletion outcome. `RETENTION_DAYS` defaults to 30 and controls local expiry for metadata, reports, and uploads; active in-flight processing records are protected. It does not currently expire deletion tombstones, so the owner must set a separate tombstone-retention control. Local cleanup runs in the app and through the daily `oci-ai-document-review-retention.timer`. Do not move those files into Git, public buckets, public screenshots, or external posts unless they are synthetic and scrubbed.
@@ -55,7 +49,7 @@ The public-sector expense risk overlay is a deterministic reviewer-routing contr
 
 OCI Generative AI content-safety provider JSON is treated as operational noise, not reviewer-facing evidence. The app replaces those raw provider messages with a short manual-review explanation when displaying errors, loading old metadata, generating downloads, or regenerating reports.
 
-For production, replace the copied API key with instance principals or another approved workload identity pattern, store secrets in OCI Vault, and add OCI Logging, audit review, budgets, and lifecycle policies.
+For production, retain workload identity, store application secrets in OCI Vault, and add OCI Logging, audit review, budgets, and an approved retention policy.
 
 ## AI Quality And Privacy Controls
 

@@ -1,0 +1,2 @@
+# Optional local tooling for rendering editable SVG banners.
+cairosvg>=2.9.1

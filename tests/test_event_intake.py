@@ -25,7 +25,7 @@ class FakeObjectStorage:
 
         return json.dumps(self.markers[object_name])
 
-    def download_file(self, object_name: str, file_path):
+    def download_file(self, object_name: str, file_path, *, max_bytes=None, if_match=None):
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_bytes(self.objects[object_name])
         return file_path

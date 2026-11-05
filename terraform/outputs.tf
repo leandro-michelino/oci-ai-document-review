@@ -15,6 +15,10 @@ output "genai_region" {
   value = var.genai_region
 }
 
+output "runtime_oci_auth" {
+  value = var.enable_instance_principal ? "instance_principal" : "config_file"
+}
+
 output "instance_public_ip" {
   value = oci_core_instance.app.public_ip
 }
@@ -133,7 +137,7 @@ output "platform_summary" {
       allowed_ingress_cidr = var.allowed_ingress_cidr
       public_ports         = [22, 8501]
       ssh_private_key_path = pathexpand(replace(var.ssh_public_key_path, ".pub", ""))
-      auth_mode            = "existing OCI config copied by Ansible from local laptop"
+      auth_mode            = var.enable_instance_principal ? "instance principal" : "local OCI config copied by explicit opt-in"
     }
 
     operations = {

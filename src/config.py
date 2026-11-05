@@ -66,10 +66,18 @@ class AppConfig(BaseSettings):
     app_title: str = Field(default="OCI AI Document Review Portal", alias="APP_TITLE")
     case_chat_api_enabled: bool = Field(default=False, alias="CASE_CHAT_API_ENABLED")
     case_chat_api_host: str = Field(default="127.0.0.1", alias="CASE_CHAT_API_HOST")
-    case_chat_api_port: int = Field(default=8081, ge=1, le=65535, alias="CASE_CHAT_API_PORT")
-    case_chat_oidc_issuer: str | None = Field(default=None, alias="CASE_CHAT_OIDC_ISSUER")
-    case_chat_oidc_audience: str | None = Field(default=None, alias="CASE_CHAT_OIDC_AUDIENCE")
-    case_chat_oidc_jwks_url: str | None = Field(default=None, alias="CASE_CHAT_OIDC_JWKS_URL")
+    case_chat_api_port: int = Field(
+        default=8081, ge=1, le=65535, alias="CASE_CHAT_API_PORT"
+    )
+    case_chat_oidc_issuer: str | None = Field(
+        default=None, alias="CASE_CHAT_OIDC_ISSUER"
+    )
+    case_chat_oidc_audience: str | None = Field(
+        default=None, alias="CASE_CHAT_OIDC_AUDIENCE"
+    )
+    case_chat_oidc_jwks_url: str | None = Field(
+        default=None, alias="CASE_CHAT_OIDC_JWKS_URL"
+    )
     case_chat_access_file: Path = Field(
         default=Path("data/case_chat_access.json"), alias="CASE_CHAT_ACCESS_FILE"
     )
@@ -79,6 +87,19 @@ class AppConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_case_chat_security(self):
+        incoming = self.event_intake_incoming_prefix
+        queue = self.event_intake_queue_prefix
+        if incoming.startswith(queue) or queue.startswith(incoming):
+            raise ValueError(
+                "Event intake incoming and queue prefixes must not overlap."
+            )
+        if any(
+            prefix.startswith("documents/") or "documents/".startswith(prefix)
+            for prefix in (incoming, queue)
+        ):
+            raise ValueError(
+                "Event intake prefixes must not overlap the portal documents/ prefix."
+            )
         if self.case_chat_api_enabled and not all(
             value and value.strip()
             for value in (

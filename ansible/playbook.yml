@@ -9,7 +9,7 @@
     app_dir: /opt/oci-ai-document-review
     app_archive: "{{ playbook_dir }}/../.deploy/oci-ai-document-review.tar.gz"
     app_port: 8501
-    oci_auth: config_file
+    oci_auth: instance_principal
 
   tasks:
     - name: Show deployment plan
@@ -36,6 +36,11 @@
           - firewalld
           - tar
         state: present
+        lock_timeout: 180
+      register: runtime_packages
+      retries: 3
+      delay: 10
+      until: runtime_packages is succeeded
 
     - name: Ensure firewalld is running
       ansible.builtin.service:
