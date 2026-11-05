@@ -306,7 +306,7 @@ def build(skill_dir):
         "src/document_understanding_client.py:_extract_document_inline",
         exit=(1, 0.75),
         entry=(0, 0.5),
-        waypoints=[(940, 300), (940, 550)],
+        waypoints=[(900, 300), (900, 550)],
     )
     a.edge(
         d,

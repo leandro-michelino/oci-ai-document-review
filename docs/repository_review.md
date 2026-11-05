@@ -9,6 +9,7 @@ Current project version: `v0.8.0`
 Release: v0.8.0. Restored the local checkout from its Git remote; local secrets and former runtime data are not part of repository recovery.
 
 - Local validation: **194 tests passed**, Ruff passed, shell syntax passed, dependency consistency passed. The suite emits one upstream Starlette/httpx deprecation warning.
+- At the user's request, removed the automatic Project checks workflow after the corrected remote run passed; validation commands remain available for manual execution.
 - Remote validation exposed missing Linux provider content checksums with readonly initialization. Added signed `linux_amd64` and `darwin_arm64` provider hashes using `terraform providers lock`; provider versions and integrity verification remain unchanged.
 - Deployment: Terraform 1.15.6, OCI provider 7.32.0, time provider 0.14.2; Oracle Linux 9 / A1 Flex, Python 3.11 runtime. Ansible completed with zero failed or unreachable tasks.
 - Target: `uk-london-1`, the explicitly selected `Africa_Team/Leandro.Michelino` compartment. No resources were created in the duplicate compartment.
